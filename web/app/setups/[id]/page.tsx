@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+export const runtime = "edge";
+
 import PriceChart from "@/components/charts/PriceChart";
 import { data } from "@/lib/data";
 import { SETUP_LABELS } from "@/lib/types";

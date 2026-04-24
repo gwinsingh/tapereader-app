@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
 import PriceChart from "@/components/charts/PriceChart";
+
+export const runtime = "edge";
+
 import SetupCard from "@/components/SetupCard";
 import WatchlistButton from "@/components/WatchlistButton";
 import { data } from "@/lib/data";

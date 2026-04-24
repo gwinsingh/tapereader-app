@@ -38,6 +38,34 @@ npm run dev
 
 Open http://localhost:3000.
 
+### Choosing a data source
+
+The frontend can pull bars from three sources, controlled by `DATA_SOURCE`:
+
+```bash
+# Synthetic fixtures (default — no network, no keys, prices are not real)
+npm run dev
+
+# Real bars from Yahoo Finance (no API key, unofficial endpoint)
+DATA_SOURCE=yahoo npm run dev
+
+# Real bars from Polygon free tier (5 req/min, 15-min delayed, requires key)
+DATA_SOURCE=polygon POLYGON_API_KEY=your_key_here npm run dev
+```
+
+Or put them in `web/.env.local`:
+
+```
+DATA_SOURCE=polygon
+POLYGON_API_KEY=your_key_here
+```
+
+When using `yahoo` or `polygon`:
+- Daily and intraday charts show **real** OHLCV.
+- The dashboard's Top Movers list is computed from real bars across the fixture universe.
+- Setup cards and setup detail pages still use **fixture metadata** (trigger/stop/target levels were computed against synthetic prices). The annotations will look off against real bars — this is expected until the Python scanner ships and writes real setups to Turso.
+- If an upstream API call fails, the app falls back to fixtures for that symbol/timeframe and logs the error to the server console.
+
 Routes:
 
 - `/` — dashboard (active setups, forming setups, top movers)
