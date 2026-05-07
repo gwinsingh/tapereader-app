@@ -11,3 +11,30 @@ html, body {
 ::selection {
   background: rgba(74, 222, 128, 0.25);
 }
+
+/* PCT Bootcamp theme variables */
+:root, [data-theme="dark"] {
+  --color-bg: #0a0e14;
+  --color-panel: #11161d;
+  --color-border: #1f2630;
+  --color-muted: #6b7785;
+  --color-text: #d8dee9;
+  --color-accent: #4ade80;
+  --color-danger: #f87171;
+  --color-warn: #fbbf24;
+  --stat-green: #73b88c;
+  --stat-red: #c77373;
+}
+
+[data-theme="light"] {
+  --color-bg: #f8f9fb;
+  --color-panel: #ffffff;
+  --color-border: #e2e5ea;
+  --color-muted: #6b7280;
+  --color-text: #1f2937;
+  --color-accent: #16a34a;
+  --color-danger: #dc2626;
+  --color-warn: #d97706;
+  --stat-green: #15803d;
+  --stat-red: #b91c1c;
+}

@@ -24,37 +24,38 @@ export default function TradePreview({ trades, rowsAppended, rowsSkipped, accoun
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4 text-sm">
-        <div className="rounded border border-border bg-panel px-3 py-2">
-          <span className="text-muted">Trades:</span>{" "}
+        <div className="rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2">
+          <span className="text-[var(--color-muted)]">Trades:</span>{" "}
           <span className="font-mono font-semibold">{trades.length}</span>
         </div>
-        <div className="rounded border border-border bg-panel px-3 py-2">
-          <span className="text-muted">Appended:</span>{" "}
-          <span className="font-mono font-semibold text-accent">{rowsAppended}</span>
+        <div className="rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2">
+          <span className="text-[var(--color-muted)]">Appended:</span>{" "}
+          <span className="font-mono font-semibold" style={{ color: "var(--color-accent)" }}>{rowsAppended}</span>
         </div>
         {rowsSkipped > 0 && (
-          <div className="rounded border border-border bg-panel px-3 py-2">
-            <span className="text-muted">Skipped (dups):</span>{" "}
-            <span className="font-mono font-semibold text-warn">{rowsSkipped}</span>
+          <div className="rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2">
+            <span className="text-[var(--color-muted)]">Skipped (dups):</span>{" "}
+            <span className="font-mono font-semibold" style={{ color: "var(--color-warn)" }}>{rowsSkipped}</span>
           </div>
         )}
-        <div className="rounded border border-border bg-panel px-3 py-2">
-          <span className="text-muted">Sheet(s):</span>{" "}
+        <div className="rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2">
+          <span className="text-[var(--color-muted)]">Sheet(s):</span>{" "}
           <span className="font-mono font-semibold">{accounts.join(", ")}</span>
         </div>
-        <div className="rounded border border-border bg-panel px-3 py-2">
-          <span className="text-muted">Total P&L:</span>{" "}
+        <div className="rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2">
+          <span className="text-[var(--color-muted)]">Total P&L:</span>{" "}
           <span
-            className={`font-mono font-semibold ${totalPnl >= 0 ? "text-accent" : "text-danger"}`}
+            className="font-mono font-semibold"
+            style={{ color: totalPnl >= 0 ? "var(--stat-green)" : "var(--stat-red)" }}
           >
             ${totalPnl.toFixed(2)}
           </span>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded border border-border">
+      <div className="overflow-x-auto rounded border border-[var(--color-border)]">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-border bg-panel text-xs uppercase text-muted">
+          <thead className="border-b border-[var(--color-border)] bg-[var(--color-panel)] text-xs uppercase text-[var(--color-muted)]">
             <tr>
               <th className="px-3 py-2">Entry</th>
               <th className="px-3 py-2">Exit</th>
@@ -70,18 +71,18 @@ export default function TradePreview({ trades, rowsAppended, rowsSkipped, accoun
           </thead>
           <tbody>
             {trades.map((t, i) => (
-              <tr key={i} className="border-b border-border/50 hover:bg-panel/50">
+              <tr key={i} className="border-b hover:opacity-80" style={{ borderColor: "var(--color-border)" }}>
                 <td className="px-3 py-2 font-mono text-xs">{t.entryTime}</td>
                 <td className="px-3 py-2 font-mono text-xs">{t.exitTime}</td>
                 <td className="px-3 py-2 text-center font-mono text-xs">{t.durationMins.toFixed(1)}</td>
                 <td className="px-3 py-2 font-semibold">{t.symbol}</td>
                 <td className="px-3 py-2">
                   <span
-                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                      t.side === "Long"
-                        ? "bg-accent/10 text-accent"
-                        : "bg-danger/10 text-danger"
-                    }`}
+                    className="rounded px-1.5 py-0.5 text-xs font-medium"
+                    style={{
+                      backgroundColor: t.side === "Long" ? "var(--color-accent)" : "var(--color-danger)",
+                      color: "var(--color-bg)",
+                    }}
                   >
                     {t.side}
                   </span>
@@ -93,9 +94,8 @@ export default function TradePreview({ trades, rowsAppended, rowsSkipped, accoun
                 </td>
                 <td className="px-3 py-2 text-center font-mono">{t.numPartials}</td>
                 <td
-                  className={`px-3 py-2 text-right font-mono font-semibold ${
-                    t.pnl >= 0 ? "text-accent" : "text-danger"
-                  }`}
+                  className="px-3 py-2 text-right font-mono font-semibold"
+                  style={{ color: t.pnl >= 0 ? "var(--stat-green)" : "var(--stat-red)" }}
                 >
                   ${t.pnl.toFixed(2)}
                 </td>

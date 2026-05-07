@@ -17,6 +17,18 @@ interface TradeRow {
   exitTime: string;
 }
 
+interface SegmentStats {
+  label: string;
+  totalPnl: number;
+  trades: number;
+  winners: number;
+  losers: number;
+  winRate: number;
+  avgWinner: number;
+  avgLoser: number;
+  profitFactor: number;
+}
+
 interface StatsData {
   totalPnl: number;
   avgDailyPnl: number;
@@ -32,6 +44,8 @@ interface StatsData {
   maxConsecutiveWins: number;
   maxConsecutiveLosses: number;
   avgDurationMins: number;
+  hourlyBreakdown: SegmentStats[];
+  setupBreakdown: SegmentStats[];
 }
 
 interface UploadResult {
@@ -132,7 +146,7 @@ export default function TradeJournalPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Auto Trade Journal</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>
           Upload your DAS Trader CSV export. Executed trades are grouped into round-trip
           entries and appended to the shared Google Sheet.
         </p>
@@ -141,7 +155,7 @@ export default function TradeJournalPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
           <div>
-            <label htmlFor="trade-date" className="mb-1 block text-xs font-medium text-muted">
+            <label htmlFor="trade-date" className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
               Trade Date
             </label>
             <input
@@ -149,11 +163,12 @@ export default function TradeJournalPage() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="rounded border border-border bg-panel px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
+              className="rounded border px-3 py-2 text-sm focus:outline-none"
+              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)", color: "var(--color-text)" }}
             />
           </div>
           <div>
-            <label htmlFor="sheet-suffix" className="mb-1 block text-xs font-medium text-muted">
+            <label htmlFor="sheet-suffix" className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
               Sheet Name Suffix
             </label>
             <input
@@ -162,9 +177,10 @@ export default function TradeJournalPage() {
               value={sheetSuffix}
               onChange={(e) => setSheetSuffix(e.target.value)}
               placeholder="e.g. yourname"
-              className="rounded border border-border bg-panel px-3 py-2 text-sm text-text placeholder:text-muted/50 focus:border-accent focus:outline-none"
+              className="rounded border px-3 py-2 text-sm focus:outline-none"
+              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)", color: "var(--color-text)" }}
             />
-            <p className="mt-0.5 text-xs text-muted/60">
+            <p className="mt-0.5 text-xs" style={{ color: "var(--color-muted)", opacity: 0.6 }}>
               Only used when creating a new sheet tab (e.g. TRPCT1541-yourname)
             </p>
           </div>
@@ -178,13 +194,15 @@ export default function TradeJournalPage() {
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
-            dragOver
-              ? "border-accent bg-accent/5"
+          className="cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors"
+          style={{
+            borderColor: dragOver
+              ? "var(--color-accent)"
               : file
-                ? "border-accent/50 bg-panel"
-                : "border-border hover:border-muted"
-          }`}
+                ? "var(--color-accent)"
+                : "var(--color-border)",
+            backgroundColor: dragOver || file ? "var(--color-panel)" : "transparent",
+          }}
         >
           <input
             ref={fileInputRef}
@@ -195,17 +213,17 @@ export default function TradeJournalPage() {
           />
           {file ? (
             <div className="space-y-1">
-              <p className="font-mono text-sm font-semibold text-accent">{file.name}</p>
-              <p className="text-xs text-muted">
+              <p className="font-mono text-sm font-semibold" style={{ color: "var(--color-accent)" }}>{file.name}</p>
+              <p className="text-xs" style={{ color: "var(--color-muted)" }}>
                 {(file.size / 1024).toFixed(1)} KB — click or drop to replace
               </p>
             </div>
           ) : (
             <div className="space-y-1">
-              <p className="text-sm text-muted">
+              <p className="text-sm" style={{ color: "var(--color-muted)" }}>
                 Drop your DAS Trader CSV here, or click to browse
               </p>
-              <p className="text-xs text-muted/60">Only .csv files are accepted</p>
+              <p className="text-xs" style={{ color: "var(--color-muted)", opacity: 0.6 }}>Only .csv files are accepted</p>
             </div>
           )}
         </div>
@@ -214,7 +232,8 @@ export default function TradeJournalPage() {
           <button
             type="submit"
             disabled={!file || loading}
-            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-bg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }}
           >
             {loading ? "Processing..." : "Upload & Process"}
           </button>
@@ -222,7 +241,8 @@ export default function TradeJournalPage() {
             <button
               type="button"
               onClick={handleReset}
-              className="rounded border border-border px-4 py-2 text-sm text-muted hover:text-text"
+              className="rounded border px-4 py-2 text-sm hover:opacity-80"
+              style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}
             >
               Reset
             </button>
@@ -231,7 +251,10 @@ export default function TradeJournalPage() {
       </form>
 
       {error && (
-        <div className="rounded border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+        <div
+          className="rounded border px-4 py-3 text-sm"
+          style={{ borderColor: "var(--color-danger)", backgroundColor: "color-mix(in srgb, var(--color-danger) 8%, transparent)", color: "var(--color-danger)" }}
+        >
           {error}
         </div>
       )}

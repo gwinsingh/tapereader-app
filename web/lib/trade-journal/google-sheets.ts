@@ -55,10 +55,14 @@ const SETUP_OPTIONS = [
 const COLORS = {
   headerBg: { red: 0.15, green: 0.15, blue: 0.2 },
   headerText: { red: 0.85, green: 0.87, blue: 0.91 },
-  greenBg: { red: 0.12, green: 0.22, blue: 0.16 },
+  // Muted colors for text-only columns (P&L, P&L(R))
   greenText: { red: 0.45, green: 0.72, blue: 0.55 },
-  redBg: { red: 0.25, green: 0.12, blue: 0.12 },
   redText: { red: 0.78, green: 0.45, blue: 0.45 },
+  // Vivid colors for badge-style columns (Side, Process Followed)
+  vividGreenBg: { red: 0.14, green: 0.45, blue: 0.2 },
+  vividGreenText: { red: 0.29, green: 0.87, blue: 0.5 },
+  vividRedBg: { red: 0.45, green: 0.14, blue: 0.14 },
+  vividRedText: { red: 0.97, green: 0.44, blue: 0.44 },
   white: { red: 1, green: 1, blue: 1 },
   darkBg: { red: 0.04, green: 0.05, blue: 0.08 },
   panelBg: { red: 0.07, green: 0.09, blue: 0.11 },
@@ -243,7 +247,7 @@ async function applyFormatting(
     });
   }
 
-  // 9. Conditional formatting: Side column — green for Long, red for Short
+  // 9. Conditional formatting: Side column — vivid green for Long, vivid red for Short
   requests.push({
     addConditionalFormatRule: {
       rule: {
@@ -251,8 +255,8 @@ async function applyFormatting(
         booleanRule: {
           condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Long" }] },
           format: {
-            backgroundColor: COLORS.greenBg,
-            textFormat: { foregroundColor: COLORS.greenText, bold: true },
+            backgroundColor: COLORS.vividGreenBg,
+            textFormat: { foregroundColor: COLORS.vividGreenText, bold: true },
           },
         },
       },
@@ -266,8 +270,8 @@ async function applyFormatting(
         booleanRule: {
           condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Short" }] },
           format: {
-            backgroundColor: COLORS.redBg,
-            textFormat: { foregroundColor: COLORS.redText, bold: true },
+            backgroundColor: COLORS.vividRedBg,
+            textFormat: { foregroundColor: COLORS.vividRedText, bold: true },
           },
         },
       },
@@ -327,7 +331,7 @@ async function applyFormatting(
     },
   });
 
-  // 12. Conditional formatting: Process Followed? — green for Yes, red for No
+  // 12. Conditional formatting: Process Followed? — vivid green for Yes, vivid red for No
   requests.push({
     addConditionalFormatRule: {
       rule: {
@@ -335,8 +339,8 @@ async function applyFormatting(
         booleanRule: {
           condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Yes" }] },
           format: {
-            backgroundColor: COLORS.greenBg,
-            textFormat: { foregroundColor: COLORS.greenText, bold: true },
+            backgroundColor: COLORS.vividGreenBg,
+            textFormat: { foregroundColor: COLORS.vividGreenText, bold: true },
           },
         },
       },
@@ -350,8 +354,8 @@ async function applyFormatting(
         booleanRule: {
           condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "No" }] },
           format: {
-            backgroundColor: COLORS.redBg,
-            textFormat: { foregroundColor: COLORS.redText, bold: true },
+            backgroundColor: COLORS.vividRedBg,
+            textFormat: { foregroundColor: COLORS.vividRedText, bold: true },
           },
         },
       },
@@ -503,9 +507,31 @@ async function getExistingRows(
   return (res.data.values as string[][]) || [];
 }
 
+function normalizeTime(t: string | number): string {
+  const s = String(t);
+  const parts = s.split(":");
+  if (parts.length === 3) {
+    return parts.map((p) => p.replace(/^0+/, "") || "0").join(":");
+  }
+  return s;
+}
+
 function makeDedupeKey(row: (string | number)[]): string {
-  // Date + Symbol + EntryTime + Side — stable text fields unaffected by currency formatting
-  return [row[COL.DATE], row[COL.SYMBOL], row[COL.ENTRY_TIME], row[COL.SIDE]].join("|");
+  // Date + Symbol + EntryTime + Side — normalize time to strip leading zeros
+  // (Google Sheets drops leading zeros from time strings like 09:30:46 -> 9:30:46)
+  return [row[COL.DATE], row[COL.SYMBOL], normalizeTime(row[COL.ENTRY_TIME]), row[COL.SIDE]].join("|");
+}
+
+export interface SegmentStats {
+  label: string;
+  totalPnl: number;
+  trades: number;
+  winners: number;
+  losers: number;
+  winRate: number;
+  avgWinner: number;
+  avgLoser: number;
+  profitFactor: number;
 }
 
 export interface AggregateStats {
@@ -523,15 +549,59 @@ export interface AggregateStats {
   maxConsecutiveWins: number;
   maxConsecutiveLosses: number;
   avgDurationMins: number;
+  hourlyBreakdown: SegmentStats[];
+  setupBreakdown: SegmentStats[];
+}
+
+const HOUR_BLOCKS: { label: string; startMin: number; endMin: number }[] = [
+  { label: "Opening Bell (9:30–10:00)", startMin: 570, endMin: 600 },
+  { label: "Morning (10:00–11:30)", startMin: 600, endMin: 690 },
+  { label: "Lunch (11:30–14:00)", startMin: 690, endMin: 840 },
+  { label: "Closing (14:00–16:00)", startMin: 840, endMin: 960 },
+];
+
+function parseTimeToMinutes(t: string): number {
+  const parts = String(t).split(":");
+  if (parts.length < 2) return -1;
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
+function computeSegment(pnls: number[], label: string): SegmentStats {
+  const wins = pnls.filter((p) => p > 0);
+  const losses = pnls.filter((p) => p < 0);
+  const grossWins = wins.reduce((s, v) => s + v, 0);
+  const grossLosses = Math.abs(losses.reduce((s, v) => s + v, 0));
+  return {
+    label,
+    totalPnl: Math.round(pnls.reduce((s, v) => s + v, 0) * 100) / 100,
+    trades: pnls.length,
+    winners: wins.length,
+    losers: losses.length,
+    winRate: pnls.length > 0 ? Math.round((wins.length / pnls.length) * 1000) / 10 : 0,
+    avgWinner: wins.length > 0 ? Math.round((grossWins / wins.length) * 100) / 100 : 0,
+    avgLoser: losses.length > 0 ? Math.round((grossLosses / losses.length) * -100) / 100 : 0,
+    profitFactor: grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? Infinity : 0,
+  };
+}
+
+interface ParsedRow {
+  pnl: number;
+  duration: number;
+  entryMin: number;
+  setup: string;
 }
 
 function computeStats(rows: string[][]): AggregateStats {
   const dataRows = rows.slice(1).filter((r) => r.length > COL.PNL && r[COL.PNL] !== "");
-  const pnls: number[] = dataRows.map((r) => {
-    const raw = String(r[COL.PNL]).replace(/[$,]/g, "");
-    return parseFloat(raw) || 0;
-  });
-  const durations: number[] = dataRows.map((r) => parseFloat(r[COL.DURATION]) || 0);
+
+  const parsed: ParsedRow[] = dataRows.map((r) => ({
+    pnl: parseFloat(String(r[COL.PNL]).replace(/[$,]/g, "")) || 0,
+    duration: parseFloat(r[COL.DURATION]) || 0,
+    entryMin: parseTimeToMinutes(r[COL.ENTRY_TIME]),
+    setup: (r[COL.SETUP] || "").trim(),
+  }));
+
+  const pnls = parsed.map((p) => p.pnl);
 
   if (pnls.length === 0) {
     return {
@@ -539,6 +609,7 @@ function computeStats(rows: string[][]): AggregateStats {
       totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0,
       profitFactor: 0, largestWin: 0, largestLoss: 0,
       maxConsecutiveWins: 0, maxConsecutiveLosses: 0, avgDurationMins: 0,
+      hourlyBreakdown: [], setupBreakdown: [],
     };
   }
 
@@ -568,6 +639,30 @@ function computeStats(rows: string[][]): AggregateStats {
     }
   }
 
+  // Hourly breakdown
+  const hourlyBreakdown = HOUR_BLOCKS.map((block) => {
+    const blockPnls = parsed
+      .filter((r) => r.entryMin >= block.startMin && r.entryMin < block.endMin)
+      .map((r) => r.pnl);
+    return computeSegment(blockPnls, block.label);
+  }).filter((s) => s.trades > 0);
+
+  // Setup breakdown
+  const setupMap = new Map<string, number[]>();
+  for (const r of parsed) {
+    if (!r.setup) continue;
+    const setups = r.setup.split(",").map((s) => s.trim()).filter(Boolean);
+    for (const s of setups) {
+      if (!setupMap.has(s)) setupMap.set(s, []);
+      setupMap.get(s)!.push(r.pnl);
+    }
+  }
+  const setupBreakdown = Array.from(setupMap.entries())
+    .map(([setup, sPnls]) => computeSegment(sPnls, setup))
+    .sort((a, b) => b.trades - a.trades);
+
+  const durations = parsed.map((r) => r.duration);
+
   return {
     totalPnl: Math.round(totalPnl * 100) / 100,
     avgDailyPnl: Math.round((totalPnl / Math.max(uniqueDays, 1)) * 100) / 100,
@@ -583,6 +678,8 @@ function computeStats(rows: string[][]): AggregateStats {
     maxConsecutiveWins: maxConsecWins,
     maxConsecutiveLosses: maxConsecLosses,
     avgDurationMins: Math.round((durations.reduce((s, v) => s + v, 0) / durations.length) * 10) / 10,
+    hourlyBreakdown,
+    setupBreakdown,
   };
 }
 

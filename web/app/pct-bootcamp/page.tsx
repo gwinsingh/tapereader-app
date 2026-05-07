@@ -14,7 +14,7 @@ export default function PCTBootcampPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">PCT Bootcamp</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>
           Tools and utilities for PCT bootcamp participants.
         </p>
       </div>
@@ -24,10 +24,11 @@ export default function PCTBootcampPage() {
           <Link
             key={tool.href}
             href={tool.href}
-            className="group rounded-lg border border-border bg-panel p-5 transition-colors hover:border-accent/40"
+            className="group rounded-lg border p-5 transition-colors"
+            style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
           >
-            <h2 className="font-semibold group-hover:text-accent">{tool.name}</h2>
-            <p className="mt-1 text-sm text-muted">{tool.description}</p>
+            <h2 className="font-semibold" style={{ color: "var(--color-text)" }}>{tool.name}</h2>
+            <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>{tool.description}</p>
           </Link>
         ))}
       </div>
