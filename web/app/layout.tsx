@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import HeaderVisibility from "@/components/HeaderVisibility";
+import WIPBanner from "@/components/WIPBanner";
 
 export const metadata: Metadata = {
   title: "TapeReader — read the tape",
@@ -21,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-bg font-sans text-text antialiased">
-        <Header />
+        <HeaderVisibility>
+          <Header />
+          <WIPBanner />
+        </HeaderVisibility>
         <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
         <Footer />
       </body>

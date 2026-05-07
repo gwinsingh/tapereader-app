@@ -55,10 +55,10 @@ const SETUP_OPTIONS = [
 const COLORS = {
   headerBg: { red: 0.15, green: 0.15, blue: 0.2 },
   headerText: { red: 0.85, green: 0.87, blue: 0.91 },
-  greenBg: { red: 0.14, green: 0.45, blue: 0.2 },
-  greenText: { red: 0.29, green: 0.87, blue: 0.5 },
-  redBg: { red: 0.45, green: 0.14, blue: 0.14 },
-  redText: { red: 0.97, green: 0.44, blue: 0.44 },
+  greenBg: { red: 0.12, green: 0.22, blue: 0.16 },
+  greenText: { red: 0.45, green: 0.72, blue: 0.55 },
+  redBg: { red: 0.25, green: 0.12, blue: 0.12 },
+  redText: { red: 0.78, green: 0.45, blue: 0.45 },
   white: { red: 1, green: 1, blue: 1 },
   darkBg: { red: 0.04, green: 0.05, blue: 0.08 },
   panelBg: { red: 0.07, green: 0.09, blue: 0.11 },
@@ -504,14 +504,92 @@ async function getExistingRows(
 }
 
 function makeDedupeKey(row: (string | number)[]): string {
-  // Key: Date + EntryTime + ExitTime + Symbol + Side + Shares + AvgEntry + AvgExit
-  return [row[0], row[1], row[2], row[4], row[5], row[6], row[7], row[8]].join("|");
+  // Date + Symbol + EntryTime + Side — stable text fields unaffected by currency formatting
+  return [row[COL.DATE], row[COL.SYMBOL], row[COL.ENTRY_TIME], row[COL.SIDE]].join("|");
+}
+
+export interface AggregateStats {
+  totalPnl: number;
+  avgDailyPnl: number;
+  avgWinner: number;
+  avgLoser: number;
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRate: number;
+  profitFactor: number;
+  largestWin: number;
+  largestLoss: number;
+  maxConsecutiveWins: number;
+  maxConsecutiveLosses: number;
+  avgDurationMins: number;
+}
+
+function computeStats(rows: string[][]): AggregateStats {
+  const dataRows = rows.slice(1).filter((r) => r.length > COL.PNL && r[COL.PNL] !== "");
+  const pnls: number[] = dataRows.map((r) => {
+    const raw = String(r[COL.PNL]).replace(/[$,]/g, "");
+    return parseFloat(raw) || 0;
+  });
+  const durations: number[] = dataRows.map((r) => parseFloat(r[COL.DURATION]) || 0);
+
+  if (pnls.length === 0) {
+    return {
+      totalPnl: 0, avgDailyPnl: 0, avgWinner: 0, avgLoser: 0,
+      totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0,
+      profitFactor: 0, largestWin: 0, largestLoss: 0,
+      maxConsecutiveWins: 0, maxConsecutiveLosses: 0, avgDurationMins: 0,
+    };
+  }
+
+  const totalPnl = pnls.reduce((s, v) => s + v, 0);
+  const uniqueDays = new Set(dataRows.map((r) => r[COL.DATE])).size;
+  const winners = pnls.filter((p) => p > 0);
+  const losers = pnls.filter((p) => p < 0);
+  const grossWins = winners.reduce((s, v) => s + v, 0);
+  const grossLosses = Math.abs(losers.reduce((s, v) => s + v, 0));
+
+  let maxConsecWins = 0;
+  let maxConsecLosses = 0;
+  let curWins = 0;
+  let curLosses = 0;
+  for (const p of pnls) {
+    if (p > 0) {
+      curWins++;
+      curLosses = 0;
+      maxConsecWins = Math.max(maxConsecWins, curWins);
+    } else if (p < 0) {
+      curLosses++;
+      curWins = 0;
+      maxConsecLosses = Math.max(maxConsecLosses, curLosses);
+    } else {
+      curWins = 0;
+      curLosses = 0;
+    }
+  }
+
+  return {
+    totalPnl: Math.round(totalPnl * 100) / 100,
+    avgDailyPnl: Math.round((totalPnl / Math.max(uniqueDays, 1)) * 100) / 100,
+    avgWinner: winners.length > 0 ? Math.round((grossWins / winners.length) * 100) / 100 : 0,
+    avgLoser: losers.length > 0 ? Math.round((grossLosses / losers.length) * -100) / 100 : 0,
+    totalTrades: pnls.length,
+    winningTrades: winners.length,
+    losingTrades: losers.length,
+    winRate: Math.round((winners.length / pnls.length) * 1000) / 10,
+    profitFactor: grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? Infinity : 0,
+    largestWin: winners.length > 0 ? Math.max(...winners) : 0,
+    largestLoss: losers.length > 0 ? Math.min(...losers) : 0,
+    maxConsecutiveWins: maxConsecWins,
+    maxConsecutiveLosses: maxConsecLosses,
+    avgDurationMins: Math.round((durations.reduce((s, v) => s + v, 0) / durations.length) * 10) / 10,
+  };
 }
 
 export async function appendTrades(
   trades: GroupedTrade[],
   sheetSuffix: string
-): Promise<{ appended: number; skipped: number; accounts: string[] }> {
+): Promise<{ appended: number; skipped: number; accounts: string[]; stats: AggregateStats | null }> {
   const sheets = await getSheets();
   const spreadsheetId = getSpreadsheetId();
 
@@ -563,9 +641,17 @@ export async function appendTrades(
     totalSkipped += skipped;
   }
 
+  // Compute aggregate stats from the first account's full sheet
+  let stats: AggregateStats | null = null;
+  if (usedAccounts.length > 0) {
+    const allRows = await getExistingRows(sheets, spreadsheetId, usedAccounts[0]);
+    stats = computeStats(allRows);
+  }
+
   return {
     appended: totalAppended,
     skipped: totalSkipped,
     accounts: usedAccounts,
+    stats,
   };
 }

@@ -2,6 +2,7 @@
 
 import { useState, useRef, FormEvent, DragEvent } from "react";
 import TradePreview from "@/components/trade-journal/TradePreview";
+import AggregateStats from "@/components/trade-journal/AggregateStats";
 
 interface TradeRow {
   symbol: string;
@@ -16,6 +17,23 @@ interface TradeRow {
   exitTime: string;
 }
 
+interface StatsData {
+  totalPnl: number;
+  avgDailyPnl: number;
+  avgWinner: number;
+  avgLoser: number;
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRate: number;
+  profitFactor: number;
+  largestWin: number;
+  largestLoss: number;
+  maxConsecutiveWins: number;
+  maxConsecutiveLosses: number;
+  avgDurationMins: number;
+}
+
 interface UploadResult {
   success: boolean;
   date: string;
@@ -24,6 +42,7 @@ interface UploadResult {
   rowsSkipped: number;
   accounts: string[];
   trades: TradeRow[];
+  stats: StatsData | null;
 }
 
 function getTodayEST(): string {
@@ -218,12 +237,15 @@ export default function TradeJournalPage() {
       )}
 
       {result && (
-        <TradePreview
-          trades={result.trades}
-          rowsAppended={result.rowsAppended}
-          rowsSkipped={result.rowsSkipped}
-          accounts={result.accounts}
-        />
+        <>
+          <TradePreview
+            trades={result.trades}
+            rowsAppended={result.rowsAppended}
+            rowsSkipped={result.rowsSkipped}
+            accounts={result.accounts}
+          />
+          {result.stats && <AggregateStats stats={result.stats} />}
+        </>
       )}
     </div>
   );
