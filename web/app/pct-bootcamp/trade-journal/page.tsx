@@ -3,6 +3,7 @@
 import { useState, useRef, FormEvent, DragEvent } from "react";
 import TradePreview from "@/components/trade-journal/TradePreview";
 import AggregateStats from "@/components/trade-journal/AggregateStats";
+import HowToUse from "@/components/trade-journal/HowToUse";
 
 interface TradeRow {
   symbol: string;
@@ -165,6 +166,8 @@ export default function TradeJournalPage() {
           Open Trade Journal &raquo;
         </a>
       </div>
+
+      <HowToUse />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end">

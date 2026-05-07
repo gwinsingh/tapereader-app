@@ -713,6 +713,239 @@ function computeStats(rows: string[][]): AggregateStats {
   };
 }
 
+export async function populateInstructionsSheet(): Promise<void> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+
+  const tabName = "Instructions";
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const tab = meta.data.sheets?.find((s) => s.properties?.title === tabName);
+  if (!tab) {
+    throw new Error(`"${tabName}" sheet tab not found. Please create it first.`);
+  }
+  const sheetId = tab.properties?.sheetId ?? 0;
+
+  const HEADER_ROW = ["Column", "Auto-filled?", "Description"];
+
+  const COLUMN_DOCS: [string, string, string][] = [
+    ["Date", "Yes", "The date the trades were executed (YYYY-MM-DD)."],
+    ["Entry Time", "Yes", "Time of the first fill that opened the position (HH:MM:SS)."],
+    ["Exit Time", "Yes", "Time of the last fill that closed the position (HH:MM:SS)."],
+    ["Duration (mins)", "Yes", "How long the round-trip trade lasted, in minutes."],
+    ["Symbol", "Yes", "The ticker symbol traded (e.g. AAPL, QQQ)."],
+    ["Side", "Yes", "Whether the trade was Long or Short."],
+    ["Shares", "Yes", "Total number of shares traded in the round trip."],
+    ["Avg Entry", "Yes", "Volume-weighted average entry price across all entry fills."],
+    ["Avg Exit", "Yes", "Volume-weighted average exit price across all exit fills."],
+    ["# Partials", "Yes", "Number of individual executions (fills) that made up this trade."],
+    ["P&L", "Yes", "Profit or loss in dollars for the round-trip trade."],
+    ["R (Risk)", "No — you fill this in", "Your planned dollar risk on this trade (e.g. if your stop was $0.10 on 100 shares, R = $10). Used to calculate P&L in R multiples."],
+    ["P&L (R)", "Formula", "Auto-calculated: P&L divided by R. Shows how many risk units you gained or lost. Only populates after you enter R."],
+    ["Setup", "No — you fill this in", "The trade setup type. Select from the dropdown: ORB, ABCD, BHOD, BLOD, VWAP Bounce, or Mean Reversion."],
+    ["Process Followed?", "No — you fill this in", "Did you follow your trading plan and rules for this trade? Select Yes or No from the dropdown."],
+    ["Notes", "No — you fill this in", "Free-form notes: what you were thinking, what went right or wrong, lessons for next time."],
+  ];
+
+  const SPACER: string[] = [];
+
+  const MANUAL_SECTION_HEADER = ["", "", ""];
+  const MANUAL_TITLE = ["COLUMNS YOU NEED TO FILL IN"];
+  const MANUAL_INTRO = ["After each upload, open the sheet and complete these four columns for every trade:"];
+
+  const MANUAL_DETAILS: [string, string][] = [
+    ["R (Risk)", "Enter your dollar risk for the trade. This is the amount you would have lost if your stop was hit. Example: 100 shares with a $0.10 stop = $10 risk."],
+    ["Setup", "Select the setup from the dropdown. If your setup isn't listed, pick the closest match and note it in the Notes column."],
+    ["Process Followed?", "Honestly assess whether you followed your trading plan. This is for your own development — be truthful."],
+    ["Notes", "Write anything that will help you learn: your reasoning, emotions, what the chart looked like, what you'd do differently."],
+  ];
+
+  const rows: (string | number)[][] = [
+    ["TRADE JOURNAL — COLUMN REFERENCE"],
+    SPACER,
+    HEADER_ROW,
+    ...COLUMN_DOCS,
+    SPACER,
+    SPACER,
+    MANUAL_TITLE,
+    [MANUAL_INTRO[0]],
+    SPACER,
+    ["Column", "What to enter"],
+    ...MANUAL_DETAILS,
+    SPACER,
+    SPACER,
+    ["TIPS"],
+    ["• Upload your DAS Trader CSV at tapereader.us/pct-bootcamp/trade-journal at the end of each trading day."],
+    ["• The system detects duplicates — uploading the same CSV twice won't create duplicate rows."],
+    ["• Columns with a different header color in your trade sheet are the ones you need to fill in manually."],
+    ["• Your P&L (R) column auto-calculates once you enter your R value."],
+    ["• Review your stats on the web app after uploading to spot patterns in your trading."],
+  ];
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${tabName}'!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values: rows },
+  });
+
+  const requests: sheets_v4.Schema$Request[] = [];
+
+  // Bold the title row
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 3 },
+      cell: {
+        userEnteredFormat: {
+          backgroundColor: COLORS.headerBg,
+          textFormat: { bold: true, fontSize: 14, foregroundColor: COLORS.headerText },
+        },
+      },
+      fields: "userEnteredFormat(textFormat,backgroundColor)",
+    },
+  });
+
+  // Header row (row 3, index 2)
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 3 },
+      cell: {
+        userEnteredFormat: {
+          textFormat: { bold: true, fontSize: 10, foregroundColor: COLORS.headerText },
+          backgroundColor: COLORS.headerBg,
+        },
+      },
+      fields: "userEnteredFormat(textFormat,backgroundColor)",
+    },
+  });
+
+  // Bold "No — you fill this in" rows in the Auto-filled column
+  const dataStartRow = 3;
+  for (let i = 0; i < COLUMN_DOCS.length; i++) {
+    if (COLUMN_DOCS[i][1].startsWith("No")) {
+      requests.push({
+        repeatCell: {
+          range: { sheetId, startRowIndex: dataStartRow + i, endRowIndex: dataStartRow + i + 1, startColumnIndex: 1, endColumnIndex: 2 },
+          cell: {
+            userEnteredFormat: {
+              textFormat: { bold: true, foregroundColor: COLORS.vividGreenText },
+              backgroundColor: COLORS.vividGreenBg,
+            },
+          },
+          fields: "userEnteredFormat(textFormat,backgroundColor)",
+        },
+      });
+    }
+  }
+
+  // Manual section title
+  const manualTitleRow = dataStartRow + COLUMN_DOCS.length + 2;
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: manualTitleRow, endRowIndex: manualTitleRow + 1, startColumnIndex: 0, endColumnIndex: 3 },
+      cell: {
+        userEnteredFormat: {
+          textFormat: { bold: true, fontSize: 12, foregroundColor: COLORS.headerText },
+          backgroundColor: COLORS.headerBg,
+        },
+      },
+      fields: "userEnteredFormat(textFormat,backgroundColor)",
+    },
+  });
+
+  // Manual details header row
+  const manualHeaderRow = manualTitleRow + 3;
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: manualHeaderRow, endRowIndex: manualHeaderRow + 1, startColumnIndex: 0, endColumnIndex: 2 },
+      cell: {
+        userEnteredFormat: {
+          textFormat: { bold: true, fontSize: 10, foregroundColor: COLORS.headerText },
+          backgroundColor: COLORS.headerBg,
+        },
+      },
+      fields: "userEnteredFormat(textFormat,backgroundColor)",
+    },
+  });
+
+  // Tips title
+  const tipsRow = manualHeaderRow + 1 + MANUAL_DETAILS.length + 2;
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: tipsRow, endRowIndex: tipsRow + 1, startColumnIndex: 0, endColumnIndex: 3 },
+      cell: {
+        userEnteredFormat: {
+          textFormat: { bold: true, fontSize: 12, foregroundColor: COLORS.headerText },
+          backgroundColor: COLORS.headerBg,
+        },
+      },
+      fields: "userEnteredFormat(textFormat,backgroundColor)",
+    },
+  });
+
+  // Column widths
+  requests.push(
+    {
+      updateDimensionProperties: {
+        range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 },
+        properties: { pixelSize: 180 },
+        fields: "pixelSize",
+      },
+    },
+    {
+      updateDimensionProperties: {
+        range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 },
+        properties: { pixelSize: 180 },
+        fields: "pixelSize",
+      },
+    },
+    {
+      updateDimensionProperties: {
+        range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 },
+        properties: { pixelSize: 600 },
+        fields: "pixelSize",
+      },
+    },
+  );
+
+  // Text wrapping for description column
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: 100, startColumnIndex: 0, endColumnIndex: 3 },
+      cell: {
+        userEnteredFormat: { wrapStrategy: "WRAP" },
+      },
+      fields: "userEnteredFormat.wrapStrategy",
+    },
+  });
+
+  // Background for entire sheet
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: 100, startColumnIndex: 0, endColumnIndex: 10 },
+      cell: {
+        userEnteredFormat: {
+          backgroundColor: COLORS.darkBg,
+          textFormat: { foregroundColor: COLORS.headerText },
+        },
+      },
+      fields: "userEnteredFormat(backgroundColor,textFormat.foregroundColor)",
+    },
+  });
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: { requests },
+  });
+
+  // Re-apply content after background (background wipes user-entered values display)
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${tabName}'!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values: rows },
+  });
+}
+
 export async function appendTrades(
   trades: GroupedTrade[],
   sheetSuffix: string
