@@ -55,9 +55,12 @@ interface UploadResult {
   rowsAppended: number;
   rowsSkipped: number;
   accounts: string[];
+  sheetGid: number | null;
   trades: TradeRow[];
   stats: StatsData | null;
 }
+
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Hg1g73D8l8EH0j65IQBJhSEHzp3Ot_ib-ZD9UcN3ucU/edit";
 
 function getTodayEST(): string {
   const now = new Date();
@@ -144,12 +147,23 @@ export default function TradeJournalPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Auto Trade Journal</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>
-          Upload your DAS Trader CSV export. Executed trades are grouped into round-trip
-          entries and appended to the shared Google Sheet.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Auto Trade Journal</h1>
+          <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>
+            Upload your DAS Trader CSV export. Executed trades are grouped into round-trip
+            entries and appended to the shared Google Sheet.
+          </p>
+        </div>
+        <a
+          href={result?.sheetGid != null ? `${SHEET_URL}#gid=${result.sheetGid}` : SHEET_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 rounded px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+          style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }}
+        >
+          Open Trade Journal &raquo;
+        </a>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

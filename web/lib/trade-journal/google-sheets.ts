@@ -4,7 +4,7 @@ import { GroupedTrade } from "./trade-grouper";
 // Column layout (0-indexed):
 // A=Date, B=Entry Time, C=Exit Time, D=Duration (mins), E=Symbol,
 // F=Side, G=Shares, H=Avg Entry, I=Avg Exit, J=# Partials,
-// K=P&L, L=R (Risk), M=P&L (R), N=Setup, O=Process Followed?
+// K=P&L, L=R (Risk), M=P&L (R), N=Setup, O=Process Followed?, P=Notes
 const SHEET_HEADERS = [
   "Date",
   "Entry Time",
@@ -21,6 +21,7 @@ const SHEET_HEADERS = [
   "P&L (R)",
   "Setup",
   "Process Followed?",
+  "Notes",
 ];
 
 const COL = {
@@ -39,7 +40,11 @@ const COL = {
   PNL_R: 12,
   SETUP: 13,
   PROCESS: 14,
+  NOTES: 15,
 } as const;
+
+// Columns that require manual user input (visually distinct header)
+const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES]);
 
 const TOTAL_COLS = SHEET_HEADERS.length;
 
@@ -98,13 +103,14 @@ async function getSheets() {
 function findTabByAccountPrefix(
   sheetsMeta: sheets_v4.Schema$Sheet[] | undefined,
   account: string
-): string | null {
+): { title: string; sheetId: number } | null {
   if (!sheetsMeta) return null;
   const match = sheetsMeta.find((s) => {
     const title = s.properties?.title || "";
     return title === account || title.startsWith(`${account}-`);
   });
-  return match?.properties?.title || null;
+  if (!match) return null;
+  return { title: match.properties?.title || "", sheetId: match.properties?.sheetId ?? 0 };
 }
 
 function getSheetId(
@@ -154,6 +160,26 @@ async function applyFormatting(
     },
   });
 
+  // 2b. Flip header colors for manual-input columns (text color as bg, bg as text)
+  for (const col of MANUAL_COLS) {
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: col, endColumnIndex: col + 1 },
+        cell: {
+          userEnteredFormat: {
+            backgroundColor: COLORS.headerText,
+            textFormat: {
+              bold: true,
+              foregroundColor: COLORS.headerBg,
+              fontSize: 10,
+            },
+          },
+        },
+        fields: "userEnteredFormat(backgroundColor,textFormat)",
+      },
+    });
+  }
+
   // 3. Set column widths for readability
   const colWidths: Record<number, number> = {
     [COL.DATE]: 100,
@@ -171,6 +197,7 @@ async function applyFormatting(
     [COL.PNL_R]: 85,
     [COL.SETUP]: 140,
     [COL.PROCESS]: 130,
+    [COL.NOTES]: 200,
   };
   for (const [col, width] of Object.entries(colWidths)) {
     requests.push({
@@ -393,16 +420,18 @@ async function applyFormatting(
     },
   });
 
-  // 15. Text wrapping for Setup column
-  requests.push({
-    repeatCell: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.SETUP, endColumnIndex: COL.SETUP + 1 },
-      cell: {
-        userEnteredFormat: { wrapStrategy: "WRAP" },
+  // 15. Text wrapping for Setup and Notes columns
+  for (const col of [COL.SETUP, COL.NOTES]) {
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        cell: {
+          userEnteredFormat: { wrapStrategy: "WRAP" },
+        },
+        fields: "userEnteredFormat.wrapStrategy",
       },
-      fields: "userEnteredFormat.wrapStrategy",
-    },
-  });
+    });
+  }
 
   // 16. Center-align data columns: Side, Shares, Partials, Duration, Process
   for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS]) {
@@ -441,11 +470,11 @@ async function ensureSheetTab(
   spreadsheetId: string,
   account: string,
   suffix: string
-): Promise<string> {
+): Promise<{ tabName: string; gid: number }> {
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const existingTab = findTabByAccountPrefix(meta.data.sheets, account);
+  const existing = findTabByAccountPrefix(meta.data.sheets, account);
 
-  if (existingTab) return existingTab;
+  if (existing) return { tabName: existing.title, gid: existing.sheetId };
 
   const tabName = suffix ? `${account}-${suffix}` : account;
 
@@ -467,7 +496,7 @@ async function ensureSheetTab(
   const sheetId = getSheetId(updatedMeta.data.sheets, tabName);
   await applyFormatting(sheets, spreadsheetId, sheetId);
 
-  return tabName;
+  return { tabName, gid: sheetId };
 }
 
 // K=P&L (col index 11 in 1-based = L in sheets letters, but our col K is index 10, L=11, M=12)
@@ -492,6 +521,7 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number): (string | number)[] 
     pnlRFormula,
     "", // Setup — manual input via dropdown
     "", // Process Followed? — manual input via dropdown
+    "", // Notes — manual input
   ];
 }
 
@@ -502,7 +532,7 @@ async function getExistingRows(
 ): Promise<string[][]> {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `'${tabName}'!A:O`,
+    range: `'${tabName}'!A:P`,
   });
   return (res.data.values as string[][]) || [];
 }
@@ -686,7 +716,7 @@ function computeStats(rows: string[][]): AggregateStats {
 export async function appendTrades(
   trades: GroupedTrade[],
   sheetSuffix: string
-): Promise<{ appended: number; skipped: number; accounts: string[]; stats: AggregateStats | null }> {
+): Promise<{ appended: number; skipped: number; accounts: string[]; sheetGid: number | null; stats: AggregateStats | null }> {
   const sheets = await getSheets();
   const spreadsheetId = getSpreadsheetId();
 
@@ -699,10 +729,12 @@ export async function appendTrades(
   let totalAppended = 0;
   let totalSkipped = 0;
   const usedAccounts: string[] = [];
+  let firstGid: number | null = null;
 
   for (const [account, accountTrades] of byAccount) {
-    const tabName = await ensureSheetTab(sheets, spreadsheetId, account, sheetSuffix);
+    const { tabName, gid } = await ensureSheetTab(sheets, spreadsheetId, account, sheetSuffix);
     usedAccounts.push(tabName);
+    if (firstGid === null) firstGid = gid;
 
     const existing = await getExistingRows(sheets, spreadsheetId, tabName);
     const existingKeys = new Set(
@@ -738,7 +770,6 @@ export async function appendTrades(
     totalSkipped += skipped;
   }
 
-  // Compute aggregate stats from the first account's full sheet
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
     const allRows = await getExistingRows(sheets, spreadsheetId, usedAccounts[0]);
@@ -749,6 +780,7 @@ export async function appendTrades(
     appended: totalAppended,
     skipped: totalSkipped,
     accounts: usedAccounts,
+    sheetGid: firstGid,
     stats,
   };
 }

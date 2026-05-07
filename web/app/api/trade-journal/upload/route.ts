@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       rowsAppended: result.appended,
       rowsSkipped: result.skipped,
       accounts: result.accounts,
+      sheetGid: result.sheetGid,
       stats: result.stats,
       trades: trades.map((t) => ({
         symbol: t.symbol,
