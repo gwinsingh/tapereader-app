@@ -39,11 +39,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const sheetSuffix = (formData.get("sheetSuffix") as string) || "";
+
     const csvText = await file.text();
     const { executions } = validateAndParse(csvText);
     const trades = groupExecutionsIntoTrades(executions, date);
 
-    const result = await appendTrades(trades);
+    const result = await appendTrades(trades, sheetSuffix);
 
     return NextResponse.json({
       success: true,
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
         avgExit: t.avgExit,
         pnl: t.pnl,
         numPartials: t.numPartials,
+        durationMins: t.durationMins,
         entryTime: t.entryTime,
         exitTime: t.exitTime,
       })),

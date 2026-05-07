@@ -11,6 +11,7 @@ export interface GroupedTrade {
   avgExit: number;
   numPartials: number;
   pnl: number;
+  durationMins: number;
   account: string;
 }
 
@@ -153,10 +154,15 @@ function finalizeTrade(
         : (avgEntry - avgExit) * closedShares;
   }
 
+  const entryTime = allFills[0].time;
+  const exitTime = exitFills.length > 0 ? allFills[allFills.length - 1].time : allFills[0].time;
+  const durationSecs = timeToSeconds(exitTime) - timeToSeconds(entryTime);
+  const durationMins = Math.round((durationSecs / 60) * 10) / 10;
+
   return {
     date,
-    entryTime: allFills[0].time,
-    exitTime: exitFills.length > 0 ? allFills[allFills.length - 1].time : allFills[0].time,
+    entryTime,
+    exitTime,
     symbol,
     side: direction,
     totalShares: entryShares,
@@ -164,6 +170,7 @@ function finalizeTrade(
     avgExit: Math.round(avgExit * 100) / 100,
     numPartials: allFills.length,
     pnl: Math.round(pnl * 100) / 100,
+    durationMins: Math.max(0, durationMins),
     account,
   };
 }

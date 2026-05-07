@@ -6,6 +6,7 @@ interface TradeRow {
   avgExit: number;
   pnl: number;
   numPartials: number;
+  durationMins: number;
   entryTime: string;
   exitTime: string;
 }
@@ -38,7 +39,7 @@ export default function TradePreview({ trades, rowsAppended, rowsSkipped, accoun
           </div>
         )}
         <div className="rounded border border-border bg-panel px-3 py-2">
-          <span className="text-muted">Accounts:</span>{" "}
+          <span className="text-muted">Sheet(s):</span>{" "}
           <span className="font-mono font-semibold">{accounts.join(", ")}</span>
         </div>
         <div className="rounded border border-border bg-panel px-3 py-2">
@@ -57,12 +58,13 @@ export default function TradePreview({ trades, rowsAppended, rowsSkipped, accoun
             <tr>
               <th className="px-3 py-2">Entry</th>
               <th className="px-3 py-2">Exit</th>
+              <th className="px-3 py-2 text-center">Dur (min)</th>
               <th className="px-3 py-2">Symbol</th>
               <th className="px-3 py-2">Side</th>
               <th className="px-3 py-2 text-right">Shares</th>
               <th className="px-3 py-2 text-right">Avg Entry</th>
               <th className="px-3 py-2 text-right">Avg Exit</th>
-              <th className="px-3 py-2 text-right">Partials</th>
+              <th className="px-3 py-2 text-center">Partials</th>
               <th className="px-3 py-2 text-right">P&L</th>
             </tr>
           </thead>
@@ -71,6 +73,7 @@ export default function TradePreview({ trades, rowsAppended, rowsSkipped, accoun
               <tr key={i} className="border-b border-border/50 hover:bg-panel/50">
                 <td className="px-3 py-2 font-mono text-xs">{t.entryTime}</td>
                 <td className="px-3 py-2 font-mono text-xs">{t.exitTime}</td>
+                <td className="px-3 py-2 text-center font-mono text-xs">{t.durationMins.toFixed(1)}</td>
                 <td className="px-3 py-2 font-semibold">{t.symbol}</td>
                 <td className="px-3 py-2">
                   <span
@@ -88,7 +91,7 @@ export default function TradePreview({ trades, rowsAppended, rowsSkipped, accoun
                 <td className="px-3 py-2 text-right font-mono">
                   {t.avgExit > 0 ? `$${t.avgExit.toFixed(2)}` : "—"}
                 </td>
-                <td className="px-3 py-2 text-right font-mono">{t.numPartials}</td>
+                <td className="px-3 py-2 text-center font-mono">{t.numPartials}</td>
                 <td
                   className={`px-3 py-2 text-right font-mono font-semibold ${
                     t.pnl >= 0 ? "text-accent" : "text-danger"
