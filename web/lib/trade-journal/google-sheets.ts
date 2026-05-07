@@ -1,4 +1,3 @@
-import { google, sheets_v4 } from "googleapis";
 import { GroupedTrade } from "./trade-grouper";
 
 // Column layout (0-indexed):
@@ -43,7 +42,6 @@ const COL = {
   NOTES: 15,
 } as const;
 
-// Columns that require manual user input (visually distinct header)
 const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES]);
 
 const TOTAL_COLS = SHEET_HEADERS.length;
@@ -60,10 +58,8 @@ const SETUP_OPTIONS = [
 const COLORS = {
   headerBg: { red: 0.15, green: 0.15, blue: 0.2 },
   headerText: { red: 0.85, green: 0.87, blue: 0.91 },
-  // Muted colors for text-only columns (P&L, P&L(R))
   greenText: { red: 0.45, green: 0.72, blue: 0.55 },
   redText: { red: 0.78, green: 0.45, blue: 0.45 },
-  // Vivid colors for badge-style columns (Side, Process Followed)
   vividGreenBg: { red: 0.14, green: 0.45, blue: 0.2 },
   vividGreenText: { red: 0.29, green: 0.87, blue: 0.5 },
   vividRedBg: { red: 0.45, green: 0.14, blue: 0.14 },
@@ -75,82 +71,189 @@ const COLORS = {
   mutedText: { red: 0.42, green: 0.47, blue: 0.52 },
 };
 
-function getAuth() {
-  const credentials = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!credentials) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON environment variable is not set.");
-  }
-  const parsed = JSON.parse(credentials);
-  return new google.auth.GoogleAuth({
-    credentials: parsed,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+// --- Edge-compatible Google Sheets API client (no googleapis SDK) ---
+
+function b64url(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function getAccessToken(): Promise<string> {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON environment variable is not set.");
+  const sa = JSON.parse(raw) as {
+    client_email: string;
+    private_key: string;
+    token_uri: string;
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    aud: sa.token_uri || "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  };
+
+  const enc = new TextEncoder();
+  const headerB64 = b64url(enc.encode(JSON.stringify(header)));
+  const payloadB64 = b64url(enc.encode(JSON.stringify(payload)));
+  const signingInput = `${headerB64}.${payloadB64}`;
+
+  // Import PEM private key for Web Crypto
+  const pemBody = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const keyBuf = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    keyBuf,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, enc.encode(signingInput));
+  const jwt = `${signingInput}.${b64url(sig)}`;
+
+  const tokenRes = await fetch(sa.token_uri || "https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
+
+  if (!tokenRes.ok) {
+    const err = await tokenRes.text();
+    throw new Error(`Token exchange failed: ${err}`);
+  }
+
+  const tokenData = (await tokenRes.json()) as { access_token: string };
+  return tokenData.access_token;
 }
 
 function getSpreadsheetId(): string {
   const id = process.env.GOOGLE_SPREADSHEET_ID;
-  if (!id) {
-    throw new Error("GOOGLE_SPREADSHEET_ID environment variable is not set.");
-  }
+  if (!id) throw new Error("GOOGLE_SPREADSHEET_ID environment variable is not set.");
   return id;
 }
 
-async function getSheets() {
-  const auth = getAuth();
-  return google.sheets({ version: "v4", auth });
+const SHEETS_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
+
+interface SheetMeta {
+  properties: { title: string; sheetId: number };
 }
 
+async function sheetsGet(token: string, spreadsheetId: string): Promise<{ sheets: SheetMeta[] }> {
+  const res = await fetch(`${SHEETS_BASE}/${spreadsheetId}?fields=sheets.properties`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Sheets get failed: ${await res.text()}`);
+  return res.json() as Promise<{ sheets: SheetMeta[] }>;
+}
+
+async function sheetsValuesGet(
+  token: string,
+  spreadsheetId: string,
+  range: string
+): Promise<string[][]> {
+  const res = await fetch(
+    `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) throw new Error(`Sheets values.get failed: ${await res.text()}`);
+  const data = (await res.json()) as { values?: string[][] };
+  return data.values || [];
+}
+
+async function sheetsValuesUpdate(
+  token: string,
+  spreadsheetId: string,
+  range: string,
+  values: (string | number)[][],
+  valueInputOption: string = "RAW"
+): Promise<void> {
+  const res = await fetch(
+    `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=${valueInputOption}`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    }
+  );
+  if (!res.ok) throw new Error(`Sheets values.update failed: ${await res.text()}`);
+}
+
+async function sheetsValuesAppend(
+  token: string,
+  spreadsheetId: string,
+  range: string,
+  values: (string | number)[][],
+  valueInputOption: string = "USER_ENTERED"
+): Promise<void> {
+  const res = await fetch(
+    `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=${valueInputOption}&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    }
+  );
+  if (!res.ok) throw new Error(`Sheets values.append failed: ${await res.text()}`);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function sheetsBatchUpdate(token: string, spreadsheetId: string, requests: any[]): Promise<void> {
+  const res = await fetch(`${SHEETS_BASE}/${spreadsheetId}:batchUpdate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ requests }),
+  });
+  if (!res.ok) throw new Error(`Sheets batchUpdate failed: ${await res.text()}`);
+}
+
+// --- Sheet helpers ---
+
 function findTabByAccountPrefix(
-  sheetsMeta: sheets_v4.Schema$Sheet[] | undefined,
+  sheets: SheetMeta[],
   account: string
 ): { title: string; sheetId: number } | null {
-  if (!sheetsMeta) return null;
-  const match = sheetsMeta.find((s) => {
-    const title = s.properties?.title || "";
+  const match = sheets.find((s) => {
+    const title = s.properties.title;
     return title === account || title.startsWith(`${account}-`);
   });
   if (!match) return null;
-  return { title: match.properties?.title || "", sheetId: match.properties?.sheetId ?? 0 };
+  return { title: match.properties.title, sheetId: match.properties.sheetId };
 }
 
-function getSheetId(
-  sheetsMeta: sheets_v4.Schema$Sheet[] | undefined,
-  tabName: string
-): number {
-  const sheet = sheetsMeta?.find((s) => s.properties?.title === tabName);
-  return sheet?.properties?.sheetId ?? 0;
+function getSheetId(sheets: SheetMeta[], tabName: string): number {
+  const sheet = sheets.find((s) => s.properties.title === tabName);
+  return sheet?.properties.sheetId ?? 0;
 }
 
-async function applyFormatting(
-  sheets: ReturnType<typeof google.sheets>,
-  spreadsheetId: string,
-  sheetId: number
-) {
-  const requests: sheets_v4.Schema$Request[] = [];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function applyFormatting(token: string, spreadsheetId: string, sheetId: number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const requests: any[] = [];
 
-  // 1. Freeze the header row
   requests.push({
     updateSheetProperties: {
-      properties: {
-        sheetId,
-        gridProperties: { frozenRowCount: 1 },
-      },
+      properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
       fields: "gridProperties.frozenRowCount",
     },
   });
 
-  // 2. Format header row: bold, background color, text color, centered
   requests.push({
     repeatCell: {
       range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: TOTAL_COLS },
       cell: {
         userEnteredFormat: {
           backgroundColor: COLORS.headerBg,
-          textFormat: {
-            bold: true,
-            foregroundColor: COLORS.headerText,
-            fontSize: 10,
-          },
+          textFormat: { bold: true, foregroundColor: COLORS.headerText, fontSize: 10 },
           horizontalAlignment: "CENTER",
           verticalAlignment: "MIDDLE",
           padding: { top: 4, bottom: 4, left: 6, right: 6 },
@@ -160,7 +263,6 @@ async function applyFormatting(
     },
   });
 
-  // 2b. Flip header colors for manual-input columns (text color as bg, bg as text)
   for (const col of MANUAL_COLS) {
     requests.push({
       repeatCell: {
@@ -168,11 +270,7 @@ async function applyFormatting(
         cell: {
           userEnteredFormat: {
             backgroundColor: COLORS.headerText,
-            textFormat: {
-              bold: true,
-              foregroundColor: COLORS.headerBg,
-              fontSize: 10,
-            },
+            textFormat: { bold: true, foregroundColor: COLORS.headerBg, fontSize: 10 },
           },
         },
         fields: "userEnteredFormat(backgroundColor,textFormat)",
@@ -180,24 +278,12 @@ async function applyFormatting(
     });
   }
 
-  // 3. Set column widths for readability
   const colWidths: Record<number, number> = {
-    [COL.DATE]: 100,
-    [COL.ENTRY_TIME]: 90,
-    [COL.EXIT_TIME]: 90,
-    [COL.DURATION]: 105,
-    [COL.SYMBOL]: 80,
-    [COL.SIDE]: 70,
-    [COL.SHARES]: 70,
-    [COL.AVG_ENTRY]: 95,
-    [COL.AVG_EXIT]: 95,
-    [COL.PARTIALS]: 85,
-    [COL.PNL]: 95,
-    [COL.RISK]: 95,
-    [COL.PNL_R]: 85,
-    [COL.SETUP]: 140,
-    [COL.PROCESS]: 130,
-    [COL.NOTES]: 200,
+    [COL.DATE]: 100, [COL.ENTRY_TIME]: 90, [COL.EXIT_TIME]: 90,
+    [COL.DURATION]: 105, [COL.SYMBOL]: 80, [COL.SIDE]: 70,
+    [COL.SHARES]: 70, [COL.AVG_ENTRY]: 95, [COL.AVG_EXIT]: 95,
+    [COL.PARTIALS]: 85, [COL.PNL]: 95, [COL.RISK]: 95,
+    [COL.PNL_R]: 85, [COL.SETUP]: 140, [COL.PROCESS]: 130, [COL.NOTES]: 200,
   };
   for (const [col, width] of Object.entries(colWidths)) {
     requests.push({
@@ -209,7 +295,6 @@ async function applyFormatting(
     });
   }
 
-  // 4. Set default row height for header
   requests.push({
     updateDimensionProperties: {
       range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 },
@@ -218,73 +303,50 @@ async function applyFormatting(
     },
   });
 
-  // 5. Number format: P&L and R (Risk) as USD currency
   for (const col of [COL.PNL, COL.RISK]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
-        cell: {
-          userEnteredFormat: {
-            numberFormat: { type: "CURRENCY", pattern: "$#,##0.00" },
-          },
-        },
+        cell: { userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "$#,##0.00" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
   }
 
-  // 6. Number format: Duration (mins) — 1 decimal
   requests.push({
     repeatCell: {
       range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.DURATION, endColumnIndex: COL.DURATION + 1 },
-      cell: {
-        userEnteredFormat: {
-          numberFormat: { type: "NUMBER", pattern: "0.0" },
-        },
-      },
+      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
       fields: "userEnteredFormat.numberFormat",
     },
   });
 
-  // 7. Number format: P&L (R) — 1 decimal
   requests.push({
     repeatCell: {
       range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PNL_R, endColumnIndex: COL.PNL_R + 1 },
-      cell: {
-        userEnteredFormat: {
-          numberFormat: { type: "NUMBER", pattern: "0.0" },
-        },
-      },
+      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
       fields: "userEnteredFormat.numberFormat",
     },
   });
 
-  // 8. Number format: Avg Entry / Avg Exit as currency
   for (const col of [COL.AVG_ENTRY, COL.AVG_EXIT]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
-        cell: {
-          userEnteredFormat: {
-            numberFormat: { type: "CURRENCY", pattern: "$#,##0.00" },
-          },
-        },
+        cell: { userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "$#,##0.00" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
   }
 
-  // 9. Conditional formatting: Side column — vivid green for Long, vivid red for Short
+  // Conditional formatting: Side
   requests.push({
     addConditionalFormatRule: {
       rule: {
         ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.SIDE, endColumnIndex: COL.SIDE + 1 }],
         booleanRule: {
           condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Long" }] },
-          format: {
-            backgroundColor: COLORS.vividGreenBg,
-            textFormat: { foregroundColor: COLORS.vividGreenText, bold: true },
-          },
+          format: { backgroundColor: COLORS.vividGreenBg, textFormat: { foregroundColor: COLORS.vividGreenText, bold: true } },
         },
       },
       index: 0,
@@ -296,17 +358,14 @@ async function applyFormatting(
         ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.SIDE, endColumnIndex: COL.SIDE + 1 }],
         booleanRule: {
           condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Short" }] },
-          format: {
-            backgroundColor: COLORS.vividRedBg,
-            textFormat: { foregroundColor: COLORS.vividRedText, bold: true },
-          },
+          format: { backgroundColor: COLORS.vividRedBg, textFormat: { foregroundColor: COLORS.vividRedText, bold: true } },
         },
       },
       index: 1,
     },
   });
 
-  // 10. Conditional formatting: P&L column — green if >= 0, red if < 0
+  // Conditional formatting: P&L
   requests.push({
     addConditionalFormatRule: {
       rule: {
@@ -332,7 +391,7 @@ async function applyFormatting(
     },
   });
 
-  // 11. Conditional formatting: P&L (R) — same green/red
+  // Conditional formatting: P&L (R)
   requests.push({
     addConditionalFormatRule: {
       rule: {
@@ -358,17 +417,14 @@ async function applyFormatting(
     },
   });
 
-  // 12. Conditional formatting: Process Followed? — vivid green for Yes, vivid red for No
+  // Conditional formatting: Process Followed?
   requests.push({
     addConditionalFormatRule: {
       rule: {
         ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PROCESS, endColumnIndex: COL.PROCESS + 1 }],
         booleanRule: {
           condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Yes" }] },
-          format: {
-            backgroundColor: COLORS.vividGreenBg,
-            textFormat: { foregroundColor: COLORS.vividGreenText, bold: true },
-          },
+          format: { backgroundColor: COLORS.vividGreenBg, textFormat: { foregroundColor: COLORS.vividGreenText, bold: true } },
         },
       },
       index: 6,
@@ -380,129 +436,100 @@ async function applyFormatting(
         ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PROCESS, endColumnIndex: COL.PROCESS + 1 }],
         booleanRule: {
           condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "No" }] },
-          format: {
-            backgroundColor: COLORS.vividRedBg,
-            textFormat: { foregroundColor: COLORS.vividRedText, bold: true },
-          },
+          format: { backgroundColor: COLORS.vividRedBg, textFormat: { foregroundColor: COLORS.vividRedText, bold: true } },
         },
       },
       index: 7,
     },
   });
 
-  // 13. Data validation: Process Followed? — Yes/No dropdown
+  // Data validation: Process Followed?
   requests.push({
     setDataValidation: {
       range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PROCESS, endColumnIndex: COL.PROCESS + 1 },
       rule: {
-        condition: {
-          type: "ONE_OF_LIST",
-          values: [{ userEnteredValue: "Yes" }, { userEnteredValue: "No" }],
-        },
+        condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "Yes" }, { userEnteredValue: "No" }] },
         showCustomUi: true,
         strict: true,
       },
     },
   });
 
-  // 14. Data validation: Setup — dropdown with predefined options
+  // Data validation: Setup
   requests.push({
     setDataValidation: {
       range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.SETUP, endColumnIndex: COL.SETUP + 1 },
       rule: {
-        condition: {
-          type: "ONE_OF_LIST",
-          values: SETUP_OPTIONS.map((v) => ({ userEnteredValue: v })),
-        },
+        condition: { type: "ONE_OF_LIST", values: SETUP_OPTIONS.map((v) => ({ userEnteredValue: v })) },
         showCustomUi: true,
         strict: false,
       },
     },
   });
 
-  // 15. Text wrapping for Setup and Notes columns
+  // Text wrapping
   for (const col of [COL.SETUP, COL.NOTES]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
-        cell: {
-          userEnteredFormat: { wrapStrategy: "WRAP" },
-        },
+        cell: { userEnteredFormat: { wrapStrategy: "WRAP" } },
         fields: "userEnteredFormat.wrapStrategy",
       },
     });
   }
 
-  // 16. Center-align data columns: Side, Shares, Partials, Duration, Process
+  // Center-align
   for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
-        cell: {
-          userEnteredFormat: { horizontalAlignment: "CENTER" },
-        },
+        cell: { userEnteredFormat: { horizontalAlignment: "CENTER" } },
         fields: "userEnteredFormat.horizontalAlignment",
       },
     });
   }
 
-  // 17. Right-align currency/number columns
+  // Right-align
   for (const col of [COL.AVG_ENTRY, COL.AVG_EXIT, COL.PNL, COL.RISK, COL.PNL_R]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
-        cell: {
-          userEnteredFormat: { horizontalAlignment: "RIGHT" },
-        },
+        cell: { userEnteredFormat: { horizontalAlignment: "RIGHT" } },
         fields: "userEnteredFormat.horizontalAlignment",
       },
     });
   }
 
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: { requests },
-  });
+  await sheetsBatchUpdate(token, spreadsheetId, requests);
 }
 
 async function ensureSheetTab(
-  sheets: ReturnType<typeof google.sheets>,
+  token: string,
   spreadsheetId: string,
   account: string,
   suffix: string
 ): Promise<{ tabName: string; gid: number }> {
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const existing = findTabByAccountPrefix(meta.data.sheets, account);
+  const meta = await sheetsGet(token, spreadsheetId);
+  const existing = findTabByAccountPrefix(meta.sheets, account);
 
   if (existing) return { tabName: existing.title, gid: existing.sheetId };
 
   const tabName = suffix ? `${account}-${suffix}` : account;
 
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      requests: [{ addSheet: { properties: { title: tabName } } }],
-    },
-  });
+  await sheetsBatchUpdate(token, spreadsheetId, [
+    { addSheet: { properties: { title: tabName } } },
+  ]);
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `'${tabName}'!A1`,
-    valueInputOption: "RAW",
-    requestBody: { values: [SHEET_HEADERS] },
-  });
+  await sheetsValuesUpdate(token, spreadsheetId, `'${tabName}'!A1`, [SHEET_HEADERS]);
 
-  const updatedMeta = await sheets.spreadsheets.get({ spreadsheetId });
-  const sheetId = getSheetId(updatedMeta.data.sheets, tabName);
-  await applyFormatting(sheets, spreadsheetId, sheetId);
+  const updatedMeta = await sheetsGet(token, spreadsheetId);
+  const sheetId = getSheetId(updatedMeta.sheets, tabName);
+  await applyFormatting(token, spreadsheetId, sheetId);
 
   return { tabName, gid: sheetId };
 }
 
-// K=P&L (col index 11 in 1-based = L in sheets letters, but our col K is index 10, L=11, M=12)
-// With new layout: K=P&L (col 11 in A1 notation = K), L=R (Risk) = L, M=P&L(R) = M
 function tradeToRow(trade: GroupedTrade, rowIndex: number): (string | number)[] {
-  // P&L (R) formula: =IF(L{row}="","",K{row}/L{row})
   const pnlRFormula = `=IF(L${rowIndex}="","",K${rowIndex}/L${rowIndex})`;
 
   return [
@@ -517,24 +544,12 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number): (string | number)[] 
     trade.avgExit,
     trade.numPartials,
     trade.pnl,
-    "", // R (Risk) — manual input
+    "", // R (Risk)
     pnlRFormula,
-    "", // Setup — manual input via dropdown
-    "", // Process Followed? — manual input via dropdown
-    "", // Notes — manual input
+    "", // Setup
+    "", // Process Followed?
+    "", // Notes
   ];
-}
-
-async function getExistingRows(
-  sheets: ReturnType<typeof google.sheets>,
-  spreadsheetId: string,
-  tabName: string
-): Promise<string[][]> {
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `'${tabName}'!A:P`,
-  });
-  return (res.data.values as string[][]) || [];
 }
 
 function normalizeTime(t: string | number): string {
@@ -547,8 +562,6 @@ function normalizeTime(t: string | number): string {
 }
 
 function makeDedupeKey(row: (string | number)[]): string {
-  // Date + Symbol + EntryTime + Side — normalize time to strip leading zeros
-  // (Google Sheets drops leading zeros from time strings like 09:30:46 -> 9:30:46)
   return [row[COL.DATE], row[COL.SYMBOL], normalizeTime(row[COL.ENTRY_TIME]), row[COL.SIDE]].join("|");
 }
 
@@ -655,29 +668,16 @@ function computeStats(rows: string[][]): AggregateStats {
   let curWins = 0;
   let curLosses = 0;
   for (const p of pnls) {
-    if (p > 0) {
-      curWins++;
-      curLosses = 0;
-      maxConsecWins = Math.max(maxConsecWins, curWins);
-    } else if (p < 0) {
-      curLosses++;
-      curWins = 0;
-      maxConsecLosses = Math.max(maxConsecLosses, curLosses);
-    } else {
-      curWins = 0;
-      curLosses = 0;
-    }
+    if (p > 0) { curWins++; curLosses = 0; maxConsecWins = Math.max(maxConsecWins, curWins); }
+    else if (p < 0) { curLosses++; curWins = 0; maxConsecLosses = Math.max(maxConsecLosses, curLosses); }
+    else { curWins = 0; curLosses = 0; }
   }
 
-  // Hourly breakdown
   const hourlyBreakdown = HOUR_BLOCKS.map((block) => {
-    const blockPnls = parsed
-      .filter((r) => r.entryMin >= block.startMin && r.entryMin < block.endMin)
-      .map((r) => r.pnl);
+    const blockPnls = parsed.filter((r) => r.entryMin >= block.startMin && r.entryMin < block.endMin).map((r) => r.pnl);
     return computeSegment(blockPnls, block.label);
   }).filter((s) => s.trades > 0);
 
-  // Setup breakdown
   const setupMap = new Map<string, number[]>();
   for (const r of parsed) {
     if (!r.setup) continue;
@@ -714,16 +714,14 @@ function computeStats(rows: string[][]): AggregateStats {
 }
 
 export async function populateInstructionsSheet(): Promise<void> {
-  const sheets = await getSheets();
+  const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
   const tabName = "Instructions";
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const tab = meta.data.sheets?.find((s) => s.properties?.title === tabName);
-  if (!tab) {
-    throw new Error(`"${tabName}" sheet tab not found. Please create it first.`);
-  }
-  const sheetId = tab.properties?.sheetId ?? 0;
+  const meta = await sheetsGet(token, spreadsheetId);
+  const tab = meta.sheets.find((s) => s.properties.title === tabName);
+  if (!tab) throw new Error(`"${tabName}" sheet tab not found. Please create it first.`);
+  const sheetId = tab.properties.sheetId;
 
   const HEADER_ROW = ["Column", "Auto-filled?", "Description"];
 
@@ -748,10 +746,6 @@ export async function populateInstructionsSheet(): Promise<void> {
 
   const SPACER: string[] = [];
 
-  const MANUAL_SECTION_HEADER = ["", "", ""];
-  const MANUAL_TITLE = ["COLUMNS YOU NEED TO FILL IN"];
-  const MANUAL_INTRO = ["After each upload, open the sheet and complete these four columns for every trade:"];
-
   const MANUAL_DETAILS: [string, string][] = [
     ["R (Risk)", "Enter your dollar risk for the trade. This is the amount you would have lost if your stop was hit. Example: 100 shares with a $0.10 stop = $10 risk."],
     ["Setup", "Select the setup from the dropdown. If your setup isn't listed, pick the closest match and note it in the Notes column."],
@@ -766,8 +760,8 @@ export async function populateInstructionsSheet(): Promise<void> {
     ...COLUMN_DOCS,
     SPACER,
     SPACER,
-    MANUAL_TITLE,
-    [MANUAL_INTRO[0]],
+    ["COLUMNS YOU NEED TO FILL IN"],
+    ["After each upload, open the sheet and complete these four columns for every trade:"],
     SPACER,
     ["Column", "What to enter"],
     ...MANUAL_DETAILS,
@@ -781,16 +775,11 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["• Review your stats on the web app after uploading to spot patterns in your trading."],
   ];
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `'${tabName}'!A1`,
-    valueInputOption: "RAW",
-    requestBody: { values: rows },
-  });
+  await sheetsValuesUpdate(token, spreadsheetId, `'${tabName}'!A1`, rows);
 
-  const requests: sheets_v4.Schema$Request[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const requests: any[] = [];
 
-  // Bold the title row
   requests.push({
     repeatCell: {
       range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 3 },
@@ -804,7 +793,6 @@ export async function populateInstructionsSheet(): Promise<void> {
     },
   });
 
-  // Header row (row 3, index 2)
   requests.push({
     repeatCell: {
       range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 3 },
@@ -818,7 +806,6 @@ export async function populateInstructionsSheet(): Promise<void> {
     },
   });
 
-  // Bold "No — you fill this in" rows in the Auto-filled column
   const dataStartRow = 3;
   for (let i = 0; i < COLUMN_DOCS.length; i++) {
     if (COLUMN_DOCS[i][1].startsWith("No")) {
@@ -837,7 +824,6 @@ export async function populateInstructionsSheet(): Promise<void> {
     }
   }
 
-  // Manual section title
   const manualTitleRow = dataStartRow + COLUMN_DOCS.length + 2;
   requests.push({
     repeatCell: {
@@ -852,7 +838,6 @@ export async function populateInstructionsSheet(): Promise<void> {
     },
   });
 
-  // Manual details header row
   const manualHeaderRow = manualTitleRow + 3;
   requests.push({
     repeatCell: {
@@ -867,7 +852,6 @@ export async function populateInstructionsSheet(): Promise<void> {
     },
   });
 
-  // Tips title
   const tipsRow = manualHeaderRow + 1 + MANUAL_DETAILS.length + 2;
   requests.push({
     repeatCell: {
@@ -882,43 +866,20 @@ export async function populateInstructionsSheet(): Promise<void> {
     },
   });
 
-  // Column widths
   requests.push(
-    {
-      updateDimensionProperties: {
-        range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 },
-        properties: { pixelSize: 180 },
-        fields: "pixelSize",
-      },
-    },
-    {
-      updateDimensionProperties: {
-        range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 },
-        properties: { pixelSize: 180 },
-        fields: "pixelSize",
-      },
-    },
-    {
-      updateDimensionProperties: {
-        range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 },
-        properties: { pixelSize: 600 },
-        fields: "pixelSize",
-      },
-    },
+    { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 180 }, fields: "pixelSize" } },
+    { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 180 }, fields: "pixelSize" } },
+    { updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 600 }, fields: "pixelSize" } },
   );
 
-  // Text wrapping for description column
   requests.push({
     repeatCell: {
       range: { sheetId, startRowIndex: 0, endRowIndex: 100, startColumnIndex: 0, endColumnIndex: 3 },
-      cell: {
-        userEnteredFormat: { wrapStrategy: "WRAP" },
-      },
+      cell: { userEnteredFormat: { wrapStrategy: "WRAP" } },
       fields: "userEnteredFormat.wrapStrategy",
     },
   });
 
-  // Background for entire sheet
   requests.push({
     repeatCell: {
       range: { sheetId, startRowIndex: 0, endRowIndex: 100, startColumnIndex: 0, endColumnIndex: 10 },
@@ -932,25 +893,16 @@ export async function populateInstructionsSheet(): Promise<void> {
     },
   });
 
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: { requests },
-  });
+  await sheetsBatchUpdate(token, spreadsheetId, requests);
 
-  // Re-apply content after background (background wipes user-entered values display)
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `'${tabName}'!A1`,
-    valueInputOption: "RAW",
-    requestBody: { values: rows },
-  });
+  await sheetsValuesUpdate(token, spreadsheetId, `'${tabName}'!A1`, rows);
 }
 
 export async function appendTrades(
   trades: GroupedTrade[],
   sheetSuffix: string
 ): Promise<{ appended: number; skipped: number; accounts: string[]; sheetGid: number | null; stats: AggregateStats | null }> {
-  const sheets = await getSheets();
+  const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
   const byAccount = new Map<string, GroupedTrade[]>();
@@ -965,14 +917,12 @@ export async function appendTrades(
   let firstGid: number | null = null;
 
   for (const [account, accountTrades] of byAccount) {
-    const { tabName, gid } = await ensureSheetTab(sheets, spreadsheetId, account, sheetSuffix);
+    const { tabName, gid } = await ensureSheetTab(token, spreadsheetId, account, sheetSuffix);
     usedAccounts.push(tabName);
     if (firstGid === null) firstGid = gid;
 
-    const existing = await getExistingRows(sheets, spreadsheetId, tabName);
-    const existingKeys = new Set(
-      existing.slice(1).map((row) => makeDedupeKey(row))
-    );
+    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:P`);
+    const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row)));
 
     const nextRowStart = existing.length + 1;
     const newRows: (string | number)[][] = [];
@@ -982,21 +932,11 @@ export async function appendTrades(
       const rowIndex = nextRowStart + newRows.length;
       const row = tradeToRow(trade, rowIndex);
       const key = makeDedupeKey(row);
-
-      if (existingKeys.has(key)) {
-        skipped++;
-      } else {
-        newRows.push(row);
-      }
+      if (existingKeys.has(key)) { skipped++; } else { newRows.push(row); }
     }
 
     if (newRows.length > 0) {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: `'${tabName}'!A1`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: newRows },
-      });
+      await sheetsValuesAppend(token, spreadsheetId, `'${tabName}'!A1`, newRows);
     }
 
     totalAppended += newRows.length;
@@ -1005,15 +945,9 @@ export async function appendTrades(
 
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
-    const allRows = await getExistingRows(sheets, spreadsheetId, usedAccounts[0]);
+    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:P`);
     stats = computeStats(allRows);
   }
 
-  return {
-    appended: totalAppended,
-    skipped: totalSkipped,
-    accounts: usedAccounts,
-    sheetGid: firstGid,
-    stats,
-  };
+  return { appended: totalAppended, skipped: totalSkipped, accounts: usedAccounts, sheetGid: firstGid, stats };
 }

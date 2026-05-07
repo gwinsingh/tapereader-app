@@ -3,6 +3,8 @@ import { validateAndParse } from "@/lib/trade-journal/csv-parser";
 import { groupExecutionsIntoTrades } from "@/lib/trade-journal/trade-grouper";
 import { appendTrades } from "@/lib/trade-journal/google-sheets";
 
+export const runtime = "edge";
+
 function getTodayEST(): string {
   const now = new Date();
   const est = new Date(

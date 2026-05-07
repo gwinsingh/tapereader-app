@@ -10,7 +10,6 @@
     "pages:build": "npx @cloudflare/next-on-pages@1"
   },
   "dependencies": {
-    "googleapis": "^171.4.0",
     "lightweight-charts": "^4.2.1",
     "next": "15.0.3",
     "react": "19.0.0-rc-66855b96-20241106",
