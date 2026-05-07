@@ -14,6 +14,7 @@ export default async function Header() {
         <nav className="hidden items-center gap-4 text-sm text-muted md:flex">
           <Link href="/" className="hover:text-text">Dashboard</Link>
           <Link href="/watchlist" className="hover:text-text">Watchlist</Link>
+          <Link href="/pct-bootcamp" className="hover:text-text">PCT Bootcamp</Link>
           <Link href="/about" className="hover:text-text">About</Link>
         </nav>
         <TickerSearch universe={universe} />
