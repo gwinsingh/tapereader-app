@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import ThemeToggle from "@/components/trade-journal/ThemeToggle";
 import PCTBodyStyle from "@/components/trade-journal/PCTBodyStyle";
+
+export const metadata: Metadata = {
+  title: "Trade Journal — PCT Bootcamp",
+  description: "Upload your DAS Trader CSV and track round-trip trades in a shared Google Sheet.",
+  icons: { icon: "/images/pct-favicon.svg" },
+};
 
 export default function PCTBootcampLayout({ children }: { children: React.ReactNode }) {
   return (
