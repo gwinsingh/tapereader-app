@@ -623,7 +623,7 @@ function computeSegment(pnls: number[], label: string): SegmentStats {
     winRate: pnls.length > 0 ? Math.round((wins.length / pnls.length) * 1000) / 10 : 0,
     avgWinner: wins.length > 0 ? Math.round((grossWins / wins.length) * 100) / 100 : 0,
     avgLoser: losses.length > 0 ? Math.round((grossLosses / losses.length) * -100) / 100 : 0,
-    profitFactor: grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? Infinity : 0,
+    profitFactor: grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? 9999 : 0,
   };
 }
 
@@ -702,7 +702,7 @@ function computeStats(rows: string[][]): AggregateStats {
     winningTrades: winners.length,
     losingTrades: losers.length,
     winRate: Math.round((winners.length / pnls.length) * 1000) / 10,
-    profitFactor: grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? Infinity : 0,
+    profitFactor: grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? 9999 : 0,
     largestWin: winners.length > 0 ? Math.max(...winners) : 0,
     largestLoss: losers.length > 0 ? Math.min(...losers) : 0,
     maxConsecutiveWins: maxConsecWins,

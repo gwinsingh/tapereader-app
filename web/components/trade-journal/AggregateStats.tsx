@@ -108,7 +108,7 @@ function BreakdownTable({ title, segments }: { title: string; segments: SegmentS
                   ${seg.avgLoser.toFixed(2)}
                 </td>
                 <td className="px-3 py-2 text-center font-mono">
-                  {seg.profitFactor === Infinity ? "—" : seg.profitFactor.toFixed(2)}
+                  {seg.profitFactor >= 9999 ? "∞" : seg.profitFactor.toFixed(2)}
                 </td>
               </tr>
             ))}
@@ -138,7 +138,7 @@ export default function AggregateStats({ stats }: Props) {
         <StatCard label="Win Rate" value={`${stats.winRate}%`} color="neutral" />
         <StatCard
           label="Profit Factor"
-          value={stats.profitFactor === Infinity ? "—" : `${stats.profitFactor}`}
+          value={stats.profitFactor >= 9999 ? "∞" : `${stats.profitFactor}`}
           color={stats.profitFactor >= 1 ? "green" : "red"}
         />
 
