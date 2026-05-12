@@ -324,7 +324,7 @@ export async function enrichTrades(trades: GroupedTrade[]): Promise<MarketEnrich
 
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
-    if (i > 0) await new Promise((r) => setTimeout(r, 13000));
+    if (i > 0) await new Promise((r) => setTimeout(r, 25000));
 
     try {
       const [raw1m, rawDaily] = await Promise.all([
