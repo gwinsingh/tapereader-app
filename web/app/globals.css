@@ -5,6 +5,8 @@
 html, body {
   background-color: #0a0e14;
   color: #d8dee9;
+}
+html {
   color-scheme: dark;
 }
 
@@ -27,6 +29,7 @@ html, body {
 }
 
 [data-theme="light"] {
+  color-scheme: light;
   --color-bg: #f8f9fb;
   --color-panel: #ffffff;
   --color-border: #e2e5ea;
@@ -37,4 +40,18 @@ html, body {
   --color-warn: #d97706;
   --stat-green: #15803d;
   --stat-red: #b91c1c;
+}
+
+/* Force date picker icon visible in all themes */
+input[type="date"] {
+  position: relative;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  color: var(--color-text);
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
 }

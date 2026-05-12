@@ -63,9 +63,13 @@ interface UploadResult {
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Hg1g73D8l8EH0j65IQBJhSEHzp3Ot_ib-ZD9UcN3ucU/edit";
 
-function getTodayEST(): string {
+function getLastWeekdayEST(): string {
   const now = new Date();
   const est = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = est.getDay();
+  // 0=Sun → back 2, 1=Mon → back 3 (to Friday), otherwise back 1
+  const daysBack = day === 0 ? 2 : day === 1 ? 3 : 1;
+  est.setDate(est.getDate() - daysBack);
   const y = est.getFullYear();
   const m = String(est.getMonth() + 1).padStart(2, "0");
   const d = String(est.getDate()).padStart(2, "0");
@@ -73,7 +77,7 @@ function getTodayEST(): string {
 }
 
 export default function TradeJournalPage() {
-  const [date, setDate] = useState(getTodayEST());
+  const [date, setDate] = useState(getLastWeekdayEST());
   const [sheetSuffix, setSheetSuffix] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -175,14 +179,21 @@ export default function TradeJournalPage() {
             <label htmlFor="trade-date" className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
               Trade Date
             </label>
-            <input
-              id="trade-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="rounded border px-3 py-2 text-sm focus:outline-none"
-              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)", color: "var(--color-text)" }}
-            />
+            <div className="relative inline-block">
+              <input
+                id="trade-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="cursor-pointer rounded border py-2 pl-3 pr-8 text-sm focus:outline-none"
+                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)", color: "var(--color-text)" }}
+              />
+              <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--color-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="12" height="11" rx="1.5" />
+                <path d="M2 6.5h12" />
+                <path d="M5 1.5v3M11 1.5v3" />
+              </svg>
+            </div>
           </div>
           <div>
             <label htmlFor="sheet-suffix" className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
