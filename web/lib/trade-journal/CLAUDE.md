@@ -25,6 +25,11 @@ Key functions:
 - `appendTrades()` — main entry point: dedup, append, compute stats
 - `populateInstructionsSheet()` — one-shot: writes column reference to Instructions tab
 
+## Column layout (20 columns, A-T)
+Auto-filled: Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L, P&L(R) (formula).
+Per-trade manual: R (Risk), Setup (dropdown), Process Followed? (dropdown), Notes.
+Daily manual (fill once on first trade of the day): Sleep Score (0-100), Readiness Score (0-100), Emotional State (dropdown: Calm/Anxious/Excited/Frustrated/Fatigued), Market Bias (dropdown: Bullish/Bearish/Neutral).
+
 ## Dedup
 Key: `Date|Symbol|normalizedEntryTime|Side`. Times are normalized (leading zeros stripped) because Google Sheets drops them (e.g., `09:30:46` → `9:30:46`).
 

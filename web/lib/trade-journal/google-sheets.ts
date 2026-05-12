@@ -3,7 +3,8 @@ import { GroupedTrade } from "./trade-grouper";
 // Column layout (0-indexed):
 // A=Date, B=Entry Time, C=Exit Time, D=Duration (mins), E=Symbol,
 // F=Side, G=Shares, H=Avg Entry, I=Avg Exit, J=# Partials,
-// K=P&L, L=R (Risk), M=P&L (R), N=Setup, O=Process Followed?, P=Notes
+// K=P&L, L=R (Risk), M=P&L (R), N=Setup, O=Process Followed?, P=Notes,
+// Q=Sleep Score, R=Readiness Score, S=Emotional State, T=Market Bias
 const SHEET_HEADERS = [
   "Date",
   "Entry Time",
@@ -21,6 +22,10 @@ const SHEET_HEADERS = [
   "Setup",
   "Process Followed?",
   "Notes",
+  "Sleep Score",
+  "Readiness Score",
+  "Emotional State",
+  "Market Bias",
 ];
 
 const COL = {
@@ -40,9 +45,13 @@ const COL = {
   SETUP: 13,
   PROCESS: 14,
   NOTES: 15,
+  SLEEP: 16,
+  READINESS: 17,
+  EMOTIONAL: 18,
+  BIAS: 19,
 } as const;
 
-const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES]);
+const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS]);
 
 const TOTAL_COLS = SHEET_HEADERS.length;
 
@@ -53,6 +62,20 @@ const SETUP_OPTIONS = [
   "BLOD",
   "VWAP Bounce",
   "Mean Reversion",
+];
+
+const EMOTIONAL_STATE_OPTIONS = [
+  "Calm",
+  "Anxious",
+  "Excited",
+  "Frustrated",
+  "Fatigued",
+];
+
+const MARKET_BIAS_OPTIONS = [
+  "Bullish",
+  "Bearish",
+  "Neutral",
 ];
 
 const COLORS = {
@@ -284,6 +307,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     [COL.SHARES]: 70, [COL.AVG_ENTRY]: 95, [COL.AVG_EXIT]: 95,
     [COL.PARTIALS]: 85, [COL.PNL]: 95, [COL.RISK]: 95,
     [COL.PNL_R]: 85, [COL.SETUP]: 140, [COL.PROCESS]: 130, [COL.NOTES]: 200,
+    [COL.SLEEP]: 100, [COL.READINESS]: 120, [COL.EMOTIONAL]: 120, [COL.BIAS]: 100,
   };
   for (const [col, width] of Object.entries(colWidths)) {
     requests.push({
@@ -467,6 +491,41 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     },
   });
 
+  // Data validation: Emotional State
+  requests.push({
+    setDataValidation: {
+      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.EMOTIONAL, endColumnIndex: COL.EMOTIONAL + 1 },
+      rule: {
+        condition: { type: "ONE_OF_LIST", values: EMOTIONAL_STATE_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+        showCustomUi: true,
+        strict: false,
+      },
+    },
+  });
+
+  // Data validation: Market Bias
+  requests.push({
+    setDataValidation: {
+      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.BIAS, endColumnIndex: COL.BIAS + 1 },
+      rule: {
+        condition: { type: "ONE_OF_LIST", values: MARKET_BIAS_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+        showCustomUi: true,
+        strict: false,
+      },
+    },
+  });
+
+  // Number format: Sleep & Readiness scores (whole numbers)
+  for (const col of [COL.SLEEP, COL.READINESS]) {
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+
   // Text wrapping
   for (const col of [COL.SETUP, COL.NOTES]) {
     requests.push({
@@ -479,7 +538,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS]) {
+  for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
@@ -549,6 +608,10 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number): (string | number)[] 
     "", // Setup
     "", // Process Followed?
     "", // Notes
+    "", // Sleep Score
+    "", // Readiness Score
+    "", // Emotional State
+    "", // Market Bias
   ];
 }
 
@@ -742,6 +805,10 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Setup", "No — you fill this in", "The trade setup type. Select from the dropdown: ORB, ABCD, BHOD, BLOD, VWAP Bounce, or Mean Reversion."],
     ["Process Followed?", "No — you fill this in", "Did you follow your trading plan and rules for this trade? Select Yes or No from the dropdown."],
     ["Notes", "No — you fill this in", "Free-form notes: what you were thinking, what went right or wrong, lessons for next time."],
+    ["Sleep Score", "No — you fill this in (daily)", "Your sleep quality score (0–100). Fill in once on the first trade of each day."],
+    ["Readiness Score", "No — you fill this in (daily)", "Your overall readiness to trade (0–100). Fill in once on the first trade of each day."],
+    ["Emotional State", "No — you fill this in (daily)", "How you're feeling before trading. Select from dropdown: Calm, Anxious, Excited, Frustrated, or Fatigued. Fill in once per day."],
+    ["Market Bias", "No — you fill this in (daily)", "Your pre-market read on the overall market direction. Select from dropdown: Bullish, Bearish, or Neutral. Fill in once per day."],
   ];
 
   const SPACER: string[] = [];
@@ -751,6 +818,10 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Setup", "Select the setup from the dropdown. If your setup isn't listed, pick the closest match and note it in the Notes column."],
     ["Process Followed?", "Honestly assess whether you followed your trading plan. This is for your own development — be truthful."],
     ["Notes", "Write anything that will help you learn: your reasoning, emotions, what the chart looked like, what you'd do differently."],
+    ["Sleep Score", "Rate your sleep quality 0–100. Fill in once on the first trade row of each day."],
+    ["Readiness Score", "Rate your overall readiness to trade 0–100. Fill in once on the first trade row of each day."],
+    ["Emotional State", "Select from dropdown. Fill in once per day. Track this to find correlations between your state and your P&L."],
+    ["Market Bias", "Select from dropdown. Fill in once per day. Over time, see if having a strong bias helps or hurts your trading."],
   ];
 
   const rows: (string | number)[][] = [
@@ -921,7 +992,7 @@ export async function appendTrades(
     usedAccounts.push(tabName);
     if (firstGid === null) firstGid = gid;
 
-    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:P`);
+    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:T`);
     const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row)));
 
     const nextRowStart = existing.length + 1;
@@ -945,7 +1016,7 @@ export async function appendTrades(
 
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
-    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:P`);
+    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:T`);
     stats = computeStats(allRows);
   }
 

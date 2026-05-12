@@ -104,6 +104,15 @@ export default function HowToUse() {
               <li><strong>Process Followed?</strong> — Did you follow your trading plan? Yes or No.</li>
               <li><strong>Notes</strong> — Free-form notes about the trade, your thought process, or lessons learned.</li>
             </ul>
+            <p className="mt-3" style={{ color: "var(--color-muted)" }}>
+              There are also <strong>daily columns</strong> you fill in once on the first trade of each day:
+            </p>
+            <ul className="mt-2 list-inside list-disc space-y-1" style={{ color: "var(--color-text)" }}>
+              <li><strong>Sleep Score</strong> — Your sleep quality (0–100).</li>
+              <li><strong>Readiness Score</strong> — Your overall readiness to trade (0–100).</li>
+              <li><strong>Emotional State</strong> — How you feel before trading (Calm, Anxious, Excited, Frustrated, Fatigued).</li>
+              <li><strong>Market Bias</strong> — Your pre-market read (Bullish, Bearish, Neutral).</li>
+            </ul>
           </div>
         </div>
       )}

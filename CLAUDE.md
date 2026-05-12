@@ -53,8 +53,10 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 ### Google Sheets integration
 - **Auth**: Service account JSON in `GOOGLE_SERVICE_ACCOUNT_JSON` env var. JWT signed with Web Crypto.
 - **Sheet structure**: One tab per trading account (matched by account prefix, e.g. `TRPCT1541-GS`).
-- **16 columns** (A-P): Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L, R (Risk), P&L (R), Setup, Process Followed?, Notes.
-- **Manual columns** (user fills in): R, Setup, Process Followed?, Notes — these have flipped header colors.
+- **20 columns** (A-T): Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L, R (Risk), P&L (R), Setup, Process Followed?, Notes, Sleep Score, Readiness Score, Emotional State, Market Bias.
+- **Per-trade manual columns**: R, Setup, Process Followed?, Notes — user fills these for every trade.
+- **Daily manual columns**: Sleep Score (0-100), Readiness Score (0-100), Emotional State (dropdown), Market Bias (dropdown) — user fills these once on the first trade of each day.
+- All manual columns have flipped header colors (light bg, dark text) to visually distinguish them.
 - **P&L (R)** is a formula: `=IF(L{row}="","",K{row}/L{row})`.
 - **Dedup** uses key: `Date|Symbol|normalizedEntryTime|Side`. Time is normalized (leading zeros stripped) because Google Sheets strips them.
 - **Formatting**: frozen header, conditional colors (green/red for P&L, Side, Process), currency formats, dropdowns for Setup and Process Followed.
