@@ -1,10 +1,12 @@
 import { GroupedTrade } from "./trade-grouper";
+import { MarketEnrichment } from "./market-data";
 
 // Column layout (0-indexed):
 // A=Date, B=Entry Time, C=Exit Time, D=Duration (mins), E=Symbol,
 // F=Side, G=Shares, H=Avg Entry, I=Avg Exit, J=# Partials,
 // K=P&L, L=R (Risk), M=P&L (R), N=Setup, O=Process Followed?, P=Notes,
-// Q=Sleep Score, R=Readiness Score, S=Emotional State, T=Market Bias
+// Q=Sleep Score, R=Readiness Score, S=Emotional State, T=Market Bias,
+// U=#1m, V=#5m, W=#1H, X=%Gap, Y=%ATR, Z=RVOL, AA=%VWAP
 const SHEET_HEADERS = [
   "Date",
   "Entry Time",
@@ -26,6 +28,13 @@ const SHEET_HEADERS = [
   "Readiness Score",
   "Emotional State",
   "Market Bias",
+  "#1m",
+  "#5m",
+  "#1H",
+  "%Gap",
+  "%ATR",
+  "RVOL",
+  "%VWAP",
 ];
 
 const COL = {
@@ -49,6 +58,13 @@ const COL = {
   READINESS: 17,
   EMOTIONAL: 18,
   BIAS: 19,
+  CONSEC_1M: 20,
+  CONSEC_5M: 21,
+  CONSEC_1H: 22,
+  GAP_PCT: 23,
+  ATR_PCT: 24,
+  RVOL: 25,
+  VWAP_PCT: 26,
 } as const;
 
 const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS]);
@@ -308,6 +324,8 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     [COL.PARTIALS]: 85, [COL.PNL]: 95, [COL.RISK]: 95,
     [COL.PNL_R]: 85, [COL.SETUP]: 140, [COL.PROCESS]: 130, [COL.NOTES]: 200,
     [COL.SLEEP]: 100, [COL.READINESS]: 120, [COL.EMOTIONAL]: 120, [COL.BIAS]: 100,
+    [COL.CONSEC_1M]: 55, [COL.CONSEC_5M]: 55, [COL.CONSEC_1H]: 55,
+    [COL.GAP_PCT]: 70, [COL.ATR_PCT]: 70, [COL.RVOL]: 65, [COL.VWAP_PCT]: 75,
   };
   for (const [col, width] of Object.entries(colWidths)) {
     requests.push({
@@ -526,6 +544,40 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
+  // Number format: market data columns
+  for (const col of [COL.CONSEC_1M, COL.CONSEC_5M, COL.CONSEC_1H]) {
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+  for (const col of [COL.GAP_PCT, COL.VWAP_PCT]) {
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "+0.00;-0.00" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.ATR_PCT, endColumnIndex: COL.ATR_PCT + 1 },
+      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
+      fields: "userEnteredFormat.numberFormat",
+    },
+  });
+  requests.push({
+    repeatCell: {
+      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.RVOL, endColumnIndex: COL.RVOL + 1 },
+      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.00" } } },
+      fields: "userEnteredFormat.numberFormat",
+    },
+  });
+
   // Text wrapping
   for (const col of [COL.SETUP, COL.NOTES]) {
     requests.push({
@@ -538,7 +590,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS]) {
+  for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS, COL.CONSEC_1M, COL.CONSEC_5M, COL.CONSEC_1H, COL.GAP_PCT, COL.ATR_PCT, COL.RVOL, COL.VWAP_PCT]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
@@ -571,7 +623,14 @@ async function ensureSheetTab(
   const meta = await sheetsGet(token, spreadsheetId);
   const existing = findTabByAccountPrefix(meta.sheets, account);
 
-  if (existing) return { tabName: existing.title, gid: existing.sheetId };
+  if (existing) {
+    const currentHeaders = await sheetsValuesGet(token, spreadsheetId, `'${existing.title}'!1:1`);
+    if (!currentHeaders[0] || currentHeaders[0].length < TOTAL_COLS) {
+      await sheetsValuesUpdate(token, spreadsheetId, `'${existing.title}'!A1`, [SHEET_HEADERS]);
+      await applyFormatting(token, spreadsheetId, existing.sheetId);
+    }
+    return { tabName: existing.title, gid: existing.sheetId };
+  }
 
   const tabName = suffix ? `${account}-${suffix}` : account;
 
@@ -588,8 +647,9 @@ async function ensureSheetTab(
   return { tabName, gid: sheetId };
 }
 
-function tradeToRow(trade: GroupedTrade, rowIndex: number): (string | number)[] {
+function tradeToRow(trade: GroupedTrade, rowIndex: number, enrichment?: MarketEnrichment): (string | number)[] {
   const pnlRFormula = `=IF(L${rowIndex}="","",K${rowIndex}/L${rowIndex})`;
+  const e = enrichment;
 
   return [
     trade.date,
@@ -612,6 +672,13 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number): (string | number)[] 
     "", // Readiness Score
     "", // Emotional State
     "", // Market Bias
+    e?.consec1m ?? "",
+    e?.consec5m ?? "",
+    e?.consec1h ?? "",
+    e?.gapPct ?? "",
+    e?.atrPct ?? "",
+    e?.rvol ?? "",
+    e?.vwapPct ?? "",
   ];
 }
 
@@ -809,6 +876,13 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Readiness Score", "No — you fill this in (daily)", "Your overall readiness to trade (0–100). Fill in once on the first trade of each day."],
     ["Emotional State", "No — you fill this in (daily)", "How you're feeling before trading. Select from dropdown: Calm, Anxious, Excited, Frustrated, or Fatigued. Fill in once per day."],
     ["Market Bias", "No — you fill this in (daily)", "Your pre-market read on the overall market direction. Select from dropdown: Bullish, Bearish, or Neutral. Fill in once per day."],
+    ["#1m", "Yes (market data)", "Number of consecutive 1-minute candles in the trade direction at entry (including the entry candle). Green candles for Long, red for Short."],
+    ["#5m", "Yes (market data)", "Number of consecutive 5-minute candles in the trade direction at entry."],
+    ["#1H", "Yes (market data)", "Number of consecutive 1-hour candles in the trade direction at entry."],
+    ["%Gap", "Yes (market data)", "Percentage gap from previous day's close to today's open. Positive = gap up, negative = gap down."],
+    ["%ATR", "Yes (market data)", "Percentage of the 14-day Average True Range already consumed by the time of entry. High values mean much of the expected daily range was already used."],
+    ["RVOL", "Yes (market data)", "Relative Volume at entry time compared to the same time on prior days. >1 means above-average volume activity."],
+    ["%VWAP", "Yes (market data)", "Percentage distance from VWAP at entry. Positive = above VWAP, negative = below VWAP."],
   ];
 
   const SPACER: string[] = [];
@@ -971,15 +1045,17 @@ export async function populateInstructionsSheet(): Promise<void> {
 
 export async function appendTrades(
   trades: GroupedTrade[],
-  sheetSuffix: string
+  sheetSuffix: string,
+  enrichments?: MarketEnrichment[]
 ): Promise<{ appended: number; skipped: number; accounts: string[]; sheetGid: number | null; stats: AggregateStats | null }> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  const byAccount = new Map<string, GroupedTrade[]>();
-  for (const t of trades) {
+  const byAccount = new Map<string, { trade: GroupedTrade; enrichment?: MarketEnrichment }[]>();
+  for (let i = 0; i < trades.length; i++) {
+    const t = trades[i];
     if (!byAccount.has(t.account)) byAccount.set(t.account, []);
-    byAccount.get(t.account)!.push(t);
+    byAccount.get(t.account)!.push({ trade: t, enrichment: enrichments?.[i] });
   }
 
   let totalAppended = 0;
@@ -987,21 +1063,21 @@ export async function appendTrades(
   const usedAccounts: string[] = [];
   let firstGid: number | null = null;
 
-  for (const [account, accountTrades] of byAccount) {
+  for (const [account, items] of byAccount) {
     const { tabName, gid } = await ensureSheetTab(token, spreadsheetId, account, sheetSuffix);
     usedAccounts.push(tabName);
     if (firstGid === null) firstGid = gid;
 
-    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:T`);
+    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AA`);
     const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row)));
 
     const nextRowStart = existing.length + 1;
     const newRows: (string | number)[][] = [];
     let skipped = 0;
 
-    for (const trade of accountTrades) {
+    for (const { trade, enrichment } of items) {
       const rowIndex = nextRowStart + newRows.length;
-      const row = tradeToRow(trade, rowIndex);
+      const row = tradeToRow(trade, rowIndex, enrichment);
       const key = makeDedupeKey(row);
       if (existingKeys.has(key)) { skipped++; } else { newRows.push(row); }
     }
@@ -1016,7 +1092,7 @@ export async function appendTrades(
 
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
-    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:T`);
+    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:AA`);
     stats = computeStats(allRows);
   }
 

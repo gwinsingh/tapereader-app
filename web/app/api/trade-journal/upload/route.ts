@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAndParse } from "@/lib/trade-journal/csv-parser";
 import { groupExecutionsIntoTrades } from "@/lib/trade-journal/trade-grouper";
 import { appendTrades } from "@/lib/trade-journal/google-sheets";
+import { enrichTrades } from "@/lib/trade-journal/market-data";
 
 export const runtime = "edge";
 
@@ -47,7 +48,14 @@ export async function POST(req: NextRequest) {
     const { executions } = validateAndParse(csvText);
     const trades = groupExecutionsIntoTrades(executions, date);
 
-    const result = await appendTrades(trades, sheetSuffix);
+    let enrichments;
+    try {
+      enrichments = await enrichTrades(trades);
+    } catch (enrichErr) {
+      console.warn("[trade-journal] enrichment failed:", enrichErr instanceof Error ? enrichErr.message : enrichErr);
+    }
+
+    const result = await appendTrades(trades, sheetSuffix, enrichments);
 
     return NextResponse.json({
       success: true,

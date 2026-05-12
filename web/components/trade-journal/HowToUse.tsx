@@ -113,6 +113,16 @@ export default function HowToUse() {
               <li><strong>Emotional State</strong> — How you feel before trading (Calm, Anxious, Excited, Frustrated, Fatigued).</li>
               <li><strong>Market Bias</strong> — Your pre-market read (Bullish, Bearish, Neutral).</li>
             </ul>
+            <p className="mt-3" style={{ color: "var(--color-muted)" }}>
+              The following <strong>market data columns</strong> are auto-populated from Yahoo Finance:
+            </p>
+            <ul className="mt-2 list-inside list-disc space-y-1" style={{ color: "var(--color-text)" }}>
+              <li><strong>#1m / #5m / #1H</strong> — Consecutive candles in the trade direction at entry.</li>
+              <li><strong>%Gap</strong> — Percentage gap from previous close (+ve = gap up, −ve = gap down).</li>
+              <li><strong>%ATR</strong> — Percent of 14-day ATR consumed at entry time.</li>
+              <li><strong>RVOL</strong> — Relative volume vs. same time on prior days (&gt;1 = above average).</li>
+              <li><strong>%VWAP</strong> — Distance from VWAP at entry (+ve = above, −ve = below).</li>
+            </ul>
           </div>
         </div>
       )}
