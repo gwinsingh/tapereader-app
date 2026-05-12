@@ -38,57 +38,56 @@ const EMPTY: MarketEnrichment = {
   vwapPct: null,
 };
 
-// --- Yahoo Finance fetchers ---
+// --- Polygon.io fetchers ---
 
-type YahooResult = {
-  chart: {
-    result?: Array<{
-      timestamp?: number[];
-      indicators: {
-        quote: Array<{
-          open: (number | null)[];
-          high: (number | null)[];
-          low: (number | null)[];
-          close: (number | null)[];
-          volume: (number | null)[];
-        }>;
-      };
-    }>;
-    error?: { code: string; description: string } | null;
-  };
+type PolygonAgg = { t: number; o: number; h: number; l: number; c: number; v: number };
+type PolygonResponse = {
+  status: string;
+  results?: PolygonAgg[];
+  error?: string;
+  message?: string;
 };
 
-const YAHOO_UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+function fmtDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
-async function fetchYahoo(symbol: string, interval: string, range: string): Promise<Bar[]> {
+async function fetchPolygon(
+  symbol: string,
+  multiplier: number,
+  timespan: "minute" | "day",
+  from: string,
+  to: string
+): Promise<Bar[]> {
+  const apiKey = process.env.POLYGON_API_KEY;
+  if (!apiKey) throw new Error("POLYGON_API_KEY is not set");
+
   const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
-    `?interval=${interval}&range=${range}`;
+    `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(symbol)}` +
+    `/range/${multiplier}/${timespan}/${from}/${to}` +
+    `?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
 
   let res: Response | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    res = await fetch(url, {
-      headers: { "User-Agent": YAHOO_UA, Accept: "application/json" },
-    });
+    res = await fetch(url);
     if (res.status !== 429) break;
     await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
   }
-  if (!res || !res.ok) throw new Error(`Yahoo ${symbol} ${interval} HTTP ${res?.status}`);
+  if (!res || !res.ok) throw new Error(`Polygon ${symbol} ${multiplier}${timespan} HTTP ${res?.status}`);
 
-  const json = (await res.json()) as YahooResult;
-  const result = json.chart.result?.[0];
-  if (!result?.timestamp || !result.indicators?.quote?.[0]) return [];
-
-  const ts = result.timestamp;
-  const q = result.indicators.quote[0];
-  const bars: Bar[] = [];
-  for (let i = 0; i < ts.length; i++) {
-    const o = q.open[i], h = q.high[i], l = q.low[i], c = q.close[i], v = q.volume[i];
-    if (o == null || h == null || l == null || c == null) continue;
-    bars.push({ ts: ts[i], open: o, high: h, low: l, close: c, volume: v ?? 0 });
+  const json = (await res.json()) as PolygonResponse;
+  if (json.status === "ERROR" || !json.results) {
+    throw new Error(`Polygon error: ${json.error ?? json.message ?? json.status}`);
   }
-  return bars;
+
+  return json.results.map((r) => ({
+    ts: r.t / 1000,
+    open: r.o,
+    high: r.h,
+    low: r.l,
+    close: r.c,
+    volume: r.v,
+  }));
 }
 
 // --- Timezone helpers ---
@@ -316,11 +315,21 @@ export async function enrichTrades(trades: GroupedTrade[]): Promise<MarketEnrich
 
   const cache = new Map<string, { intraday: Bar[]; daily: DailyBar[] }>();
 
-  for (const symbol of symbols) {
+  const tradeDates = [...new Set(trades.map((t) => t.date))].sort();
+  const earliest = tradeDates[0];
+  const latest = tradeDates[tradeDates.length - 1];
+
+  const dailyFrom = new Date(earliest);
+  dailyFrom.setUTCDate(dailyFrom.getUTCDate() - 35);
+
+  for (let i = 0; i < symbols.length; i++) {
+    const symbol = symbols[i];
+    if (i > 0) await new Promise((r) => setTimeout(r, 13000));
+
     try {
       const [raw1m, rawDaily] = await Promise.all([
-        fetchYahoo(symbol, "1m", "7d"),
-        fetchYahoo(symbol, "1d", "1mo"),
+        fetchPolygon(symbol, 1, "minute", earliest, latest),
+        fetchPolygon(symbol, 1, "day", fmtDate(dailyFrom), latest),
       ]);
 
       const daily: DailyBar[] = rawDaily.map((b) => ({
