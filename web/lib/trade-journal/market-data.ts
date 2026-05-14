@@ -73,7 +73,12 @@ async function fetchPolygon(
     if (res.status !== 429) break;
     await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
   }
-  if (!res || !res.ok) throw new Error(`Polygon ${symbol} ${multiplier}${timespan} HTTP ${res?.status}`);
+  if (!res || !res.ok) {
+    const body = await res?.text().catch(() => "") ?? "";
+    let detail = "";
+    try { detail = JSON.parse(body).message || ""; } catch { /* ignore */ }
+    throw new Error(detail || `Polygon ${symbol} ${multiplier}${timespan} HTTP ${res?.status}`);
+  }
 
   const json = (await res.json()) as PolygonResponse;
   if (json.status === "ERROR" || !json.results) {
@@ -323,13 +328,24 @@ export async function enrichSymbol(
   const earliest = tradeDates[0];
   const latest = tradeDates[tradeDates.length - 1];
 
+  // Polygon free tier blocks same-day intraday data — cap to yesterday ET
+  const todayET = timestampToET(Date.now() / 1000).date;
+  const yesterdayParts = todayET.split("-").map(Number);
+  const yesterdayDate = new Date(Date.UTC(yesterdayParts[0], yesterdayParts[1] - 1, yesterdayParts[2] - 1));
+  const yesterdayET = fmtDate(yesterdayDate);
+  const intradayTo = latest < todayET ? latest : yesterdayET;
+  const intradayFrom = earliest < todayET ? earliest : intradayTo;
+
   const dailyFrom = new Date(earliest);
   dailyFrom.setUTCDate(dailyFrom.getUTCDate() - 35);
 
-  const [raw1m, rawDaily] = await Promise.all([
-    fetchPolygon(symbol, 1, "minute", earliest, latest),
+  const fetches: [Promise<Bar[]>, Promise<Bar[]>] = [
+    intradayFrom <= intradayTo
+      ? fetchPolygon(symbol, 1, "minute", intradayFrom, intradayTo)
+      : Promise.resolve([]),
     fetchPolygon(symbol, 1, "day", fmtDate(dailyFrom), latest),
-  ]);
+  ];
+  const [raw1m, rawDaily] = await Promise.all(fetches);
 
   const dailyBars: DailyBar[] = rawDaily.map((b) => ({
     date: timestampToET(b.ts).date,
