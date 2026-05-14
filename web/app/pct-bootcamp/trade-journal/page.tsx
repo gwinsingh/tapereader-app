@@ -49,6 +49,13 @@ interface StatsData {
   setupBreakdown: SegmentStats[];
 }
 
+interface EnrichmentInfo {
+  status: "ok" | "partial" | "error" | "skipped";
+  error?: string;
+  succeeded: string[];
+  failed: { symbol: string; error: string }[];
+}
+
 interface UploadResult {
   success: boolean;
   date: string;
@@ -59,6 +66,7 @@ interface UploadResult {
   sheetGid: number | null;
   trades: TradeRow[];
   stats: StatsData | null;
+  enrichment?: EnrichmentInfo;
 }
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Hg1g73D8l8EH0j65IQBJhSEHzp3Ot_ib-ZD9UcN3ucU/edit";
@@ -289,6 +297,32 @@ export default function TradeJournalPage() {
 
       {result && (
         <>
+          {result.enrichment && result.enrichment.status !== "ok" && (
+            <div
+              className="rounded border px-4 py-3 text-sm"
+              style={{
+                borderColor: result.enrichment.status === "error" ? "var(--color-danger)" : "var(--color-warning, #d97706)",
+                backgroundColor: result.enrichment.status === "error"
+                  ? "color-mix(in srgb, var(--color-danger) 8%, transparent)"
+                  : "color-mix(in srgb, var(--color-warning, #d97706) 8%, transparent)",
+                color: result.enrichment.status === "error" ? "var(--color-danger)" : "var(--color-warning, #d97706)",
+              }}
+            >
+              {result.enrichment.status === "error" && (
+                <p>Market data enrichment failed: {result.enrichment.error}</p>
+              )}
+              {result.enrichment.status === "skipped" && (
+                <p>Market data enrichment was skipped (no API key configured).</p>
+              )}
+              {result.enrichment.status === "partial" && (
+                <p>
+                  Market data: fetched for {result.enrichment.succeeded.join(", ") || "none"}.
+                  {" "}Failed for{" "}
+                  {result.enrichment.failed.map((f) => `${f.symbol} (${f.error})`).join(", ")}.
+                </p>
+              )}
+            </div>
+          )}
           <TradePreview
             trades={result.trades}
             rowsAppended={result.rowsAppended}

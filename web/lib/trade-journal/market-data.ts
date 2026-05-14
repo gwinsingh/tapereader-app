@@ -310,10 +310,20 @@ function computeEnrichment(
   };
 }
 
-export async function enrichTrades(trades: GroupedTrade[]): Promise<MarketEnrichment[]> {
+export interface EnrichmentResult {
+  enrichments: MarketEnrichment[];
+  status: {
+    succeeded: string[];
+    failed: { symbol: string; error: string }[];
+  };
+}
+
+export async function enrichTrades(trades: GroupedTrade[]): Promise<EnrichmentResult> {
   const symbols = [...new Set(trades.map((t) => t.symbol))];
 
   const cache = new Map<string, { intraday: Bar[]; daily: DailyBar[] }>();
+  const succeeded: string[] = [];
+  const failed: { symbol: string; error: string }[] = [];
 
   const tradeDates = [...new Set(trades.map((t) => t.date))].sort();
   const earliest = tradeDates[0];
@@ -342,14 +352,19 @@ export async function enrichTrades(trades: GroupedTrade[]): Promise<MarketEnrich
       }));
 
       cache.set(symbol, { intraday: raw1m, daily });
+      succeeded.push(symbol);
     } catch (err) {
-      console.warn(`[market-data] ${symbol} fetch failed:`, err instanceof Error ? err.message : err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[market-data] ${symbol} fetch failed:`, msg);
+      failed.push({ symbol, error: msg });
     }
   }
 
-  return trades.map((trade) => {
+  const enrichments = trades.map((trade) => {
     const data = cache.get(trade.symbol);
     if (!data) return { ...EMPTY };
     return computeEnrichment(trade, data.intraday, data.daily);
   });
+
+  return { enrichments, status: { succeeded, failed } };
 }

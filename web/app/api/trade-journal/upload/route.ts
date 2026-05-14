@@ -49,10 +49,15 @@ export async function POST(req: NextRequest) {
     const trades = groupExecutionsIntoTrades(executions, date);
 
     let enrichments;
+    let enrichmentStatus: { succeeded: string[]; failed: { symbol: string; error: string }[] } | null = null;
+    let enrichmentError: string | null = null;
     try {
-      enrichments = await enrichTrades(trades);
+      const enrichResult = await enrichTrades(trades);
+      enrichments = enrichResult.enrichments;
+      enrichmentStatus = enrichResult.status;
     } catch (enrichErr) {
-      console.warn("[trade-journal] enrichment failed:", enrichErr instanceof Error ? enrichErr.message : enrichErr);
+      enrichmentError = enrichErr instanceof Error ? enrichErr.message : String(enrichErr);
+      console.warn("[trade-journal] enrichment failed:", enrichmentError);
     }
 
     const result = await appendTrades(trades, sheetSuffix, enrichments);
@@ -66,6 +71,11 @@ export async function POST(req: NextRequest) {
       accounts: result.accounts,
       sheetGid: result.sheetGid,
       stats: result.stats,
+      enrichment: enrichmentError
+        ? { status: "error", error: enrichmentError, succeeded: [], failed: [] }
+        : enrichmentStatus
+          ? { status: enrichmentStatus.failed.length > 0 ? "partial" : "ok", ...enrichmentStatus }
+          : { status: "skipped", succeeded: [], failed: [] },
       trades: trades.map((t) => ({
         symbol: t.symbol,
         side: t.side,
