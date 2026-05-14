@@ -334,7 +334,10 @@ export async function enrichSymbol(
   const yesterdayDate = new Date(Date.UTC(yesterdayParts[0], yesterdayParts[1] - 1, yesterdayParts[2] - 1));
   const yesterdayET = fmtDate(yesterdayDate);
   const intradayTo = latest < todayET ? latest : yesterdayET;
-  const intradayFrom = earliest < todayET ? earliest : intradayTo;
+  // Fetch ~7 extra calendar days of intraday data for RVOL baseline
+  const intradayFromDate = new Date(earliest);
+  intradayFromDate.setUTCDate(intradayFromDate.getUTCDate() - 7);
+  const intradayFrom = fmtDate(intradayFromDate);
 
   const dailyFrom = new Date(earliest);
   dailyFrom.setUTCDate(dailyFrom.getUTCDate() - 35);
