@@ -1098,3 +1098,66 @@ export async function appendTrades(
 
   return { appended: totalAppended, skipped: totalSkipped, accounts: usedAccounts, sheetGid: firstGid, stats };
 }
+
+export async function updateEnrichment(
+  tabName: string,
+  symbol: string,
+  enrichments: { date: string; entryTime: string; side: string; data: MarketEnrichment }[]
+): Promise<{ updated: number }> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AA`);
+  if (rows.length <= 1) return { updated: 0 };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const valueRanges: any[] = [];
+  const used = new Set<number>();
+
+  for (const e of enrichments) {
+    const normEntry = normalizeTime(e.entryTime);
+    for (let r = 1; r < rows.length; r++) {
+      if (used.has(r)) continue;
+      const row = rows[r];
+      if (
+        row[COL.SYMBOL] === symbol &&
+        row[COL.DATE] === e.date &&
+        normalizeTime(row[COL.ENTRY_TIME]) === normEntry &&
+        row[COL.SIDE] === e.side
+      ) {
+        used.add(r);
+        const rowNum = r + 1; // 1-indexed
+        valueRanges.push({
+          range: `'${tabName}'!U${rowNum}:AA${rowNum}`,
+          values: [[
+            e.data.consec1m ?? "",
+            e.data.consec5m ?? "",
+            e.data.consec1h ?? "",
+            e.data.gapPct ?? "",
+            e.data.atrPct ?? "",
+            e.data.rvol ?? "",
+            e.data.vwapPct ?? "",
+          ]],
+        });
+        break;
+      }
+    }
+  }
+
+  if (valueRanges.length > 0) {
+    const res = await fetch(
+      `${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          valueInputOption: "RAW",
+          data: valueRanges,
+        }),
+      }
+    );
+    if (!res.ok) throw new Error(`Sheets batchUpdate values failed: ${await res.text()}`);
+  }
+
+  return { updated: valueRanges.length };
+}

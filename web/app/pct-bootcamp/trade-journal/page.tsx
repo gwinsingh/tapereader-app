@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, FormEvent, DragEvent } from "react";
+import { useState, useRef, useCallback, FormEvent, DragEvent } from "react";
 import TradePreview from "@/components/trade-journal/TradePreview";
 import AggregateStats from "@/components/trade-journal/AggregateStats";
 import HowToUse from "@/components/trade-journal/HowToUse";
 
 interface TradeRow {
+  index: number;
   symbol: string;
   side: string;
   shares: number;
@@ -16,6 +17,7 @@ interface TradeRow {
   durationMins: number;
   entryTime: string;
   exitTime: string;
+  date: string;
 }
 
 interface SegmentStats {
@@ -49,13 +51,6 @@ interface StatsData {
   setupBreakdown: SegmentStats[];
 }
 
-interface EnrichmentInfo {
-  status: "ok" | "partial" | "error" | "skipped";
-  error?: string;
-  succeeded: string[];
-  failed: { symbol: string; error: string }[];
-}
-
 interface UploadResult {
   success: boolean;
   date: string;
@@ -66,22 +61,39 @@ interface UploadResult {
   sheetGid: number | null;
   trades: TradeRow[];
   stats: StatsData | null;
-  enrichment?: EnrichmentInfo;
+}
+
+interface EnrichmentProgress {
+  total: number;
+  completed: number;
+  current: string | null;
+  succeeded: string[];
+  failed: { symbol: string; error: string }[];
+  done: boolean;
 }
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Hg1g73D8l8EH0j65IQBJhSEHzp3Ot_ib-ZD9UcN3ucU/edit";
+const ENRICH_DELAY_MS = 25000;
 
 function getLastWeekdayEST(): string {
   const now = new Date();
   const est = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
   const day = est.getDay();
-  // 0=Sun → back 2, 1=Mon → back 3 (to Friday), otherwise back 1
   const daysBack = day === 0 ? 2 : day === 1 ? 3 : 1;
   est.setDate(est.getDate() - daysBack);
   const y = est.getFullYear();
   const m = String(est.getMonth() + 1).padStart(2, "0");
   const d = String(est.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function groupTradesBySymbol(trades: TradeRow[]): Map<string, TradeRow[]> {
+  const map = new Map<string, TradeRow[]>();
+  for (const t of trades) {
+    if (!map.has(t.symbol)) map.set(t.symbol, []);
+    map.get(t.symbol)!.push(t);
+  }
+  return map;
 }
 
 export default function TradeJournalPage() {
@@ -92,7 +104,73 @@ export default function TradeJournalPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadResult | null>(null);
+  const [enrichment, setEnrichment] = useState<EnrichmentProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const runEnrichment = useCallback(async (trades: TradeRow[], accounts: string[]) => {
+    const bySymbol = groupTradesBySymbol(trades);
+    const symbols = [...bySymbol.keys()];
+    const tabName = accounts[0];
+
+    if (!tabName || symbols.length === 0) return;
+
+    const progress: EnrichmentProgress = {
+      total: symbols.length,
+      completed: 0,
+      current: null,
+      succeeded: [],
+      failed: [],
+      done: false,
+    };
+    setEnrichment({ ...progress });
+
+    for (let i = 0; i < symbols.length; i++) {
+      const symbol = symbols[i];
+      progress.current = symbol;
+      setEnrichment({ ...progress });
+
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, ENRICH_DELAY_MS));
+      }
+
+      try {
+        const symbolTrades = bySymbol.get(symbol)!;
+        const res = await fetch("/api/trade-journal/enrich", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symbol,
+            tabName,
+            trades: symbolTrades.map((t) => ({
+              date: t.date,
+              entryTime: t.entryTime,
+              side: t.side,
+              avgEntry: t.avgEntry,
+              index: t.index,
+            })),
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+
+        progress.succeeded.push(symbol);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        progress.failed.push({ symbol, error: msg });
+      }
+
+      progress.completed = i + 1;
+      progress.current = null;
+      setEnrichment({ ...progress });
+    }
+
+    progress.done = true;
+    progress.current = null;
+    setEnrichment({ ...progress });
+  }, []);
 
   function handleDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -102,6 +180,7 @@ export default function TradeJournalPage() {
       setFile(dropped);
       setError(null);
       setResult(null);
+      setEnrichment(null);
     } else {
       setError("Please drop a .csv file.");
     }
@@ -113,6 +192,7 @@ export default function TradeJournalPage() {
       setFile(selected);
       setError(null);
       setResult(null);
+      setEnrichment(null);
     }
   }
 
@@ -123,6 +203,7 @@ export default function TradeJournalPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setEnrichment(null);
 
     try {
       const formData = new FormData();
@@ -142,7 +223,11 @@ export default function TradeJournalPage() {
       if (!res.ok) {
         setError(data.error || "Upload failed.");
       } else {
-        setResult(data as UploadResult);
+        const uploadResult = data as UploadResult;
+        setResult(uploadResult);
+        if (uploadResult.rowsAppended > 0) {
+          runEnrichment(uploadResult.trades, uploadResult.accounts);
+        }
       }
     } catch {
       setError("Network error. Please try again.");
@@ -155,6 +240,7 @@ export default function TradeJournalPage() {
     setFile(null);
     setResult(null);
     setError(null);
+    setEnrichment(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -295,34 +381,12 @@ export default function TradeJournalPage() {
         </div>
       )}
 
+      {enrichment && (
+        <EnrichmentStatus progress={enrichment} />
+      )}
+
       {result && (
         <>
-          {result.enrichment && result.enrichment.status !== "ok" && (
-            <div
-              className="rounded border px-4 py-3 text-sm"
-              style={{
-                borderColor: result.enrichment.status === "error" ? "var(--color-danger)" : "var(--color-warning, #d97706)",
-                backgroundColor: result.enrichment.status === "error"
-                  ? "color-mix(in srgb, var(--color-danger) 8%, transparent)"
-                  : "color-mix(in srgb, var(--color-warning, #d97706) 8%, transparent)",
-                color: result.enrichment.status === "error" ? "var(--color-danger)" : "var(--color-warning, #d97706)",
-              }}
-            >
-              {result.enrichment.status === "error" && (
-                <p>Market data enrichment failed: {result.enrichment.error}</p>
-              )}
-              {result.enrichment.status === "skipped" && (
-                <p>Market data enrichment was skipped (no API key configured).</p>
-              )}
-              {result.enrichment.status === "partial" && (
-                <p>
-                  Market data: fetched for {result.enrichment.succeeded.join(", ") || "none"}.
-                  {" "}Failed for{" "}
-                  {result.enrichment.failed.map((f) => `${f.symbol} (${f.error})`).join(", ")}.
-                </p>
-              )}
-            </div>
-          )}
           <TradePreview
             trades={result.trades}
             rowsAppended={result.rowsAppended}
@@ -331,6 +395,82 @@ export default function TradeJournalPage() {
           />
           {result.stats && <AggregateStats stats={result.stats} />}
         </>
+      )}
+    </div>
+  );
+}
+
+function EnrichmentStatus({ progress }: { progress: EnrichmentProgress }) {
+  const { total, completed, current, succeeded, failed, done } = progress;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  if (done && failed.length === 0 && succeeded.length > 0) {
+    return (
+      <div
+        className="rounded border px-4 py-3 text-sm"
+        style={{
+          borderColor: "var(--color-accent)",
+          backgroundColor: "color-mix(in srgb, var(--color-accent) 8%, transparent)",
+          color: "var(--color-accent)",
+        }}
+      >
+        Market data enriched for {succeeded.join(", ")}.
+      </div>
+    );
+  }
+
+  if (done && failed.length > 0) {
+    return (
+      <div
+        className="rounded border px-4 py-3 text-sm"
+        style={{
+          borderColor: succeeded.length > 0 ? "var(--color-warning, #d97706)" : "var(--color-danger)",
+          backgroundColor: succeeded.length > 0
+            ? "color-mix(in srgb, var(--color-warning, #d97706) 8%, transparent)"
+            : "color-mix(in srgb, var(--color-danger) 8%, transparent)",
+          color: succeeded.length > 0 ? "var(--color-warning, #d97706)" : "var(--color-danger)",
+        }}
+      >
+        <p>
+          Market data: {succeeded.length > 0 && <>enriched {succeeded.join(", ")}. </>}
+          Failed for {failed.map((f) => `${f.symbol} (${f.error})`).join(", ")}.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded border px-4 py-3 text-sm"
+      style={{
+        borderColor: "var(--color-border)",
+        backgroundColor: "var(--color-panel)",
+        color: "var(--color-text)",
+      }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span>
+          Enriching market data{current ? <>: <strong>{current}</strong></> : "..."}{" "}
+          ({completed}/{total})
+        </span>
+        <span style={{ color: "var(--color-muted)" }}>{pct}%</span>
+      </div>
+      <div
+        className="h-1.5 w-full rounded-full overflow-hidden"
+        style={{ backgroundColor: "var(--color-border)" }}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: "var(--color-accent)",
+          }}
+        />
+      </div>
+      {completed > 0 && completed < total && (
+        <p className="mt-1.5 text-xs" style={{ color: "var(--color-muted)" }}>
+          Waiting between API calls to respect rate limits...
+        </p>
       )}
     </div>
   );

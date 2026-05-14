@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAndParse } from "@/lib/trade-journal/csv-parser";
 import { groupExecutionsIntoTrades } from "@/lib/trade-journal/trade-grouper";
 import { appendTrades } from "@/lib/trade-journal/google-sheets";
-import { enrichTrades } from "@/lib/trade-journal/market-data";
 
 export const runtime = "edge";
 
@@ -48,19 +47,7 @@ export async function POST(req: NextRequest) {
     const { executions } = validateAndParse(csvText);
     const trades = groupExecutionsIntoTrades(executions, date);
 
-    let enrichments;
-    let enrichmentStatus: { succeeded: string[]; failed: { symbol: string; error: string }[] } | null = null;
-    let enrichmentError: string | null = null;
-    try {
-      const enrichResult = await enrichTrades(trades);
-      enrichments = enrichResult.enrichments;
-      enrichmentStatus = enrichResult.status;
-    } catch (enrichErr) {
-      enrichmentError = enrichErr instanceof Error ? enrichErr.message : String(enrichErr);
-      console.warn("[trade-journal] enrichment failed:", enrichmentError);
-    }
-
-    const result = await appendTrades(trades, sheetSuffix, enrichments);
+    const result = await appendTrades(trades, sheetSuffix);
 
     return NextResponse.json({
       success: true,
@@ -71,12 +58,8 @@ export async function POST(req: NextRequest) {
       accounts: result.accounts,
       sheetGid: result.sheetGid,
       stats: result.stats,
-      enrichment: enrichmentError
-        ? { status: "error", error: enrichmentError, succeeded: [], failed: [] }
-        : enrichmentStatus
-          ? { status: enrichmentStatus.failed.length > 0 ? "partial" : "ok", ...enrichmentStatus }
-          : { status: "skipped", succeeded: [], failed: [] },
-      trades: trades.map((t) => ({
+      trades: trades.map((t, i) => ({
+        index: i,
         symbol: t.symbol,
         side: t.side,
         shares: t.totalShares,
@@ -87,6 +70,7 @@ export async function POST(req: NextRequest) {
         durationMins: t.durationMins,
         entryTime: t.entryTime,
         exitTime: t.exitTime,
+        date: t.date,
       })),
     });
   } catch (err: unknown) {
