@@ -723,7 +723,14 @@ export interface AggregateStats {
   maxConsecutiveLosses: number;
   avgDurationMins: number;
   hourlyBreakdown: SegmentStats[];
+  granularHourlyBreakdown: SegmentStats[];
   setupBreakdown: SegmentStats[];
+}
+
+export interface StatsFilter {
+  processFollowed?: boolean;
+  startDate?: string;
+  endDate?: string;
 }
 
 const HOUR_BLOCKS: { label: string; startMin: number; endMin: number }[] = [
@@ -731,6 +738,21 @@ const HOUR_BLOCKS: { label: string; startMin: number; endMin: number }[] = [
   { label: "Morning (10:00–11:30)", startMin: 600, endMin: 690 },
   { label: "Lunch (11:30–14:00)", startMin: 690, endMin: 840 },
   { label: "Closing (14:00–16:00)", startMin: 840, endMin: 960 },
+];
+
+const GRANULAR_HOUR_BLOCKS: { label: string; startMin: number; endMin: number }[] = [
+  { label: "Opening Bell (9:30–9:35)", startMin: 570, endMin: 575 },
+  { label: "Opening 15m (9:35–9:45)", startMin: 575, endMin: 585 },
+  { label: "Opening 30m (9:45–10:00)", startMin: 585, endMin: 600 },
+  { label: "10:00–10:15", startMin: 600, endMin: 615 },
+  { label: "10:15–10:30", startMin: 615, endMin: 630 },
+  { label: "10:30–10:45", startMin: 630, endMin: 645 },
+  { label: "10:45–11:00", startMin: 645, endMin: 660 },
+  { label: "11:00–11:30", startMin: 660, endMin: 690 },
+  { label: "11:30–12:30", startMin: 690, endMin: 750 },
+  { label: "12:30–2:00", startMin: 750, endMin: 840 },
+  { label: "2:00–3:00", startMin: 840, endMin: 900 },
+  { label: "3:00–4:00", startMin: 900, endMin: 960 },
 ];
 
 function parseTimeToMinutes(t: string): number {
@@ -764,8 +786,18 @@ interface ParsedRow {
   setup: string;
 }
 
-export function computeStats(rows: string[][]): AggregateStats {
-  const dataRows = rows.slice(1).filter((r) => r.length > COL.PNL && r[COL.PNL] !== "");
+export function computeStats(rows: string[][], filter?: StatsFilter): AggregateStats {
+  let dataRows = rows.slice(1).filter((r) => r.length > COL.PNL && r[COL.PNL] !== "");
+
+  if (filter?.processFollowed) {
+    dataRows = dataRows.filter((r) => (r[COL.PROCESS] || "").trim() === "Yes");
+  }
+  if (filter?.startDate) {
+    dataRows = dataRows.filter((r) => (r[COL.DATE] || "") >= filter.startDate!);
+  }
+  if (filter?.endDate) {
+    dataRows = dataRows.filter((r) => (r[COL.DATE] || "") <= filter.endDate!);
+  }
 
   const parsed: ParsedRow[] = dataRows.map((r) => ({
     pnl: parseFloat(String(r[COL.PNL]).replace(/[$,]/g, "")) || 0,
@@ -776,15 +808,15 @@ export function computeStats(rows: string[][]): AggregateStats {
 
   const pnls = parsed.map((p) => p.pnl);
 
-  if (pnls.length === 0) {
-    return {
-      totalPnl: 0, avgDailyPnl: 0, avgWinner: 0, avgLoser: 0,
-      totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0,
-      profitFactor: 0, largestWin: 0, largestLoss: 0,
-      maxConsecutiveWins: 0, maxConsecutiveLosses: 0, avgDurationMins: 0,
-      hourlyBreakdown: [], setupBreakdown: [],
-    };
-  }
+  const emptyStats: AggregateStats = {
+    totalPnl: 0, avgDailyPnl: 0, avgWinner: 0, avgLoser: 0,
+    totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0,
+    profitFactor: 0, largestWin: 0, largestLoss: 0,
+    maxConsecutiveWins: 0, maxConsecutiveLosses: 0, avgDurationMins: 0,
+    hourlyBreakdown: [], granularHourlyBreakdown: [], setupBreakdown: [],
+  };
+
+  if (pnls.length === 0) return emptyStats;
 
   const totalPnl = pnls.reduce((s, v) => s + v, 0);
   const uniqueDays = new Set(dataRows.map((r) => r[COL.DATE])).size;
@@ -803,10 +835,14 @@ export function computeStats(rows: string[][]): AggregateStats {
     else { curWins = 0; curLosses = 0; }
   }
 
-  const hourlyBreakdown = HOUR_BLOCKS.map((block) => {
-    const blockPnls = parsed.filter((r) => r.entryMin >= block.startMin && r.entryMin < block.endMin).map((r) => r.pnl);
-    return computeSegment(blockPnls, block.label);
-  }).filter((s) => s.trades > 0);
+  const buildBreakdown = (blocks: typeof HOUR_BLOCKS) =>
+    blocks.map((block) => {
+      const blockPnls = parsed.filter((r) => r.entryMin >= block.startMin && r.entryMin < block.endMin).map((r) => r.pnl);
+      return computeSegment(blockPnls, block.label);
+    }).filter((s) => s.trades > 0);
+
+  const hourlyBreakdown = buildBreakdown(HOUR_BLOCKS);
+  const granularHourlyBreakdown = buildBreakdown(GRANULAR_HOUR_BLOCKS);
 
   const setupMap = new Map<string, number[]>();
   for (const r of parsed) {
@@ -839,6 +875,7 @@ export function computeStats(rows: string[][]): AggregateStats {
     maxConsecutiveLosses: maxConsecLosses,
     avgDurationMins: Math.round((durations.reduce((s, v) => s + v, 0) / durations.length) * 10) / 10,
     hourlyBreakdown,
+    granularHourlyBreakdown,
     setupBreakdown,
   };
 }
@@ -853,14 +890,14 @@ export async function listSheetTabs(): Promise<{ name: string; gid: number }[]> 
     .map((s) => ({ name: s.properties.title, gid: s.properties.sheetId }));
 }
 
-export async function getStatsForTab(tabName: string): Promise<AggregateStats> {
+export async function getStatsForTab(tabName: string, filter?: StatsFilter): Promise<AggregateStats> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
   const meta = await sheetsGet(token, spreadsheetId);
   const tab = meta.sheets.find((s) => s.properties.title === tabName);
   if (!tab) throw new Error(`Sheet tab "${tabName}" not found.`);
   const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AA`);
-  return computeStats(rows);
+  return computeStats(rows, filter);
 }
 
 export async function populateInstructionsSheet(): Promise<void> {

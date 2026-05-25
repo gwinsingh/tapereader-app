@@ -48,6 +48,7 @@ interface StatsData {
   maxConsecutiveLosses: number;
   avgDurationMins: number;
   hourlyBreakdown: SegmentStats[];
+  granularHourlyBreakdown: SegmentStats[];
   setupBreakdown: SegmentStats[];
 }
 
@@ -116,6 +117,10 @@ export default function TradeJournalPage() {
   const [tabsLoading, setTabsLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
   const [sheetStats, setSheetStats] = useState<{ stats: StatsData; tabName: string } | null>(null);
+
+  const [filterProcessFollowed, setFilterProcessFollowed] = useState(false);
+  const [filterStartDate, setFilterStartDate] = useState("2025-05-01");
+  const [filterEndDate, setFilterEndDate] = useState("");
 
   const runEnrichment = useCallback(async (trades: TradeRow[], accounts: string[]) => {
     const bySymbol = groupTradesBySymbol(trades);
@@ -235,8 +240,12 @@ export default function TradeJournalPage() {
       } else {
         const uploadResult = data as UploadResult;
         setResult(uploadResult);
+        setSheetStats(null);
         if (uploadResult.rowsAppended > 0) {
           runEnrichment(uploadResult.trades, uploadResult.accounts);
+        }
+        if (uploadResult.accounts?.[0]) {
+          fetchStats(uploadResult.accounts[0]);
         }
       }
     } catch {
@@ -252,6 +261,39 @@ export default function TradeJournalPage() {
     setError(null);
     setEnrichment(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function buildFilterParams(overrides?: { processFollowed?: boolean; startDate?: string; endDate?: string }): string {
+    const pf = overrides?.processFollowed ?? filterProcessFollowed;
+    const sd = overrides?.startDate ?? filterStartDate;
+    const ed = overrides?.endDate ?? filterEndDate;
+    const params = new URLSearchParams();
+    if (pf) params.set("processFollowed", "true");
+    if (sd) params.set("startDate", sd);
+    if (ed) params.set("endDate", ed);
+    const qs = params.toString();
+    return qs ? `&${qs}` : "";
+  }
+
+  async function fetchStats(tabName: string, filterOverrides?: { processFollowed?: boolean; startDate?: string; endDate?: string }) {
+    setStatsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/trade-journal/stats?tab=${encodeURIComponent(tabName)}${buildFilterParams(filterOverrides)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load stats.");
+      setSheetStats({ stats: data.stats, tabName });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load stats.");
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
+  function getActiveTabName(): string | null {
+    if (sheetStats) return sheetStats.tabName;
+    if (result?.accounts?.[0]) return result.accounts[0];
+    return null;
   }
 
   async function handleViewStats() {
@@ -271,21 +313,16 @@ export default function TradeJournalPage() {
   }
 
   async function handleTabSelect(tab: SheetTab) {
-    setStatsLoading(true);
-    setError(null);
-    setSheetStats(null);
     setResult(null);
     setEnrichment(null);
-    try {
-      const res = await fetch(`/api/trade-journal/stats?tab=${encodeURIComponent(tab.name)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load stats.");
-      setSheetStats({ stats: data.stats, tabName: tab.name });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load stats.");
-    } finally {
-      setStatsLoading(false);
-    }
+    await fetchStats(tab.name);
+  }
+
+  async function handleFilterChange(overrides: { processFollowed?: boolean; startDate?: string; endDate?: string }) {
+    const tabName = getActiveTabName();
+    if (!tabName) return;
+    setResult(null);
+    await fetchStats(tabName, overrides);
   }
 
   return (
@@ -481,18 +518,103 @@ export default function TradeJournalPage() {
       )}
 
       {result && (
-        <>
-          <TradePreview
-            trades={result.trades}
-            rowsAppended={result.rowsAppended}
-            rowsSkipped={result.rowsSkipped}
-            accounts={result.accounts}
-          />
-          {result.stats && <AggregateStats stats={result.stats} />}
-        </>
+        <TradePreview
+          trades={result.trades}
+          rowsAppended={result.rowsAppended}
+          rowsSkipped={result.rowsSkipped}
+          accounts={result.accounts}
+        />
       )}
 
-      {sheetStats && !result && <AggregateStats stats={sheetStats.stats} />}
+      {(sheetStats || result) && (
+        <div
+          className="rounded-lg border p-4 space-y-3"
+          style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>
+            Filters
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={filterProcessFollowed}
+                onClick={() => {
+                  const next = !filterProcessFollowed;
+                  setFilterProcessFollowed(next);
+                  handleFilterChange({ processFollowed: next });
+                }}
+                className="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
+                style={{
+                  borderColor: filterProcessFollowed ? "var(--color-accent)" : "var(--color-border)",
+                  backgroundColor: filterProcessFollowed ? "var(--color-accent)" : "var(--color-border)",
+                }}
+              >
+                <span
+                  className="inline-block h-4 w-4 rounded-full transition-transform"
+                  style={{
+                    backgroundColor: "var(--color-bg)",
+                    transform: filterProcessFollowed ? "translateX(16px)" : "translateX(1px)",
+                    marginTop: "1px",
+                  }}
+                />
+              </button>
+              <span className="text-xs font-medium">Process Followed</span>
+            </label>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => {
+                  setFilterStartDate(e.target.value);
+                  handleFilterChange({ startDate: e.target.value });
+                }}
+                className="cursor-pointer rounded border py-1.5 px-2 text-xs focus:outline-none"
+                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)", color: "var(--color-text)" }}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
+                End Date
+              </label>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => {
+                  setFilterEndDate(e.target.value);
+                  handleFilterChange({ endDate: e.target.value });
+                }}
+                className="cursor-pointer rounded border py-1.5 px-2 text-xs focus:outline-none"
+                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)", color: "var(--color-text)" }}
+              />
+            </div>
+
+            {(filterProcessFollowed || filterStartDate || filterEndDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterProcessFollowed(false);
+                  setFilterStartDate("");
+                  setFilterEndDate("");
+                  handleFilterChange({ processFollowed: false, startDate: "", endDate: "" });
+                }}
+                className="rounded border px-2 py-1.5 text-xs hover:opacity-80"
+                style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {sheetStats && <AggregateStats stats={sheetStats.stats} />}
     </div>
   );
 }
