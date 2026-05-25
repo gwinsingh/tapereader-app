@@ -764,7 +764,7 @@ interface ParsedRow {
   setup: string;
 }
 
-function computeStats(rows: string[][]): AggregateStats {
+export function computeStats(rows: string[][]): AggregateStats {
   const dataRows = rows.slice(1).filter((r) => r.length > COL.PNL && r[COL.PNL] !== "");
 
   const parsed: ParsedRow[] = dataRows.map((r) => ({
@@ -841,6 +841,26 @@ function computeStats(rows: string[][]): AggregateStats {
     hourlyBreakdown,
     setupBreakdown,
   };
+}
+
+export async function listSheetTabs(): Promise<{ name: string; gid: number }[]> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  const meta = await sheetsGet(token, spreadsheetId);
+  const EXCLUDED = new Set(["Instructions"]);
+  return meta.sheets
+    .filter((s) => !EXCLUDED.has(s.properties.title))
+    .map((s) => ({ name: s.properties.title, gid: s.properties.sheetId }));
+}
+
+export async function getStatsForTab(tabName: string): Promise<AggregateStats> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  const meta = await sheetsGet(token, spreadsheetId);
+  const tab = meta.sheets.find((s) => s.properties.title === tabName);
+  if (!tab) throw new Error(`Sheet tab "${tabName}" not found.`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AA`);
+  return computeStats(rows);
 }
 
 export async function populateInstructionsSheet(): Promise<void> {

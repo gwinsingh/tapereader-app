@@ -96,6 +96,11 @@ function groupTradesBySymbol(trades: TradeRow[]): Map<string, TradeRow[]> {
   return map;
 }
 
+interface SheetTab {
+  name: string;
+  gid: number;
+}
+
 export default function TradeJournalPage() {
   const [date, setDate] = useState(getLastWeekdayEST());
   const [sheetSuffix, setSheetSuffix] = useState("");
@@ -106,6 +111,11 @@ export default function TradeJournalPage() {
   const [result, setResult] = useState<UploadResult | null>(null);
   const [enrichment, setEnrichment] = useState<EnrichmentProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [tabs, setTabs] = useState<SheetTab[] | null>(null);
+  const [tabsLoading, setTabsLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [sheetStats, setSheetStats] = useState<{ stats: StatsData; tabName: string } | null>(null);
 
   const runEnrichment = useCallback(async (trades: TradeRow[], accounts: string[]) => {
     const bySymbol = groupTradesBySymbol(trades);
@@ -244,6 +254,40 @@ export default function TradeJournalPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  async function handleViewStats() {
+    setTabsLoading(true);
+    setError(null);
+    setSheetStats(null);
+    try {
+      const res = await fetch("/api/trade-journal/tabs");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load tabs.");
+      setTabs(data.tabs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load tabs.");
+    } finally {
+      setTabsLoading(false);
+    }
+  }
+
+  async function handleTabSelect(tab: SheetTab) {
+    setStatsLoading(true);
+    setError(null);
+    setSheetStats(null);
+    setResult(null);
+    setEnrichment(null);
+    try {
+      const res = await fetch(`/api/trade-journal/stats?tab=${encodeURIComponent(tab.name)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load stats.");
+      setSheetStats({ stats: data.stats, tabName: tab.name });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load stats.");
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-start justify-between">
@@ -372,6 +416,57 @@ export default function TradeJournalPage() {
         </div>
       </form>
 
+      <div
+        className="rounded-lg border p-4 space-y-3"
+        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold">View Stats from Sheet</p>
+            <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+              See your trading performance without uploading a file
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleViewStats}
+            disabled={tabsLoading}
+            className="rounded border px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+            style={{ borderColor: "var(--color-accent)", color: "var(--color-accent)" }}
+          >
+            {tabsLoading ? "Loading..." : tabs ? "Refresh" : "Load Sheets"}
+          </button>
+        </div>
+        {tabs && tabs.length === 0 && (
+          <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+            No trading sheets found. Upload a trade log first to create one.
+          </p>
+        )}
+        {tabs && tabs.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.gid}
+                type="button"
+                onClick={() => handleTabSelect(tab)}
+                disabled={statsLoading}
+                className="rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:opacity-80 disabled:opacity-40"
+                style={{
+                  borderColor: sheetStats?.tabName === tab.name ? "var(--color-accent)" : "var(--color-border)",
+                  backgroundColor: sheetStats?.tabName === tab.name ? "var(--color-accent)" : "transparent",
+                  color: sheetStats?.tabName === tab.name ? "var(--color-bg)" : "var(--color-text)",
+                }}
+              >
+                {tab.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {statsLoading && (
+          <p className="text-xs" style={{ color: "var(--color-muted)" }}>Loading stats...</p>
+        )}
+      </div>
+
       {error && (
         <div
           className="rounded border px-4 py-3 text-sm"
@@ -396,6 +491,8 @@ export default function TradeJournalPage() {
           {result.stats && <AggregateStats stats={result.stats} />}
         </>
       )}
+
+      {sheetStats && !result && <AggregateStats stats={sheetStats.stats} />}
     </div>
   );
 }
