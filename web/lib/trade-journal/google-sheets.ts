@@ -69,6 +69,25 @@ const COL = {
 
 const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS]);
 
+// --- Dynamic column mapping (handles user-reordered sheets) ---
+
+type ColMap = { [headerName: string]: number };
+
+function buildColMap(headerRow: string[]): ColMap {
+  const map: ColMap = {};
+  headerRow.forEach((h, i) => { map[h.trim()] = i; });
+  return map;
+}
+
+function cm(map: ColMap, header: string): number {
+  return map[header] ?? -1;
+}
+
+function colLetter(index: number): string {
+  if (index < 26) return String.fromCharCode(65 + index);
+  return String.fromCharCode(64 + Math.floor(index / 26)) + String.fromCharCode(65 + (index % 26));
+}
+
 const TOTAL_COLS = SHEET_HEADERS.length;
 
 const SETUP_OPTIONS = [
@@ -647,39 +666,46 @@ async function ensureSheetTab(
   return { tabName, gid: sheetId };
 }
 
-function tradeToRow(trade: GroupedTrade, rowIndex: number, enrichment?: MarketEnrichment): (string | number)[] {
-  const pnlRFormula = `=IF(L${rowIndex}="","",K${rowIndex}/L${rowIndex})`;
-  const e = enrichment;
+function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enrichment?: MarketEnrichment): (string | number)[] {
+  const size = Math.max(...Object.values(colMap)) + 1;
+  const row: (string | number)[] = new Array(size).fill("");
 
-  return [
-    trade.date,
-    trade.entryTime,
-    trade.exitTime,
-    trade.durationMins,
-    trade.symbol,
-    trade.side,
-    trade.totalShares,
-    trade.avgEntry,
-    trade.avgExit,
-    trade.numPartials,
-    trade.pnl,
-    "", // R (Risk)
-    pnlRFormula,
-    "", // Setup
-    "", // Process Followed?
-    "", // Notes
-    "", // Sleep Score
-    "", // Readiness Score
-    "", // Emotional State
-    "", // Market Bias
-    e?.consec1m ?? "",
-    e?.consec5m ?? "",
-    e?.consec1h ?? "",
-    e?.gapPct ?? "",
-    e?.atrPct ?? "",
-    e?.rvol ?? "",
-    e?.vwapPct ?? "",
-  ];
+  const set = (header: string, value: string | number) => {
+    const idx = colMap[header];
+    if (idx !== undefined) row[idx] = value;
+  };
+
+  const riskIdx = colMap["R (Risk)"];
+  const pnlIdx = colMap["P&L"];
+  const pnlRFormula = riskIdx !== undefined && pnlIdx !== undefined
+    ? `=IF(${colLetter(riskIdx)}${rowIndex}="","",${colLetter(pnlIdx)}${rowIndex}/${colLetter(riskIdx)}${rowIndex})`
+    : "";
+
+  set("Date", trade.date);
+  set("Entry Time", trade.entryTime);
+  set("Exit Time", trade.exitTime);
+  set("Duration (mins)", trade.durationMins);
+  set("Symbol", trade.symbol);
+  set("Side", trade.side);
+  set("Shares", trade.totalShares);
+  set("Avg Entry", trade.avgEntry);
+  set("Avg Exit", trade.avgExit);
+  set("# Partials", trade.numPartials);
+  set("P&L", trade.pnl);
+  set("P&L (R)", pnlRFormula);
+
+  const e = enrichment;
+  if (e) {
+    set("#1m", e.consec1m ?? "");
+    set("#5m", e.consec5m ?? "");
+    set("#1H", e.consec1h ?? "");
+    set("%Gap", e.gapPct ?? "");
+    set("%ATR", e.atrPct ?? "");
+    set("RVOL", e.rvol ?? "");
+    set("%VWAP", e.vwapPct ?? "");
+  }
+
+  return row;
 }
 
 function normalizeTime(t: string | number): string {
@@ -691,8 +717,13 @@ function normalizeTime(t: string | number): string {
   return s;
 }
 
-function makeDedupeKey(row: (string | number)[]): string {
-  return [row[COL.DATE], row[COL.SYMBOL], normalizeTime(row[COL.ENTRY_TIME]), row[COL.SIDE]].join("|");
+function makeDedupeKey(row: (string | number)[], colMap: ColMap): string {
+  return [
+    row[cm(colMap, "Date")] ?? "",
+    row[cm(colMap, "Symbol")] ?? "",
+    normalizeTime(row[cm(colMap, "Entry Time")] ?? ""),
+    row[cm(colMap, "Side")] ?? "",
+  ].join("|");
 }
 
 export interface SegmentStats {
@@ -787,23 +818,41 @@ interface ParsedRow {
 }
 
 export function computeStats(rows: string[][], filter?: StatsFilter): AggregateStats {
-  let dataRows = rows.slice(1).filter((r) => r.length > COL.PNL && r[COL.PNL] !== "");
+  if (rows.length === 0) {
+    return {
+      totalPnl: 0, avgDailyPnl: 0, avgWinner: 0, avgLoser: 0,
+      totalTrades: 0, winningTrades: 0, losingTrades: 0, winRate: 0,
+      profitFactor: 0, largestWin: 0, largestLoss: 0,
+      maxConsecutiveWins: 0, maxConsecutiveLosses: 0, avgDurationMins: 0,
+      hourlyBreakdown: [], granularHourlyBreakdown: [], setupBreakdown: [],
+    };
+  }
 
-  if (filter?.processFollowed) {
-    dataRows = dataRows.filter((r) => (r[COL.PROCESS] || "").trim() === "Yes");
+  const colMap = buildColMap(rows[0]);
+  const pnlIdx = cm(colMap, "P&L");
+  const dateIdx = cm(colMap, "Date");
+  const processIdx = cm(colMap, "Process Followed?");
+  const durationIdx = cm(colMap, "Duration (mins)");
+  const entryTimeIdx = cm(colMap, "Entry Time");
+  const setupIdx = cm(colMap, "Setup");
+
+  let dataRows = rows.slice(1).filter((r) => pnlIdx >= 0 && r.length > pnlIdx && r[pnlIdx] !== "");
+
+  if (filter?.processFollowed && processIdx >= 0) {
+    dataRows = dataRows.filter((r) => (r[processIdx] || "").trim() === "Yes");
   }
-  if (filter?.startDate) {
-    dataRows = dataRows.filter((r) => (r[COL.DATE] || "") >= filter.startDate!);
+  if (filter?.startDate && dateIdx >= 0) {
+    dataRows = dataRows.filter((r) => (r[dateIdx] || "") >= filter.startDate!);
   }
-  if (filter?.endDate) {
-    dataRows = dataRows.filter((r) => (r[COL.DATE] || "") <= filter.endDate!);
+  if (filter?.endDate && dateIdx >= 0) {
+    dataRows = dataRows.filter((r) => (r[dateIdx] || "") <= filter.endDate!);
   }
 
   const parsed: ParsedRow[] = dataRows.map((r) => ({
-    pnl: parseFloat(String(r[COL.PNL]).replace(/[$,]/g, "")) || 0,
-    duration: parseFloat(r[COL.DURATION]) || 0,
-    entryMin: parseTimeToMinutes(r[COL.ENTRY_TIME]),
-    setup: (r[COL.SETUP] || "").trim(),
+    pnl: parseFloat(String(pnlIdx >= 0 ? r[pnlIdx] : "0").replace(/[$,]/g, "")) || 0,
+    duration: durationIdx >= 0 ? parseFloat(r[durationIdx]) || 0 : 0,
+    entryMin: entryTimeIdx >= 0 ? parseTimeToMinutes(r[entryTimeIdx]) : -1,
+    setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
   }));
 
   const pnls = parsed.map((p) => p.pnl);
@@ -819,7 +868,7 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
   if (pnls.length === 0) return emptyStats;
 
   const totalPnl = pnls.reduce((s, v) => s + v, 0);
-  const uniqueDays = new Set(dataRows.map((r) => r[COL.DATE])).size;
+  const uniqueDays = new Set(dateIdx >= 0 ? dataRows.map((r) => r[dateIdx]) : []).size || 1;
   const winners = pnls.filter((p) => p > 0);
   const losers = pnls.filter((p) => p < 0);
   const grossWins = winners.reduce((s, v) => s + v, 0);
@@ -890,13 +939,55 @@ export async function listSheetTabs(): Promise<{ name: string; gid: number }[]> 
     .map((s) => ({ name: s.properties.title, gid: s.properties.sheetId }));
 }
 
+export interface BackfillTrade {
+  date: string;
+  entryTime: string;
+  side: string;
+  symbol: string;
+  avgEntry: number;
+  index: number;
+}
+
+export async function getTradesForBackfill(tabName: string): Promise<BackfillTrade[]> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AH`);
+  if (rows.length <= 1) return [];
+
+  const colMap = buildColMap(rows[0]);
+  const symIdx = cm(colMap, "Symbol");
+  const dateIdx = cm(colMap, "Date");
+  const entryIdx = cm(colMap, "Entry Time");
+  const sideIdx = cm(colMap, "Side");
+  const avgEntryIdx = cm(colMap, "Avg Entry");
+  const consec1mIdx = cm(colMap, "#1m");
+
+  const trades: BackfillTrade[] = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (symIdx < 0 || !row[symIdx]) continue;
+    const hasEnrichment = consec1mIdx >= 0 && row[consec1mIdx] !== undefined && row[consec1mIdx] !== "";
+    if (hasEnrichment) continue;
+
+    trades.push({
+      date: dateIdx >= 0 ? row[dateIdx] : "",
+      entryTime: entryIdx >= 0 ? row[entryIdx] : "",
+      side: sideIdx >= 0 ? row[sideIdx] : "",
+      symbol: row[symIdx],
+      avgEntry: avgEntryIdx >= 0 ? parseFloat(String(row[avgEntryIdx]).replace(/[$,]/g, "")) || 0 : 0,
+      index: r - 1,
+    });
+  }
+  return trades;
+}
+
 export async function getStatsForTab(tabName: string, filter?: StatsFilter): Promise<AggregateStats> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
   const meta = await sheetsGet(token, spreadsheetId);
   const tab = meta.sheets.find((s) => s.properties.title === tabName);
   if (!tab) throw new Error(`Sheet tab "${tabName}" not found.`);
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AA`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AH`);
   return computeStats(rows, filter);
 }
 
@@ -1125,8 +1216,9 @@ export async function appendTrades(
     usedAccounts.push(tabName);
     if (firstGid === null) firstGid = gid;
 
-    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AA`);
-    const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row)));
+    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AH`);
+    const tabColMap = existing.length > 0 ? buildColMap(existing[0]) : buildColMap(SHEET_HEADERS);
+    const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row, tabColMap)));
 
     const nextRowStart = existing.length + 1;
     const newRows: (string | number)[][] = [];
@@ -1134,8 +1226,8 @@ export async function appendTrades(
 
     for (const { trade, enrichment } of items) {
       const rowIndex = nextRowStart + newRows.length;
-      const row = tradeToRow(trade, rowIndex, enrichment);
-      const key = makeDedupeKey(row);
+      const row = tradeToRow(trade, rowIndex, tabColMap, enrichment);
+      const key = makeDedupeKey(row, tabColMap);
       if (existingKeys.has(key)) { skipped++; } else { newRows.push(row); }
     }
 
@@ -1149,7 +1241,7 @@ export async function appendTrades(
 
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
-    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:AA`);
+    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:AH`);
     stats = computeStats(allRows);
   }
 
@@ -1164,8 +1256,16 @@ export async function updateEnrichment(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AA`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AH`);
   if (rows.length <= 1) return { updated: 0 };
+
+  const colMap = buildColMap(rows[0]);
+  const symIdx = cm(colMap, "Symbol");
+  const dateIdx = cm(colMap, "Date");
+  const entryIdx = cm(colMap, "Entry Time");
+  const sideIdx = cm(colMap, "Side");
+
+  const enrichFieldHeaders = ["#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP"] as const;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const valueRanges: any[] = [];
@@ -1177,25 +1277,22 @@ export async function updateEnrichment(
       if (used.has(r)) continue;
       const row = rows[r];
       if (
-        row[COL.SYMBOL] === symbol &&
-        row[COL.DATE] === e.date &&
-        normalizeTime(row[COL.ENTRY_TIME]) === normEntry &&
-        row[COL.SIDE] === e.side
+        symIdx >= 0 && row[symIdx] === symbol &&
+        dateIdx >= 0 && row[dateIdx] === e.date &&
+        entryIdx >= 0 && normalizeTime(row[entryIdx]) === normEntry &&
+        sideIdx >= 0 && row[sideIdx] === e.side
       ) {
         used.add(r);
-        const rowNum = r + 1; // 1-indexed
-        valueRanges.push({
-          range: `'${tabName}'!U${rowNum}:AA${rowNum}`,
-          values: [[
-            e.data.consec1m ?? "",
-            e.data.consec5m ?? "",
-            e.data.consec1h ?? "",
-            e.data.gapPct ?? "",
-            e.data.atrPct ?? "",
-            e.data.rvol ?? "",
-            e.data.vwapPct ?? "",
-          ]],
-        });
+        const rowNum = r + 1;
+        const enrichValues = [e.data.consec1m, e.data.consec5m, e.data.consec1h, e.data.gapPct, e.data.atrPct, e.data.rvol, e.data.vwapPct];
+        for (let fi = 0; fi < enrichFieldHeaders.length; fi++) {
+          const colIdx = cm(colMap, enrichFieldHeaders[fi]);
+          if (colIdx < 0) continue;
+          valueRanges.push({
+            range: `'${tabName}'!${colLetter(colIdx)}${rowNum}`,
+            values: [[enrichValues[fi] ?? ""]],
+          });
+        }
         break;
       }
     }

@@ -122,6 +122,8 @@ export default function TradeJournalPage() {
   const [filterStartDate, setFilterStartDate] = useState("2025-05-01");
   const [filterEndDate, setFilterEndDate] = useState("");
 
+  const [backfillEnrichment, setBackfillEnrichment] = useState<EnrichmentProgress | null>(null);
+
   const runEnrichment = useCallback(async (trades: TradeRow[], accounts: string[]) => {
     const bySymbol = groupTradesBySymbol(trades);
     const symbols = [...bySymbol.keys()];
@@ -325,6 +327,83 @@ export default function TradeJournalPage() {
     await fetchStats(tabName, overrides);
   }
 
+  async function handleBackfill() {
+    const tabName = getActiveTabName();
+    if (!tabName) return;
+
+    setBackfillEnrichment(null);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/trade-journal/backfill?tab=${encodeURIComponent(tabName)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch trades for backfill.");
+
+      interface BackfillTrade { date: string; entryTime: string; side: string; symbol: string; avgEntry: number; index: number }
+      const trades = data.trades as BackfillTrade[];
+      if (trades.length === 0) {
+        setError("All trades already have market data — nothing to backfill.");
+        return;
+      }
+
+      const bySymbol = new Map<string, BackfillTrade[]>();
+      for (const t of trades) {
+        if (!bySymbol.has(t.symbol)) bySymbol.set(t.symbol, []);
+        bySymbol.get(t.symbol)!.push(t);
+      }
+      const symbols = [...bySymbol.keys()];
+
+      const progress: EnrichmentProgress = {
+        total: symbols.length, completed: 0, current: null,
+        succeeded: [], failed: [], done: false,
+      };
+      setBackfillEnrichment({ ...progress });
+
+      for (let i = 0; i < symbols.length; i++) {
+        const symbol = symbols[i];
+        progress.current = symbol;
+        setBackfillEnrichment({ ...progress });
+
+        if (i > 0) {
+          await new Promise((r) => setTimeout(r, ENRICH_DELAY_MS));
+        }
+
+        try {
+          const symbolTrades = bySymbol.get(symbol)!;
+          const enrichRes = await fetch("/api/trade-journal/enrich", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              symbol,
+              tabName,
+              trades: symbolTrades.map((t) => ({
+                date: t.date, entryTime: t.entryTime,
+                side: t.side, avgEntry: t.avgEntry, index: t.index,
+              })),
+            }),
+          });
+
+          if (!enrichRes.ok) {
+            const errData = await enrichRes.json();
+            throw new Error(errData.error || `HTTP ${enrichRes.status}`);
+          }
+          progress.succeeded.push(symbol);
+        } catch (err) {
+          progress.failed.push({ symbol, error: err instanceof Error ? err.message : String(err) });
+        }
+
+        progress.completed = i + 1;
+        progress.current = null;
+        setBackfillEnrichment({ ...progress });
+      }
+
+      progress.done = true;
+      setBackfillEnrichment({ ...progress });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Backfill failed.");
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-start justify-between">
@@ -502,6 +581,16 @@ export default function TradeJournalPage() {
         {statsLoading && (
           <p className="text-xs" style={{ color: "var(--color-muted)" }}>Loading stats...</p>
         )}
+        {getActiveTabName() && !backfillEnrichment && (
+          <button
+            type="button"
+            onClick={handleBackfill}
+            className="rounded border px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}
+          >
+            Backfill Market Data
+          </button>
+        )}
       </div>
 
       {error && (
@@ -515,6 +604,10 @@ export default function TradeJournalPage() {
 
       {enrichment && (
         <EnrichmentStatus progress={enrichment} />
+      )}
+
+      {backfillEnrichment && (
+        <EnrichmentStatus progress={backfillEnrichment} />
       )}
 
       {result && (
