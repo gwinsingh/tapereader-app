@@ -10,6 +10,7 @@ interface EnrichRequest {
   trades: {
     date: string;
     entryTime: string;
+    exitTime: string;
     side: "Long" | "Short";
     avgEntry: number;
     index: number;

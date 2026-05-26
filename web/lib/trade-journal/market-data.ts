@@ -8,6 +8,21 @@ export interface MarketEnrichment {
   atrPct: number | null;
   rvol: number | null;
   vwapPct: number | null;
+  orSize: number | null;
+  orAtrPct: number | null;
+  orHigh: number | null;
+  orLow: number | null;
+  mfeDollars: number | null;
+  maeDollars: number | null;
+  mfeTimeMins: number | null;
+  breakoutVolRatio: number | null;
+  priorCloseLoc: number | null;
+  dist20Sma: number | null;
+  dist50Sma: number | null;
+  floatShares: number | null;
+  avgDollarVol: number | null;
+  spyDir: string | null;
+  vix: number | null;
 }
 
 interface Bar {
@@ -36,6 +51,21 @@ const EMPTY: MarketEnrichment = {
   atrPct: null,
   rvol: null,
   vwapPct: null,
+  orSize: null,
+  orAtrPct: null,
+  orHigh: null,
+  orLow: null,
+  mfeDollars: null,
+  maeDollars: null,
+  mfeTimeMins: null,
+  breakoutVolRatio: null,
+  priorCloseLoc: null,
+  dist20Sma: null,
+  dist50Sma: null,
+  floatShares: null,
+  avgDollarVol: null,
+  spyDir: null,
+  vix: null,
 };
 
 // --- Polygon.io fetchers ---
@@ -93,6 +123,31 @@ async function fetchPolygon(
     close: r.c,
     volume: r.v,
   }));
+}
+
+async function fetchTickerDetails(symbol: string): Promise<number | null> {
+  const apiKey = process.env.POLYGON_API_KEY;
+  if (!apiKey) return null;
+
+  const url = `https://api.polygon.io/v3/reference/tickers/${encodeURIComponent(symbol)}?apiKey=${apiKey}`;
+
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    res = await fetch(url);
+    if (res.status !== 429) break;
+    await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+  }
+
+  if (!res || !res.ok) return null;
+
+  try {
+    const json = await res.json();
+    return json?.results?.weighted_shares_outstanding
+      ?? json?.results?.share_class_shares_outstanding
+      ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // --- Timezone helpers ---
@@ -260,14 +315,180 @@ function computeRVOL(
   return avgPrior > 0 ? Math.round((tradeDayVol / avgPrior) * 100) / 100 : null;
 }
 
+// --- Opening Range computations ---
+
+const OR_START_MIN = 570; // 9:30 ET
+const OR_END_MIN = 575;   // 9:35 ET (5-min OR)
+
+interface OpeningRange {
+  orHigh: number;
+  orLow: number;
+  orBars: Bar[];
+}
+
+function computeOpeningRange(dayBars: Bar[]): OpeningRange | null {
+  const orBars = dayBars.filter((b) => {
+    const et = timestampToET(b.ts);
+    const min = etMinutes(et.h, et.m);
+    return min >= OR_START_MIN && min < OR_END_MIN;
+  });
+  if (orBars.length === 0) return null;
+
+  return {
+    orHigh: Math.max(...orBars.map((b) => b.high)),
+    orLow: Math.min(...orBars.map((b) => b.low)),
+    orBars,
+  };
+}
+
+// --- MFE / MAE ---
+
+interface Excursion {
+  mfe: number;
+  mae: number;
+  mfeTimeMins: number;
+}
+
+function computeExcursion(
+  dayBars: Bar[],
+  entryMinute: number,
+  exitMinute: number,
+  entryPrice: number,
+  isLong: boolean
+): Excursion | null {
+  const barsInWindow = dayBars.filter((b) => {
+    const et = timestampToET(b.ts);
+    const min = etMinutes(et.h, et.m);
+    return min >= entryMinute && min <= exitMinute;
+  });
+  if (barsInWindow.length === 0) return null;
+
+  let mfe = 0;
+  let mae = 0;
+  let mfeBarTs = barsInWindow[0].ts;
+
+  for (const b of barsInWindow) {
+    let favorable: number;
+    let adverse: number;
+    if (isLong) {
+      favorable = b.high - entryPrice;
+      adverse = entryPrice - b.low;
+    } else {
+      favorable = entryPrice - b.low;
+      adverse = b.high - entryPrice;
+    }
+    if (favorable > mfe) {
+      mfe = favorable;
+      mfeBarTs = b.ts;
+    }
+    if (adverse > mae) {
+      mae = adverse;
+    }
+  }
+
+  const entryEt = timestampToET(barsInWindow[0].ts);
+  const mfeEt = timestampToET(mfeBarTs);
+  const mfeTimeMins = etMinutes(mfeEt.h, mfeEt.m) - entryMinute;
+
+  return { mfe: Math.round(mfe * 100) / 100, mae: Math.round(mae * 100) / 100, mfeTimeMins: Math.max(0, mfeTimeMins) };
+}
+
+// --- Breakout volume ratio ---
+
+function computeBreakoutVolRatio(
+  dayBars: Bar[],
+  orHigh: number,
+  orLow: number,
+  isLong: boolean
+): number | null {
+  const postOrBars = dayBars.filter((b) => {
+    const et = timestampToET(b.ts);
+    return etMinutes(et.h, et.m) >= OR_END_MIN;
+  });
+
+  const breakoutBar = postOrBars.find((b) =>
+    isLong ? b.high > orHigh : b.low < orLow
+  );
+  if (!breakoutBar) return null;
+
+  const orBars = dayBars.filter((b) => {
+    const et = timestampToET(b.ts);
+    const min = etMinutes(et.h, et.m);
+    return min >= OR_START_MIN && min < OR_END_MIN;
+  });
+  if (orBars.length === 0) return null;
+
+  const avgOrVol = orBars.reduce((s, b) => s + b.volume, 0) / orBars.length;
+  return avgOrVol > 0 ? Math.round((breakoutBar.volume / avgOrVol) * 100) / 100 : null;
+}
+
+// --- Prior day close location ---
+
+function computePriorCloseLoc(dailyBars: DailyBar[], tradeDate: string): number | null {
+  const idx = dailyBars.findIndex((b) => b.date === tradeDate);
+  if (idx < 1) return null;
+  const prev = dailyBars[idx - 1];
+  const range = prev.high - prev.low;
+  if (range === 0) return null;
+  return Math.round(((prev.close - prev.low) / range) * 1000) / 10;
+}
+
+// --- SMA ---
+
+function computeSMA(dailyBars: DailyBar[], tradeDate: string, period: number): number | null {
+  const idx = dailyBars.findIndex((b) => b.date === tradeDate);
+  if (idx < period) return null;
+  let sum = 0;
+  for (let i = idx - period; i < idx; i++) {
+    sum += dailyBars[i].close;
+  }
+  return sum / period;
+}
+
+// --- Average daily dollar volume ---
+
+function computeAvgDollarVol(dailyBars: DailyBar[], tradeDate: string, period: number = 20): number | null {
+  const idx = dailyBars.findIndex((b) => b.date === tradeDate);
+  if (idx < period) return null;
+  let sum = 0;
+  for (let i = idx - period; i < idx; i++) {
+    sum += dailyBars[i].close * dailyBars[i].volume;
+  }
+  return Math.round(sum / period);
+}
+
+// --- SPY direction ---
+
+function computeSpyDir(spyDayBars: Bar[], entryMinute: number): string | null {
+  if (spyDayBars.length === 0) return null;
+
+  const spyOpen = spyDayBars[0].open;
+  const entryBar = spyDayBars.filter((b) => {
+    const et = timestampToET(b.ts);
+    return etMinutes(et.h, et.m) <= entryMinute;
+  });
+  if (entryBar.length === 0) return null;
+
+  const spyPriceAtEntry = entryBar[entryBar.length - 1].close;
+  const pctChange = ((spyPriceAtEntry - spyOpen) / spyOpen) * 100;
+
+  if (pctChange > 0.05) return "Up";
+  if (pctChange < -0.05) return "Down";
+  return "Flat";
+}
+
 // --- Main enrichment function ---
 
 function computeEnrichment(
-  trade: GroupedTrade,
+  trade: GroupedTrade & { exitTime: string },
   intradayBars: Bar[],
-  dailyBars: DailyBar[]
+  dailyBars: DailyBar[],
+  floatShares: number | null,
+  spyBarsForDate: Bar[],
+  vixLevel: number | null
 ): MarketEnrichment {
   const entryMinute = parseEntryMinutes(trade.entryTime);
+  const exitMinute = trade.exitTime ? parseEntryMinutes(trade.exitTime) : 960; // 16:00 ET fallback
   const dayBars = barsForDate(intradayBars, trade.date);
   if (dayBars.length === 0) return { ...EMPTY };
 
@@ -288,8 +509,10 @@ function computeEnrichment(
   // Gap %
   const gapPct = computeGap(dailyBars, trade.date);
 
-  // %ATR
+  // ATR-14
   const atr = computeATR14(dailyBars, trade.date);
+
+  // %ATR
   const atrPct = atr && idx1m >= 0 ? computeAtrPct(dayBars, idx1m, atr) : null;
 
   // RVOL
@@ -304,6 +527,40 @@ function computeEnrichment(
     }
   }
 
+  // Opening Range
+  const or = computeOpeningRange(dayBars);
+  const orSize = or ? Math.round((or.orHigh - or.orLow) * 100) / 100 : null;
+  const orAtrPct = or && atr && atr > 0
+    ? Math.round(((or.orHigh - or.orLow) / atr) * 1000) / 10
+    : null;
+
+  // MFE / MAE
+  const excursion = computeExcursion(dayBars, entryMinute, exitMinute, trade.avgEntry, isLong);
+
+  // Breakout volume ratio
+  const breakoutVolRatio = or
+    ? computeBreakoutVolRatio(dayBars, or.orHigh, or.orLow, isLong)
+    : null;
+
+  // Prior close location
+  const priorCloseLoc = computePriorCloseLoc(dailyBars, trade.date);
+
+  // SMA distances
+  const sma20 = computeSMA(dailyBars, trade.date, 20);
+  const dist20Sma = sma20 && sma20 > 0
+    ? Math.round(((trade.avgEntry - sma20) / sma20) * 1000) / 10
+    : null;
+  const sma50 = computeSMA(dailyBars, trade.date, 50);
+  const dist50Sma = sma50 && sma50 > 0
+    ? Math.round(((trade.avgEntry - sma50) / sma50) * 1000) / 10
+    : null;
+
+  // Avg dollar volume
+  const avgDollarVol = computeAvgDollarVol(dailyBars, trade.date);
+
+  // SPY direction
+  const spyDir = computeSpyDir(spyBarsForDate, entryMinute);
+
   return {
     consec1m,
     consec5m,
@@ -312,6 +569,21 @@ function computeEnrichment(
     atrPct: atrPct !== null ? Math.round(atrPct * 10) / 10 : null,
     rvol,
     vwapPct: vwapPct !== null ? Math.round(vwapPct * 100) / 100 : null,
+    orSize,
+    orAtrPct,
+    orHigh: or ? Math.round(or.orHigh * 100) / 100 : null,
+    orLow: or ? Math.round(or.orLow * 100) / 100 : null,
+    mfeDollars: excursion?.mfe ?? null,
+    maeDollars: excursion?.mae ?? null,
+    mfeTimeMins: excursion?.mfeTimeMins ?? null,
+    breakoutVolRatio,
+    priorCloseLoc,
+    dist20Sma,
+    dist50Sma,
+    floatShares,
+    avgDollarVol,
+    spyDir,
+    vix: vixLevel,
   };
 }
 
@@ -322,7 +594,7 @@ export interface SymbolEnrichmentResult {
 
 export async function enrichSymbol(
   symbol: string,
-  trades: { date: string; entryTime: string; side: "Long" | "Short"; avgEntry: number; index: number }[]
+  trades: { date: string; entryTime: string; exitTime: string; side: "Long" | "Short"; avgEntry: number; index: number }[]
 ): Promise<SymbolEnrichmentResult> {
   const tradeDates = [...new Set(trades.map((t) => t.date))].sort();
   const earliest = tradeDates[0];
@@ -339,16 +611,24 @@ export async function enrichSymbol(
   intradayFromDate.setUTCDate(intradayFromDate.getUTCDate() - 7);
   const intradayFrom = fmtDate(intradayFromDate);
 
+  // Extended to 75 days for 50-day SMA
   const dailyFrom = new Date(earliest);
-  dailyFrom.setUTCDate(dailyFrom.getUTCDate() - 35);
+  dailyFrom.setUTCDate(dailyFrom.getUTCDate() - 75);
 
-  const fetches: [Promise<Bar[]>, Promise<Bar[]>] = [
+  // Parallel fetches: symbol bars + ticker details + SPY intraday + VIX daily
+  const [raw1m, rawDaily, floatShares, spyRaw, vixRaw] = await Promise.all([
     intradayFrom <= intradayTo
       ? fetchPolygon(symbol, 1, "minute", intradayFrom, intradayTo)
       : Promise.resolve([]),
     fetchPolygon(symbol, 1, "day", fmtDate(dailyFrom), latest),
-  ];
-  const [raw1m, rawDaily] = await Promise.all(fetches);
+    fetchTickerDetails(symbol),
+    intradayFrom <= intradayTo
+      ? fetchPolygon("SPY", 1, "minute", intradayFrom, intradayTo).catch(() => [] as Bar[])
+      : Promise.resolve([] as Bar[]),
+    fetchPolygon("I:VIX", 1, "day", earliest, latest)
+      .catch(() => fetchPolygon("VIX", 1, "day", earliest, latest))
+      .catch(() => [] as Bar[]),
+  ]);
 
   const dailyBars: DailyBar[] = rawDaily.map((b) => ({
     date: timestampToET(b.ts).date,
@@ -359,11 +639,18 @@ export async function enrichSymbol(
     volume: b.volume,
   }));
 
+  const spyByDate = barsByDate(spyRaw);
+
+  const vixByDate = new Map<string, number>();
+  for (const b of vixRaw) {
+    vixByDate.set(timestampToET(b.ts).date, b.close);
+  }
+
   const enrichments = trades.map((t) => {
-    const fake: GroupedTrade = {
+    const fake: GroupedTrade & { exitTime: string } = {
       date: t.date,
       entryTime: t.entryTime,
-      exitTime: "",
+      exitTime: t.exitTime || "",
       symbol,
       side: t.side,
       totalShares: 0,
@@ -374,7 +661,17 @@ export async function enrichSymbol(
       durationMins: 0,
       account: "",
     };
-    return { tradeIndex: t.index, data: computeEnrichment(fake, raw1m, dailyBars) };
+    return {
+      tradeIndex: t.index,
+      data: computeEnrichment(
+        fake,
+        raw1m,
+        dailyBars,
+        floatShares,
+        spyByDate.get(t.date) || [],
+        vixByDate.get(t.date) ?? null
+      ),
+    };
   });
 
   return { symbol, enrichments };

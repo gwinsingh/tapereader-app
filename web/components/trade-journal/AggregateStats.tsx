@@ -28,6 +28,8 @@ interface Stats {
   hourlyBreakdown: SegmentStats[];
   granularHourlyBreakdown: SegmentStats[];
   setupBreakdown: SegmentStats[];
+  convictionBreakdown?: SegmentStats[];
+  catalystBreakdown?: SegmentStats[];
 }
 
 interface Props {
@@ -74,7 +76,7 @@ function BreakdownTable({ title, segments }: { title: string; segments: SegmentS
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--color-border)] bg-[var(--color-panel)] text-xs uppercase text-[var(--color-muted)]">
             <tr>
-              <th className="px-3 py-2">{title.includes("Setup") ? "Setup" : "Time Block"}</th>
+              <th className="px-3 py-2">{title.includes("Time") ? "Time Block" : "Category"}</th>
               <th className="px-3 py-2 text-center">Trades</th>
               <th className="px-3 py-2 text-center">W / L</th>
               <th className="px-3 py-2 text-center">Win Rate</th>
@@ -188,6 +190,8 @@ export default function AggregateStats({ stats }: Props) {
       <BreakdownTable title="Performance by Time Block" segments={stats.hourlyBreakdown} />
       <BreakdownTable title="Performance by Time Block (Granular)" segments={stats.granularHourlyBreakdown} />
       <BreakdownTable title="Performance by Setup" segments={stats.setupBreakdown} />
+      <BreakdownTable title="Performance by Conviction" segments={stats.convictionBreakdown || []} />
+      <BreakdownTable title="Performance by Catalyst" segments={stats.catalystBreakdown || []} />
     </div>
   );
 }

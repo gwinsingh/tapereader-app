@@ -53,9 +53,10 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 ### Google Sheets integration
 - **Auth**: Service account JSON in `GOOGLE_SERVICE_ACCOUNT_JSON` env var. JWT signed with Web Crypto.
 - **Sheet structure**: One tab per trading account (matched by account prefix, e.g. `TRPCT1541-GS`).
-- **20 columns** (A-T): Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L, R (Risk), P&L (R), Setup, Process Followed?, Notes, Sleep Score, Readiness Score, Emotional State, Market Bias.
-- **Per-trade manual columns**: R, Setup, Process Followed?, Notes — user fills these for every trade.
+- **44 columns** (A-AR): Auto-filled trade data (A-K), manual per-trade (L-P + U-V), manual daily (Q-T), market data enrichment (W-AR).
+- **Per-trade manual columns**: R (Risk), Setup, Process Followed?, Notes, Conviction (1-3), Catalyst — user fills these for every trade.
 - **Daily manual columns**: Sleep Score (0-100), Readiness Score (0-100), Emotional State (dropdown), Market Bias (dropdown) — user fills these once on the first trade of each day.
+- **Market data enrichment columns** (auto-filled from Polygon): #1m, #5m, #1H, %Gap, %ATR, RVOL, %VWAP, OR Size ($), OR %ATR, OR High, OR Low, MFE ($), MAE ($), MFE Time (mins), Breakout Vol Ratio, Prior Close Loc, Dist 20 SMA (%), Dist 50 SMA (%), Float, Avg $ Vol, SPY Dir, VIX.
 - All manual columns have flipped header colors (light bg, dark text) to visually distinguish them.
 - **P&L (R)** is a formula: `=IF(L{row}="","",K{row}/L{row})`.
 - **Dedup** uses key: `Date|Symbol|normalizedEntryTime|Side`. Time is normalized (leading zeros stripped) because Google Sheets strips them.

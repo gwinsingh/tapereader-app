@@ -50,6 +50,8 @@ interface StatsData {
   hourlyBreakdown: SegmentStats[];
   granularHourlyBreakdown: SegmentStats[];
   setupBreakdown: SegmentStats[];
+  convictionBreakdown: SegmentStats[];
+  catalystBreakdown: SegmentStats[];
 }
 
 interface UploadResult {
@@ -161,6 +163,7 @@ export default function TradeJournalPage() {
             trades: symbolTrades.map((t) => ({
               date: t.date,
               entryTime: t.entryTime,
+              exitTime: t.exitTime,
               side: t.side,
               avgEntry: t.avgEntry,
               index: t.index,
@@ -339,7 +342,7 @@ export default function TradeJournalPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch trades for backfill.");
 
-      interface BackfillTrade { date: string; entryTime: string; side: string; symbol: string; avgEntry: number; index: number }
+      interface BackfillTrade { date: string; entryTime: string; exitTime: string; side: string; symbol: string; avgEntry: number; index: number }
       const trades = data.trades as BackfillTrade[];
       if (trades.length === 0) {
         setError("All trades already have market data — nothing to backfill.");
@@ -377,7 +380,7 @@ export default function TradeJournalPage() {
               symbol,
               tabName,
               trades: symbolTrades.map((t) => ({
-                date: t.date, entryTime: t.entryTime,
+                date: t.date, entryTime: t.entryTime, exitTime: t.exitTime,
                 side: t.side, avgEntry: t.avgEntry, index: t.index,
               })),
             }),

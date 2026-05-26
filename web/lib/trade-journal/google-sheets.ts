@@ -1,12 +1,6 @@
 import { GroupedTrade } from "./trade-grouper";
 import { MarketEnrichment } from "./market-data";
 
-// Column layout (0-indexed):
-// A=Date, B=Entry Time, C=Exit Time, D=Duration (mins), E=Symbol,
-// F=Side, G=Shares, H=Avg Entry, I=Avg Exit, J=# Partials,
-// K=P&L, L=R (Risk), M=P&L (R), N=Setup, O=Process Followed?, P=Notes,
-// Q=Sleep Score, R=Readiness Score, S=Emotional State, T=Market Bias,
-// U=#1m, V=#5m, W=#1H, X=%Gap, Y=%ATR, Z=RVOL, AA=%VWAP
 const SHEET_HEADERS = [
   "Date",
   "Entry Time",
@@ -28,6 +22,8 @@ const SHEET_HEADERS = [
   "Readiness Score",
   "Emotional State",
   "Market Bias",
+  "Conviction (1-3)",
+  "Catalyst",
   "#1m",
   "#5m",
   "#1H",
@@ -35,6 +31,21 @@ const SHEET_HEADERS = [
   "%ATR",
   "RVOL",
   "%VWAP",
+  "OR Size ($)",
+  "OR %ATR",
+  "OR High",
+  "OR Low",
+  "MFE ($)",
+  "MAE ($)",
+  "MFE Time (mins)",
+  "Breakout Vol Ratio",
+  "Prior Close Loc",
+  "Dist 20 SMA (%)",
+  "Dist 50 SMA (%)",
+  "Float",
+  "Avg $ Vol",
+  "SPY Dir",
+  "VIX",
 ];
 
 const COL = {
@@ -58,16 +69,33 @@ const COL = {
   READINESS: 17,
   EMOTIONAL: 18,
   BIAS: 19,
-  CONSEC_1M: 20,
-  CONSEC_5M: 21,
-  CONSEC_1H: 22,
-  GAP_PCT: 23,
-  ATR_PCT: 24,
-  RVOL: 25,
-  VWAP_PCT: 26,
+  CONVICTION: 20,
+  CATALYST: 21,
+  CONSEC_1M: 22,
+  CONSEC_5M: 23,
+  CONSEC_1H: 24,
+  GAP_PCT: 25,
+  ATR_PCT: 26,
+  RVOL: 27,
+  VWAP_PCT: 28,
+  OR_SIZE: 29,
+  OR_ATR_PCT: 30,
+  OR_HIGH: 31,
+  OR_LOW: 32,
+  MFE: 33,
+  MAE: 34,
+  MFE_TIME: 35,
+  BREAKOUT_VOL: 36,
+  PRIOR_CLOSE_LOC: 37,
+  DIST_20_SMA: 38,
+  DIST_50_SMA: 39,
+  FLOAT: 40,
+  AVG_DOLLAR_VOL: 41,
+  SPY_DIR: 42,
+  VIX_LEVEL: 43,
 } as const;
 
-const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS]);
+const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS, COL.CONVICTION, COL.CATALYST]);
 
 // --- Dynamic column mapping (handles user-reordered sheets) ---
 
@@ -97,6 +125,18 @@ const SETUP_OPTIONS = [
   "BLOD",
   "VWAP Bounce",
   "Mean Reversion",
+];
+
+const CATALYST_OPTIONS = [
+  "Earnings",
+  "Upgrade/Downgrade",
+  "FDA/Regulatory",
+  "Sector Momentum",
+  "Gap Only",
+  "Key Daily Level",
+  "Day 2",
+  "Pullback to DEMA",
+  "Other",
 ];
 
 const EMOTIONAL_STATE_OPTIONS = [
@@ -343,8 +383,15 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     [COL.PARTIALS]: 85, [COL.PNL]: 95, [COL.RISK]: 95,
     [COL.PNL_R]: 85, [COL.SETUP]: 140, [COL.PROCESS]: 130, [COL.NOTES]: 200,
     [COL.SLEEP]: 100, [COL.READINESS]: 120, [COL.EMOTIONAL]: 120, [COL.BIAS]: 100,
+    [COL.CONVICTION]: 100, [COL.CATALYST]: 160,
     [COL.CONSEC_1M]: 55, [COL.CONSEC_5M]: 55, [COL.CONSEC_1H]: 55,
     [COL.GAP_PCT]: 70, [COL.ATR_PCT]: 70, [COL.RVOL]: 65, [COL.VWAP_PCT]: 75,
+    [COL.OR_SIZE]: 85, [COL.OR_ATR_PCT]: 75, [COL.OR_HIGH]: 85, [COL.OR_LOW]: 85,
+    [COL.MFE]: 75, [COL.MAE]: 75, [COL.MFE_TIME]: 95,
+    [COL.BREAKOUT_VOL]: 110, [COL.PRIOR_CLOSE_LOC]: 105,
+    [COL.DIST_20_SMA]: 105, [COL.DIST_50_SMA]: 105,
+    [COL.FLOAT]: 100, [COL.AVG_DOLLAR_VOL]: 100,
+    [COL.SPY_DIR]: 70, [COL.VIX_LEVEL]: 60,
   };
   for (const [col, width] of Object.entries(colWidths)) {
     requests.push({
@@ -364,7 +411,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     },
   });
 
-  for (const col of [COL.PNL, COL.RISK]) {
+  for (const col of [COL.PNL, COL.RISK, COL.OR_SIZE, COL.OR_HIGH, COL.OR_LOW, COL.MFE, COL.MAE]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
@@ -528,6 +575,30 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     },
   });
 
+  // Data validation: Conviction (1-3)
+  requests.push({
+    setDataValidation: {
+      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.CONVICTION, endColumnIndex: COL.CONVICTION + 1 },
+      rule: {
+        condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "1" }, { userEnteredValue: "2" }, { userEnteredValue: "3" }] },
+        showCustomUi: true,
+        strict: true,
+      },
+    },
+  });
+
+  // Data validation: Catalyst
+  requests.push({
+    setDataValidation: {
+      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.CATALYST, endColumnIndex: COL.CATALYST + 1 },
+      rule: {
+        condition: { type: "ONE_OF_LIST", values: CATALYST_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+        showCustomUi: true,
+        strict: false,
+      },
+    },
+  });
+
   // Data validation: Emotional State
   requests.push({
     setDataValidation: {
@@ -564,7 +635,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Number format: market data columns
-  for (const col of [COL.CONSEC_1M, COL.CONSEC_5M, COL.CONSEC_1H]) {
+  for (const col of [COL.CONSEC_1M, COL.CONSEC_5M, COL.CONSEC_1H, COL.MFE_TIME]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
@@ -573,7 +644,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
       },
     });
   }
-  for (const col of [COL.GAP_PCT, COL.VWAP_PCT]) {
+  for (const col of [COL.GAP_PCT, COL.VWAP_PCT, COL.DIST_20_SMA, COL.DIST_50_SMA]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
@@ -582,23 +653,41 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
       },
     });
   }
+  for (const col of [COL.ATR_PCT, COL.OR_ATR_PCT, COL.PRIOR_CLOSE_LOC]) {
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+  for (const col of [COL.RVOL, COL.BREAKOUT_VOL, COL.VIX_LEVEL]) {
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.00" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
   requests.push({
     repeatCell: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.ATR_PCT, endColumnIndex: COL.ATR_PCT + 1 },
-      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
+      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.FLOAT, endColumnIndex: COL.FLOAT + 1 },
+      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "#,##0" } } },
       fields: "userEnteredFormat.numberFormat",
     },
   });
   requests.push({
     repeatCell: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.RVOL, endColumnIndex: COL.RVOL + 1 },
-      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.00" } } },
+      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.AVG_DOLLAR_VOL, endColumnIndex: COL.AVG_DOLLAR_VOL + 1 },
+      cell: { userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "$#,##0" } } },
       fields: "userEnteredFormat.numberFormat",
     },
   });
 
   // Text wrapping
-  for (const col of [COL.SETUP, COL.NOTES]) {
+  for (const col of [COL.SETUP, COL.NOTES, COL.CATALYST]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
@@ -609,7 +698,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS, COL.CONSEC_1M, COL.CONSEC_5M, COL.CONSEC_1H, COL.GAP_PCT, COL.ATR_PCT, COL.RVOL, COL.VWAP_PCT]) {
+  for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS, COL.CONVICTION, COL.CONSEC_1M, COL.CONSEC_5M, COL.CONSEC_1H, COL.GAP_PCT, COL.ATR_PCT, COL.RVOL, COL.VWAP_PCT, COL.OR_ATR_PCT, COL.MFE_TIME, COL.BREAKOUT_VOL, COL.PRIOR_CLOSE_LOC, COL.DIST_20_SMA, COL.DIST_50_SMA, COL.FLOAT, COL.AVG_DOLLAR_VOL, COL.SPY_DIR, COL.VIX_LEVEL]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
@@ -620,7 +709,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Right-align
-  for (const col of [COL.AVG_ENTRY, COL.AVG_EXIT, COL.PNL, COL.RISK, COL.PNL_R]) {
+  for (const col of [COL.AVG_ENTRY, COL.AVG_EXIT, COL.PNL, COL.RISK, COL.PNL_R, COL.OR_SIZE, COL.OR_HIGH, COL.OR_LOW, COL.MFE, COL.MAE]) {
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
@@ -633,6 +722,51 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   await sheetsBatchUpdate(token, spreadsheetId, requests);
 }
 
+async function migrateTabIfNeeded(
+  token: string,
+  spreadsheetId: string,
+  tabTitle: string,
+  sheetId: number
+): Promise<void> {
+  const currentHeaders = await sheetsValuesGet(token, spreadsheetId, `'${tabTitle}'!1:1`);
+  const headerRow = currentHeaders[0] || [];
+  if (headerRow.length === 0) return;
+
+  const hasNewManualCols = headerRow.includes("Conviction (1-3)");
+
+  if (!hasNewManualCols) {
+    const oldEnrichEnd = headerRow.length;
+    const newColsAtEnd = TOTAL_COLS - oldEnrichEnd - 2;
+
+    await sheetsBatchUpdate(token, spreadsheetId, [
+      {
+        insertDimension: {
+          range: { sheetId, dimension: "COLUMNS", startIndex: 20, endIndex: 22 },
+          inheritFromBefore: false,
+        },
+      },
+    ]);
+
+    if (newColsAtEnd > 0) {
+      await sheetsBatchUpdate(token, spreadsheetId, [
+        {
+          appendDimension: {
+            sheetId,
+            dimension: "COLUMNS",
+            length: newColsAtEnd,
+          },
+        },
+      ]);
+    }
+
+    await sheetsValuesUpdate(token, spreadsheetId, `'${tabTitle}'!A1`, [SHEET_HEADERS]);
+    await applyFormatting(token, spreadsheetId, sheetId);
+  } else if (headerRow.length < TOTAL_COLS) {
+    await sheetsValuesUpdate(token, spreadsheetId, `'${tabTitle}'!A1`, [SHEET_HEADERS]);
+    await applyFormatting(token, spreadsheetId, sheetId);
+  }
+}
+
 async function ensureSheetTab(
   token: string,
   spreadsheetId: string,
@@ -643,11 +777,7 @@ async function ensureSheetTab(
   const existing = findTabByAccountPrefix(meta.sheets, account);
 
   if (existing) {
-    const currentHeaders = await sheetsValuesGet(token, spreadsheetId, `'${existing.title}'!1:1`);
-    if (!currentHeaders[0] || currentHeaders[0].length < TOTAL_COLS) {
-      await sheetsValuesUpdate(token, spreadsheetId, `'${existing.title}'!A1`, [SHEET_HEADERS]);
-      await applyFormatting(token, spreadsheetId, existing.sheetId);
-    }
+    await migrateTabIfNeeded(token, spreadsheetId, existing.title, existing.sheetId);
     return { tabName: existing.title, gid: existing.sheetId };
   }
 
@@ -703,6 +833,21 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
     set("%ATR", e.atrPct ?? "");
     set("RVOL", e.rvol ?? "");
     set("%VWAP", e.vwapPct ?? "");
+    set("OR Size ($)", e.orSize ?? "");
+    set("OR %ATR", e.orAtrPct ?? "");
+    set("OR High", e.orHigh ?? "");
+    set("OR Low", e.orLow ?? "");
+    set("MFE ($)", e.mfeDollars ?? "");
+    set("MAE ($)", e.maeDollars ?? "");
+    set("MFE Time (mins)", e.mfeTimeMins ?? "");
+    set("Breakout Vol Ratio", e.breakoutVolRatio ?? "");
+    set("Prior Close Loc", e.priorCloseLoc ?? "");
+    set("Dist 20 SMA (%)", e.dist20Sma ?? "");
+    set("Dist 50 SMA (%)", e.dist50Sma ?? "");
+    set("Float", e.floatShares ?? "");
+    set("Avg $ Vol", e.avgDollarVol ?? "");
+    set("SPY Dir", e.spyDir ?? "");
+    set("VIX", e.vix ?? "");
   }
 
   return row;
@@ -756,6 +901,8 @@ export interface AggregateStats {
   hourlyBreakdown: SegmentStats[];
   granularHourlyBreakdown: SegmentStats[];
   setupBreakdown: SegmentStats[];
+  convictionBreakdown: SegmentStats[];
+  catalystBreakdown: SegmentStats[];
 }
 
 export interface StatsFilter {
@@ -815,6 +962,8 @@ interface ParsedRow {
   duration: number;
   entryMin: number;
   setup: string;
+  conviction: string;
+  catalyst: string;
 }
 
 export function computeStats(rows: string[][], filter?: StatsFilter): AggregateStats {
@@ -825,6 +974,7 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
       profitFactor: 0, largestWin: 0, largestLoss: 0,
       maxConsecutiveWins: 0, maxConsecutiveLosses: 0, avgDurationMins: 0,
       hourlyBreakdown: [], granularHourlyBreakdown: [], setupBreakdown: [],
+      convictionBreakdown: [], catalystBreakdown: [],
     };
   }
 
@@ -835,6 +985,8 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
   const durationIdx = cm(colMap, "Duration (mins)");
   const entryTimeIdx = cm(colMap, "Entry Time");
   const setupIdx = cm(colMap, "Setup");
+  const convictionIdx = cm(colMap, "Conviction (1-3)");
+  const catalystIdx = cm(colMap, "Catalyst");
 
   let dataRows = rows.slice(1).filter((r) => pnlIdx >= 0 && r.length > pnlIdx && r[pnlIdx] !== "");
 
@@ -853,6 +1005,8 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
     duration: durationIdx >= 0 ? parseFloat(r[durationIdx]) || 0 : 0,
     entryMin: entryTimeIdx >= 0 ? parseTimeToMinutes(r[entryTimeIdx]) : -1,
     setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
+    conviction: convictionIdx >= 0 ? (r[convictionIdx] || "").trim() : "",
+    catalyst: catalystIdx >= 0 ? (r[catalystIdx] || "").trim() : "",
   }));
 
   const pnls = parsed.map((p) => p.pnl);
@@ -863,6 +1017,7 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
     profitFactor: 0, largestWin: 0, largestLoss: 0,
     maxConsecutiveWins: 0, maxConsecutiveLosses: 0, avgDurationMins: 0,
     hourlyBreakdown: [], granularHourlyBreakdown: [], setupBreakdown: [],
+    convictionBreakdown: [], catalystBreakdown: [],
   };
 
   if (pnls.length === 0) return emptyStats;
@@ -906,6 +1061,29 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
     .map(([setup, sPnls]) => computeSegment(sPnls, setup))
     .sort((a, b) => b.trades - a.trades);
 
+  const convictionMap = new Map<string, number[]>();
+  for (const r of parsed) {
+    if (!r.conviction) continue;
+    if (!convictionMap.has(r.conviction)) convictionMap.set(r.conviction, []);
+    convictionMap.get(r.conviction)!.push(r.pnl);
+  }
+  const convictionBreakdown = Array.from(convictionMap.entries())
+    .map(([level, cPnls]) => computeSegment(cPnls, `Conviction ${level}`))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const catalystMap = new Map<string, number[]>();
+  for (const r of parsed) {
+    if (!r.catalyst) continue;
+    const catalysts = r.catalyst.split(",").map((s) => s.trim()).filter(Boolean);
+    for (const c of catalysts) {
+      if (!catalystMap.has(c)) catalystMap.set(c, []);
+      catalystMap.get(c)!.push(r.pnl);
+    }
+  }
+  const catalystBreakdown = Array.from(catalystMap.entries())
+    .map(([cat, catPnls]) => computeSegment(catPnls, cat))
+    .sort((a, b) => b.trades - a.trades);
+
   const durations = parsed.map((r) => r.duration);
 
   return {
@@ -926,6 +1104,8 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
     hourlyBreakdown,
     granularHourlyBreakdown,
     setupBreakdown,
+    convictionBreakdown,
+    catalystBreakdown,
   };
 }
 
@@ -942,6 +1122,7 @@ export async function listSheetTabs(): Promise<{ name: string; gid: number }[]> 
 export interface BackfillTrade {
   date: string;
   entryTime: string;
+  exitTime: string;
   side: string;
   symbol: string;
   avgEntry: number;
@@ -951,27 +1132,36 @@ export interface BackfillTrade {
 export async function getTradesForBackfill(tabName: string): Promise<BackfillTrade[]> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AH`);
+
+  const meta = await sheetsGet(token, spreadsheetId);
+  const tab = meta.sheets.find((s) => s.properties.title === tabName);
+  if (tab) {
+    await migrateTabIfNeeded(token, spreadsheetId, tabName, tab.properties.sheetId);
+  }
+
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AR`);
   if (rows.length <= 1) return [];
 
   const colMap = buildColMap(rows[0]);
   const symIdx = cm(colMap, "Symbol");
   const dateIdx = cm(colMap, "Date");
   const entryIdx = cm(colMap, "Entry Time");
+  const exitIdx = cm(colMap, "Exit Time");
   const sideIdx = cm(colMap, "Side");
   const avgEntryIdx = cm(colMap, "Avg Entry");
-  const consec1mIdx = cm(colMap, "#1m");
+  const orSizeIdx = cm(colMap, "OR Size ($)");
 
   const trades: BackfillTrade[] = [];
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (symIdx < 0 || !row[symIdx]) continue;
-    const hasEnrichment = consec1mIdx >= 0 && row[consec1mIdx] !== undefined && row[consec1mIdx] !== "";
-    if (hasEnrichment) continue;
+    const hasFullEnrichment = orSizeIdx >= 0 && row[orSizeIdx] !== undefined && row[orSizeIdx] !== "";
+    if (hasFullEnrichment) continue;
 
     trades.push({
       date: dateIdx >= 0 ? row[dateIdx] : "",
       entryTime: entryIdx >= 0 ? row[entryIdx] : "",
+      exitTime: exitIdx >= 0 ? (row[exitIdx] || "") : "",
       side: sideIdx >= 0 ? row[sideIdx] : "",
       symbol: row[symIdx],
       avgEntry: avgEntryIdx >= 0 ? parseFloat(String(row[avgEntryIdx]).replace(/[$,]/g, "")) || 0 : 0,
@@ -987,7 +1177,7 @@ export async function getStatsForTab(tabName: string, filter?: StatsFilter): Pro
   const meta = await sheetsGet(token, spreadsheetId);
   const tab = meta.sheets.find((s) => s.properties.title === tabName);
   if (!tab) throw new Error(`Sheet tab "${tabName}" not found.`);
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AH`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AR`);
   return computeStats(rows, filter);
 }
 
@@ -1024,6 +1214,8 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Readiness Score", "No — you fill this in (daily)", "Your overall readiness to trade (0–100). Fill in once on the first trade of each day."],
     ["Emotional State", "No — you fill this in (daily)", "How you're feeling before trading. Select from dropdown: Calm, Anxious, Excited, Frustrated, or Fatigued. Fill in once per day."],
     ["Market Bias", "No — you fill this in (daily)", "Your pre-market read on the overall market direction. Select from dropdown: Bullish, Bearish, or Neutral. Fill in once per day."],
+    ["Conviction (1-3)", "No — you fill this in", "Your conviction level for this trade before/at entry: 1 (low), 2 (solid), 3 (A+ setup)."],
+    ["Catalyst", "No — you fill this in", "The catalyst driving the trade. Select one or type comma-separated: Earnings, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
     ["#1m", "Yes (market data)", "Number of consecutive 1-minute candles in the trade direction at entry (including the entry candle). Green candles for Long, red for Short."],
     ["#5m", "Yes (market data)", "Number of consecutive 5-minute candles in the trade direction at entry."],
     ["#1H", "Yes (market data)", "Number of consecutive 1-hour candles in the trade direction at entry."],
@@ -1031,6 +1223,21 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["%ATR", "Yes (market data)", "Percentage of the 14-day Average True Range already consumed by the time of entry. High values mean much of the expected daily range was already used."],
     ["RVOL", "Yes (market data)", "Relative Volume at entry time compared to the same time on prior days. >1 means above-average volume activity."],
     ["%VWAP", "Yes (market data)", "Percentage distance from VWAP at entry. Positive = above VWAP, negative = below VWAP."],
+    ["OR Size ($)", "Yes (market data)", "Opening range size in dollars (OR high minus OR low). The OR is the first 5 minutes (9:30-9:35 ET)."],
+    ["OR %ATR", "Yes (market data)", "Opening range size as a percentage of ATR-14. Smaller OR relative to ATR means more room to run."],
+    ["OR High", "Yes (market data)", "The high price of the 5-minute opening range."],
+    ["OR Low", "Yes (market data)", "The low price of the 5-minute opening range."],
+    ["MFE ($)", "Yes (market data)", "Maximum Favorable Excursion: the furthest the trade went in your favor ($/share) between entry and exit."],
+    ["MAE ($)", "Yes (market data)", "Maximum Adverse Excursion: the furthest the trade went against you ($/share) between entry and exit."],
+    ["MFE Time (mins)", "Yes (market data)", "Minutes from entry to when MFE occurred. Shows how quickly the move played out."],
+    ["Breakout Vol Ratio", "Yes (market data)", "Volume of the breakout bar divided by avg volume of OR bars. Higher = stronger conviction breakout."],
+    ["Prior Close Loc", "Yes (market data)", "Where the previous day closed within its range (0=at low, 100=at high)."],
+    ["Dist 20 SMA (%)", "Yes (market data)", "Distance from the 20-day SMA as a percentage. Positive = above SMA."],
+    ["Dist 50 SMA (%)", "Yes (market data)", "Distance from the 50-day SMA as a percentage. Positive = above SMA."],
+    ["Float", "Yes (market data)", "Total shares float (outstanding shares available for trading). From Polygon reference data."],
+    ["Avg $ Vol", "Yes (market data)", "Average daily dollar volume over the past 20 trading days."],
+    ["SPY Dir", "Yes (market data)", "SPY direction at your entry time: Up, Down, or Flat relative to SPY's open."],
+    ["VIX", "Yes (market data)", "VIX level on the trade date. Higher VIX = higher implied volatility."],
   ];
 
   const SPACER: string[] = [];
@@ -1040,6 +1247,8 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Setup", "Select the setup from the dropdown. If your setup isn't listed, pick the closest match and note it in the Notes column."],
     ["Process Followed?", "Honestly assess whether you followed your trading plan. This is for your own development — be truthful."],
     ["Notes", "Write anything that will help you learn: your reasoning, emotions, what the chart looked like, what you'd do differently."],
+    ["Conviction (1-3)", "Rate your conviction before entry: 1 = low (taking it but not ideal), 2 = solid setup, 3 = A+ setup. Over time, compare your P&L across conviction levels."],
+    ["Catalyst", "Select the catalyst from dropdown or type comma-separated values for multiple: Earnings, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
     ["Sleep Score", "Rate your sleep quality 0–100. Fill in once on the first trade row of each day."],
     ["Readiness Score", "Rate your overall readiness to trade 0–100. Fill in once on the first trade row of each day."],
     ["Emotional State", "Select from dropdown. Fill in once per day. Track this to find correlations between your state and your P&L."],
@@ -1216,7 +1425,7 @@ export async function appendTrades(
     usedAccounts.push(tabName);
     if (firstGid === null) firstGid = gid;
 
-    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AH`);
+    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AR`);
     const tabColMap = existing.length > 0 ? buildColMap(existing[0]) : buildColMap(SHEET_HEADERS);
     const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row, tabColMap)));
 
@@ -1241,7 +1450,7 @@ export async function appendTrades(
 
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
-    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:AH`);
+    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:AR`);
     stats = computeStats(allRows);
   }
 
@@ -1256,7 +1465,7 @@ export async function updateEnrichment(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AH`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AR`);
   if (rows.length <= 1) return { updated: 0 };
 
   const colMap = buildColMap(rows[0]);
@@ -1265,7 +1474,30 @@ export async function updateEnrichment(
   const entryIdx = cm(colMap, "Entry Time");
   const sideIdx = cm(colMap, "Side");
 
-  const enrichFieldHeaders = ["#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP"] as const;
+  const enrichFieldMap: [string, (d: MarketEnrichment) => string | number | null][] = [
+    ["#1m", (d) => d.consec1m],
+    ["#5m", (d) => d.consec5m],
+    ["#1H", (d) => d.consec1h],
+    ["%Gap", (d) => d.gapPct],
+    ["%ATR", (d) => d.atrPct],
+    ["RVOL", (d) => d.rvol],
+    ["%VWAP", (d) => d.vwapPct],
+    ["OR Size ($)", (d) => d.orSize],
+    ["OR %ATR", (d) => d.orAtrPct],
+    ["OR High", (d) => d.orHigh],
+    ["OR Low", (d) => d.orLow],
+    ["MFE ($)", (d) => d.mfeDollars],
+    ["MAE ($)", (d) => d.maeDollars],
+    ["MFE Time (mins)", (d) => d.mfeTimeMins],
+    ["Breakout Vol Ratio", (d) => d.breakoutVolRatio],
+    ["Prior Close Loc", (d) => d.priorCloseLoc],
+    ["Dist 20 SMA (%)", (d) => d.dist20Sma],
+    ["Dist 50 SMA (%)", (d) => d.dist50Sma],
+    ["Float", (d) => d.floatShares],
+    ["Avg $ Vol", (d) => d.avgDollarVol],
+    ["SPY Dir", (d) => d.spyDir],
+    ["VIX", (d) => d.vix],
+  ];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const valueRanges: any[] = [];
@@ -1284,13 +1516,12 @@ export async function updateEnrichment(
       ) {
         used.add(r);
         const rowNum = r + 1;
-        const enrichValues = [e.data.consec1m, e.data.consec5m, e.data.consec1h, e.data.gapPct, e.data.atrPct, e.data.rvol, e.data.vwapPct];
-        for (let fi = 0; fi < enrichFieldHeaders.length; fi++) {
-          const colIdx = cm(colMap, enrichFieldHeaders[fi]);
+        for (const [header, getter] of enrichFieldMap) {
+          const colIdx = cm(colMap, header);
           if (colIdx < 0) continue;
           valueRanges.push({
             range: `'${tabName}'!${colLetter(colIdx)}${rowNum}`,
-            values: [[enrichValues[fi] ?? ""]],
+            values: [[getter(e.data) ?? ""]],
           });
         }
         break;
