@@ -783,6 +783,10 @@ async function migrateTabIfNeeded(
 
   if (missingHeaders.length === 0) return;
 
+  await sheetsBatchUpdate(token, spreadsheetId, [
+    { appendDimension: { sheetId, dimension: "COLUMNS", length: missingHeaders.length } },
+  ]);
+
   const startCol = headerRow.length;
   const endCol = startCol + missingHeaders.length;
   const range = `'${tabTitle}'!${colLetter(startCol)}1:${colLetter(endCol - 1)}1`;
