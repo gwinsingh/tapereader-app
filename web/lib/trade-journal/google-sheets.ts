@@ -95,8 +95,6 @@ const COL = {
   VIX_LEVEL: 43,
 } as const;
 
-const MANUAL_COLS = new Set([COL.RISK, COL.SETUP, COL.PROCESS, COL.NOTES, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS, COL.CONVICTION, COL.CATALYST]);
-
 // --- Dynamic column mapping (handles user-reordered sheets) ---
 
 type ColMap = { [headerName: string]: number };
@@ -334,7 +332,22 @@ function getSheetId(sheets: SheetMeta[], tabName: string): number {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function applyFormatting(token: string, spreadsheetId: string, sheetId: number) {
+async function applyFormatting(token: string, spreadsheetId: string, sheetId: number, colMap?: ColMap) {
+  const rc = (codeCol: number): number => {
+    if (!colMap) return codeCol;
+    const header = SHEET_HEADERS[codeCol];
+    return header ? (colMap[header] ?? -1) : -1;
+  };
+
+  const totalCols = colMap ? Math.max(...Object.values(colMap)) + 1 : TOTAL_COLS;
+
+  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst"];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const colRange = (col: number) => ({ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const headerRange = (col: number) => ({ sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: col, endColumnIndex: col + 1 });
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const requests: any[] = [];
 
@@ -347,7 +360,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
   requests.push({
     repeatCell: {
-      range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: TOTAL_COLS },
+      range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: totalCols },
       cell: {
         userEnteredFormat: {
           backgroundColor: COLORS.headerBg,
@@ -361,10 +374,12 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     },
   });
 
-  for (const col of MANUAL_COLS) {
+  for (const h of manualHeaders) {
+    const col = colMap ? (colMap[h] ?? -1) : (SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: headerRange(col),
         cell: {
           userEnteredFormat: {
             backgroundColor: COLORS.headerText,
@@ -376,27 +391,29 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
-  const colWidths: Record<number, number> = {
-    [COL.DATE]: 100, [COL.ENTRY_TIME]: 90, [COL.EXIT_TIME]: 90,
-    [COL.DURATION]: 105, [COL.SYMBOL]: 80, [COL.SIDE]: 70,
-    [COL.SHARES]: 70, [COL.AVG_ENTRY]: 95, [COL.AVG_EXIT]: 95,
-    [COL.PARTIALS]: 85, [COL.PNL]: 95, [COL.RISK]: 95,
-    [COL.PNL_R]: 85, [COL.SETUP]: 140, [COL.PROCESS]: 130, [COL.NOTES]: 200,
-    [COL.SLEEP]: 100, [COL.READINESS]: 120, [COL.EMOTIONAL]: 120, [COL.BIAS]: 100,
-    [COL.CONVICTION]: 100, [COL.CATALYST]: 160,
-    [COL.CONSEC_1M]: 55, [COL.CONSEC_5M]: 55, [COL.CONSEC_1H]: 55,
-    [COL.GAP_PCT]: 70, [COL.ATR_PCT]: 70, [COL.RVOL]: 65, [COL.VWAP_PCT]: 75,
-    [COL.OR_SIZE]: 85, [COL.OR_ATR_PCT]: 75, [COL.OR_HIGH]: 85, [COL.OR_LOW]: 85,
-    [COL.MFE]: 75, [COL.MAE]: 75, [COL.MFE_TIME]: 95,
-    [COL.BREAKOUT_VOL]: 110, [COL.PRIOR_CLOSE_LOC]: 105,
-    [COL.DIST_20_SMA]: 105, [COL.DIST_50_SMA]: 105,
-    [COL.FLOAT]: 100, [COL.AVG_DOLLAR_VOL]: 100,
-    [COL.SPY_DIR]: 70, [COL.VIX_LEVEL]: 60,
+  const colWidths: Record<string, number> = {
+    "Date": 100, "Entry Time": 90, "Exit Time": 90,
+    "Duration (mins)": 105, "Symbol": 80, "Side": 70,
+    "Shares": 70, "Avg Entry": 95, "Avg Exit": 95,
+    "# Partials": 85, "P&L": 95, "R (Risk)": 95,
+    "P&L (R)": 85, "Setup": 140, "Process Followed?": 130, "Notes": 200,
+    "Sleep Score": 100, "Readiness Score": 120, "Emotional State": 120, "Market Bias": 100,
+    "Conviction (1-3)": 100, "Catalyst": 160,
+    "#1m": 55, "#5m": 55, "#1H": 55,
+    "%Gap": 70, "%ATR": 70, "RVOL": 65, "%VWAP": 75,
+    "OR Size ($)": 85, "OR %ATR": 75, "OR High": 85, "OR Low": 85,
+    "MFE ($)": 75, "MAE ($)": 75, "MFE Time (mins)": 95,
+    "Breakout Vol Ratio": 110, "Prior Close Loc": 105,
+    "Dist 20 SMA (%)": 105, "Dist 50 SMA (%)": 105,
+    "Float": 100, "Avg $ Vol": 100,
+    "SPY Dir": 70, "VIX": 60,
   };
-  for (const [col, width] of Object.entries(colWidths)) {
+  for (const [header, width] of Object.entries(colWidths)) {
+    const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
+    if (col < 0) continue;
     requests.push({
       updateDimensionProperties: {
-        range: { sheetId, dimension: "COLUMNS", startIndex: Number(col), endIndex: Number(col) + 1 },
+        range: { sheetId, dimension: "COLUMNS", startIndex: col, endIndex: col + 1 },
         properties: { pixelSize: width },
         fields: "pixelSize",
       },
@@ -411,286 +428,311 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     },
   });
 
-  for (const col of [COL.PNL, COL.RISK, COL.OR_SIZE, COL.OR_HIGH, COL.OR_LOW, COL.MFE, COL.MAE]) {
+  // Currency formatting
+  for (const h of ["P&L", "R (Risk)", "OR Size ($)", "OR High", "OR Low", "MFE ($)", "MAE ($)", "Avg Entry", "Avg Exit"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: colRange(col),
         cell: { userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "$#,##0.00" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
   }
 
-  requests.push({
-    repeatCell: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.DURATION, endColumnIndex: COL.DURATION + 1 },
-      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
-      fields: "userEnteredFormat.numberFormat",
-    },
-  });
-
-  requests.push({
-    repeatCell: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PNL_R, endColumnIndex: COL.PNL_R + 1 },
-      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
-      fields: "userEnteredFormat.numberFormat",
-    },
-  });
-
-  for (const col of [COL.AVG_ENTRY, COL.AVG_EXIT]) {
+  for (const h of ["Duration (mins)", "P&L (R)"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
-        cell: { userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "$#,##0.00" } } },
+        range: colRange(col),
+        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
   }
 
   // Conditional formatting: Side
-  requests.push({
-    addConditionalFormatRule: {
-      rule: {
-        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.SIDE, endColumnIndex: COL.SIDE + 1 }],
-        booleanRule: {
-          condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Long" }] },
-          format: { backgroundColor: COLORS.vividGreenBg, textFormat: { foregroundColor: COLORS.vividGreenText, bold: true } },
+  const sideCol = rc(COL.SIDE);
+  if (sideCol >= 0) {
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: [colRange(sideCol)],
+          booleanRule: {
+            condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Long" }] },
+            format: { backgroundColor: COLORS.vividGreenBg, textFormat: { foregroundColor: COLORS.vividGreenText, bold: true } },
+          },
         },
+        index: 0,
       },
-      index: 0,
-    },
-  });
-  requests.push({
-    addConditionalFormatRule: {
-      rule: {
-        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.SIDE, endColumnIndex: COL.SIDE + 1 }],
-        booleanRule: {
-          condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Short" }] },
-          format: { backgroundColor: COLORS.vividRedBg, textFormat: { foregroundColor: COLORS.vividRedText, bold: true } },
+    });
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: [colRange(sideCol)],
+          booleanRule: {
+            condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Short" }] },
+            format: { backgroundColor: COLORS.vividRedBg, textFormat: { foregroundColor: COLORS.vividRedText, bold: true } },
+          },
         },
+        index: 1,
       },
-      index: 1,
-    },
-  });
+    });
+  }
 
   // Conditional formatting: P&L
-  requests.push({
-    addConditionalFormatRule: {
-      rule: {
-        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PNL, endColumnIndex: COL.PNL + 1 }],
-        booleanRule: {
-          condition: { type: "NUMBER_GREATER_THAN_EQ", values: [{ userEnteredValue: "0" }] },
-          format: { textFormat: { foregroundColor: COLORS.greenText, bold: true } },
+  const pnlCol = rc(COL.PNL);
+  if (pnlCol >= 0) {
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: [colRange(pnlCol)],
+          booleanRule: {
+            condition: { type: "NUMBER_GREATER_THAN_EQ", values: [{ userEnteredValue: "0" }] },
+            format: { textFormat: { foregroundColor: COLORS.greenText, bold: true } },
+          },
         },
+        index: 2,
       },
-      index: 2,
-    },
-  });
-  requests.push({
-    addConditionalFormatRule: {
-      rule: {
-        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PNL, endColumnIndex: COL.PNL + 1 }],
-        booleanRule: {
-          condition: { type: "NUMBER_LESS", values: [{ userEnteredValue: "0" }] },
-          format: { textFormat: { foregroundColor: COLORS.redText, bold: true } },
+    });
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: [colRange(pnlCol)],
+          booleanRule: {
+            condition: { type: "NUMBER_LESS", values: [{ userEnteredValue: "0" }] },
+            format: { textFormat: { foregroundColor: COLORS.redText, bold: true } },
+          },
         },
+        index: 3,
       },
-      index: 3,
-    },
-  });
+    });
+  }
 
   // Conditional formatting: P&L (R)
-  requests.push({
-    addConditionalFormatRule: {
-      rule: {
-        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PNL_R, endColumnIndex: COL.PNL_R + 1 }],
-        booleanRule: {
-          condition: { type: "NUMBER_GREATER_THAN_EQ", values: [{ userEnteredValue: "0" }] },
-          format: { textFormat: { foregroundColor: COLORS.greenText } },
+  const pnlRCol = rc(COL.PNL_R);
+  if (pnlRCol >= 0) {
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: [colRange(pnlRCol)],
+          booleanRule: {
+            condition: { type: "NUMBER_GREATER_THAN_EQ", values: [{ userEnteredValue: "0" }] },
+            format: { textFormat: { foregroundColor: COLORS.greenText } },
+          },
         },
+        index: 4,
       },
-      index: 4,
-    },
-  });
-  requests.push({
-    addConditionalFormatRule: {
-      rule: {
-        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PNL_R, endColumnIndex: COL.PNL_R + 1 }],
-        booleanRule: {
-          condition: { type: "NUMBER_LESS", values: [{ userEnteredValue: "0" }] },
-          format: { textFormat: { foregroundColor: COLORS.redText } },
+    });
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: [colRange(pnlRCol)],
+          booleanRule: {
+            condition: { type: "NUMBER_LESS", values: [{ userEnteredValue: "0" }] },
+            format: { textFormat: { foregroundColor: COLORS.redText } },
+          },
         },
+        index: 5,
       },
-      index: 5,
-    },
-  });
+    });
+  }
 
   // Conditional formatting: Process Followed?
-  requests.push({
-    addConditionalFormatRule: {
-      rule: {
-        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PROCESS, endColumnIndex: COL.PROCESS + 1 }],
-        booleanRule: {
-          condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Yes" }] },
-          format: { backgroundColor: COLORS.vividGreenBg, textFormat: { foregroundColor: COLORS.vividGreenText, bold: true } },
+  const processCol = rc(COL.PROCESS);
+  if (processCol >= 0) {
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: [colRange(processCol)],
+          booleanRule: {
+            condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Yes" }] },
+            format: { backgroundColor: COLORS.vividGreenBg, textFormat: { foregroundColor: COLORS.vividGreenText, bold: true } },
+          },
         },
+        index: 6,
       },
-      index: 6,
-    },
-  });
-  requests.push({
-    addConditionalFormatRule: {
-      rule: {
-        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PROCESS, endColumnIndex: COL.PROCESS + 1 }],
-        booleanRule: {
-          condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "No" }] },
-          format: { backgroundColor: COLORS.vividRedBg, textFormat: { foregroundColor: COLORS.vividRedText, bold: true } },
+    });
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: [colRange(processCol)],
+          booleanRule: {
+            condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "No" }] },
+            format: { backgroundColor: COLORS.vividRedBg, textFormat: { foregroundColor: COLORS.vividRedText, bold: true } },
+          },
         },
+        index: 7,
       },
-      index: 7,
-    },
-  });
+    });
 
-  // Data validation: Process Followed?
-  requests.push({
-    setDataValidation: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.PROCESS, endColumnIndex: COL.PROCESS + 1 },
-      rule: {
-        condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "Yes" }, { userEnteredValue: "No" }] },
-        showCustomUi: true,
-        strict: true,
+    requests.push({
+      setDataValidation: {
+        range: colRange(processCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "Yes" }, { userEnteredValue: "No" }] },
+          showCustomUi: true,
+          strict: true,
+        },
       },
-    },
-  });
+    });
+  }
 
   // Data validation: Setup
-  requests.push({
-    setDataValidation: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.SETUP, endColumnIndex: COL.SETUP + 1 },
-      rule: {
-        condition: { type: "ONE_OF_LIST", values: SETUP_OPTIONS.map((v) => ({ userEnteredValue: v })) },
-        showCustomUi: true,
-        strict: false,
+  const setupCol = rc(COL.SETUP);
+  if (setupCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(setupCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: SETUP_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: false,
+        },
       },
-    },
-  });
+    });
+  }
 
   // Data validation: Conviction (1-3)
-  requests.push({
-    setDataValidation: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.CONVICTION, endColumnIndex: COL.CONVICTION + 1 },
-      rule: {
-        condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "1" }, { userEnteredValue: "2" }, { userEnteredValue: "3" }] },
-        showCustomUi: true,
-        strict: true,
+  const convictionCol = rc(COL.CONVICTION);
+  if (convictionCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(convictionCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "1" }, { userEnteredValue: "2" }, { userEnteredValue: "3" }] },
+          showCustomUi: true,
+          strict: true,
+        },
       },
-    },
-  });
+    });
+  }
 
   // Data validation: Catalyst
-  requests.push({
-    setDataValidation: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.CATALYST, endColumnIndex: COL.CATALYST + 1 },
-      rule: {
-        condition: { type: "ONE_OF_LIST", values: CATALYST_OPTIONS.map((v) => ({ userEnteredValue: v })) },
-        showCustomUi: true,
-        strict: false,
+  const catalystCol = rc(COL.CATALYST);
+  if (catalystCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(catalystCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: CATALYST_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: false,
+        },
       },
-    },
-  });
+    });
+  }
 
   // Data validation: Emotional State
-  requests.push({
-    setDataValidation: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.EMOTIONAL, endColumnIndex: COL.EMOTIONAL + 1 },
-      rule: {
-        condition: { type: "ONE_OF_LIST", values: EMOTIONAL_STATE_OPTIONS.map((v) => ({ userEnteredValue: v })) },
-        showCustomUi: true,
-        strict: false,
+  const emotionalCol = rc(COL.EMOTIONAL);
+  if (emotionalCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(emotionalCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: EMOTIONAL_STATE_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: false,
+        },
       },
-    },
-  });
+    });
+  }
 
   // Data validation: Market Bias
-  requests.push({
-    setDataValidation: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.BIAS, endColumnIndex: COL.BIAS + 1 },
-      rule: {
-        condition: { type: "ONE_OF_LIST", values: MARKET_BIAS_OPTIONS.map((v) => ({ userEnteredValue: v })) },
-        showCustomUi: true,
-        strict: false,
+  const biasCol = rc(COL.BIAS);
+  if (biasCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(biasCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: MARKET_BIAS_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: false,
+        },
       },
-    },
-  });
+    });
+  }
 
   // Number format: Sleep & Readiness scores (whole numbers)
-  for (const col of [COL.SLEEP, COL.READINESS]) {
+  for (const h of ["Sleep Score", "Readiness Score", "#1m", "#5m", "#1H", "MFE Time (mins)"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: colRange(col),
         cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
   }
 
-  // Number format: market data columns
-  for (const col of [COL.CONSEC_1M, COL.CONSEC_5M, COL.CONSEC_1H, COL.MFE_TIME]) {
+  for (const h of ["%Gap", "%VWAP", "Dist 20 SMA (%)", "Dist 50 SMA (%)"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
-        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0" } } },
-        fields: "userEnteredFormat.numberFormat",
-      },
-    });
-  }
-  for (const col of [COL.GAP_PCT, COL.VWAP_PCT, COL.DIST_20_SMA, COL.DIST_50_SMA]) {
-    requests.push({
-      repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: colRange(col),
         cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "+0.00;-0.00" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
   }
-  for (const col of [COL.ATR_PCT, COL.OR_ATR_PCT, COL.PRIOR_CLOSE_LOC]) {
+
+  for (const h of ["%ATR", "OR %ATR", "Prior Close Loc"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: colRange(col),
         cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
   }
-  for (const col of [COL.RVOL, COL.BREAKOUT_VOL, COL.VIX_LEVEL]) {
+
+  for (const h of ["RVOL", "Breakout Vol Ratio", "VIX"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: colRange(col),
         cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.00" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
   }
-  requests.push({
-    repeatCell: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.FLOAT, endColumnIndex: COL.FLOAT + 1 },
-      cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "#,##0" } } },
-      fields: "userEnteredFormat.numberFormat",
-    },
-  });
-  requests.push({
-    repeatCell: {
-      range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: COL.AVG_DOLLAR_VOL, endColumnIndex: COL.AVG_DOLLAR_VOL + 1 },
-      cell: { userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "$#,##0" } } },
-      fields: "userEnteredFormat.numberFormat",
-    },
-  });
 
-  // Text wrapping
-  for (const col of [COL.SETUP, COL.NOTES, COL.CATALYST]) {
+  const floatCol = rc(COL.FLOAT);
+  if (floatCol >= 0) {
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: colRange(floatCol),
+        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "#,##0" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+
+  const avgDolVolCol = rc(COL.AVG_DOLLAR_VOL);
+  if (avgDolVolCol >= 0) {
+    requests.push({
+      repeatCell: {
+        range: colRange(avgDolVolCol),
+        cell: { userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "$#,##0" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+
+  // Text wrapping
+  for (const h of ["Setup", "Notes", "Catalyst"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
+    requests.push({
+      repeatCell: {
+        range: colRange(col),
         cell: { userEnteredFormat: { wrapStrategy: "WRAP" } },
         fields: "userEnteredFormat.wrapStrategy",
       },
@@ -698,10 +740,12 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const col of [COL.SIDE, COL.SHARES, COL.PARTIALS, COL.DURATION, COL.PROCESS, COL.SLEEP, COL.READINESS, COL.EMOTIONAL, COL.BIAS, COL.CONVICTION, COL.CONSEC_1M, COL.CONSEC_5M, COL.CONSEC_1H, COL.GAP_PCT, COL.ATR_PCT, COL.RVOL, COL.VWAP_PCT, COL.OR_ATR_PCT, COL.MFE_TIME, COL.BREAKOUT_VOL, COL.PRIOR_CLOSE_LOC, COL.DIST_20_SMA, COL.DIST_50_SMA, COL.FLOAT, COL.AVG_DOLLAR_VOL, COL.SPY_DIR, COL.VIX_LEVEL]) {
+  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "MFE Time (mins)", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: colRange(col),
         cell: { userEnteredFormat: { horizontalAlignment: "CENTER" } },
         fields: "userEnteredFormat.horizontalAlignment",
       },
@@ -709,10 +753,12 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Right-align
-  for (const col of [COL.AVG_ENTRY, COL.AVG_EXIT, COL.PNL, COL.RISK, COL.PNL_R, COL.OR_SIZE, COL.OR_HIGH, COL.OR_LOW, COL.MFE, COL.MAE]) {
+  for (const h of ["Avg Entry", "Avg Exit", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low", "MFE ($)", "MAE ($)"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
     requests.push({
       repeatCell: {
-        range: { sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 },
+        range: colRange(col),
         cell: { userEnteredFormat: { horizontalAlignment: "RIGHT" } },
         fields: "userEnteredFormat.horizontalAlignment",
       },
@@ -732,39 +778,18 @@ async function migrateTabIfNeeded(
   const headerRow = currentHeaders[0] || [];
   if (headerRow.length === 0) return;
 
-  const hasNewManualCols = headerRow.includes("Conviction (1-3)");
+  const existingSet = new Set(headerRow.map((h) => h.trim()));
+  const missingHeaders = SHEET_HEADERS.filter((h) => !existingSet.has(h));
 
-  if (!hasNewManualCols) {
-    const oldEnrichEnd = headerRow.length;
-    const newColsAtEnd = TOTAL_COLS - oldEnrichEnd - 2;
+  if (missingHeaders.length === 0) return;
 
-    await sheetsBatchUpdate(token, spreadsheetId, [
-      {
-        insertDimension: {
-          range: { sheetId, dimension: "COLUMNS", startIndex: 20, endIndex: 22 },
-          inheritFromBefore: false,
-        },
-      },
-    ]);
+  const startCol = headerRow.length;
+  const endCol = startCol + missingHeaders.length;
+  const range = `'${tabTitle}'!${colLetter(startCol)}1:${colLetter(endCol - 1)}1`;
+  await sheetsValuesUpdate(token, spreadsheetId, range, [missingHeaders]);
 
-    if (newColsAtEnd > 0) {
-      await sheetsBatchUpdate(token, spreadsheetId, [
-        {
-          appendDimension: {
-            sheetId,
-            dimension: "COLUMNS",
-            length: newColsAtEnd,
-          },
-        },
-      ]);
-    }
-
-    await sheetsValuesUpdate(token, spreadsheetId, `'${tabTitle}'!A1`, [SHEET_HEADERS]);
-    await applyFormatting(token, spreadsheetId, sheetId);
-  } else if (headerRow.length < TOTAL_COLS) {
-    await sheetsValuesUpdate(token, spreadsheetId, `'${tabTitle}'!A1`, [SHEET_HEADERS]);
-    await applyFormatting(token, spreadsheetId, sheetId);
-  }
+  const fullHeader = [...headerRow, ...missingHeaders];
+  await applyFormatting(token, spreadsheetId, sheetId, buildColMap(fullHeader));
 }
 
 async function ensureSheetTab(
