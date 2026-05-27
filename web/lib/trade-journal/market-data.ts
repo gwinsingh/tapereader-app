@@ -98,11 +98,14 @@ async function fetchPolygon(
     `?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
 
   let res: Response | null = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     res = await fetch(url);
-    if (res.status !== 429) break;
-    // Exponential backoff: 3s, 6s, 12s
-    await new Promise((r) => setTimeout(r, 3000 * Math.pow(2, attempt)));
+    // Also treat HTML responses (CDN rate-limit pages) as retryable
+    const ct = res.headers.get("content-type") || "";
+    if (res.status !== 429 && (res.ok ? ct.includes("application/json") : true)) break;
+    // Backoff: 5s, 10s, 20s, 30s, 30s
+    const delay = Math.min(5000 * Math.pow(2, attempt), 30000);
+    await new Promise((r) => setTimeout(r, delay));
   }
   if (!res || !res.ok) {
     const body = await res?.text().catch(() => "") ?? "";

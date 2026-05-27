@@ -76,7 +76,7 @@ interface EnrichmentProgress {
 }
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Hg1g73D8l8EH0j65IQBJhSEHzp3Ot_ib-ZD9UcN3ucU/edit";
-const ENRICH_DELAY_MS = 25000;
+const ENRICH_DELAY_MS = 65000; // 65s between symbols — Polygon free tier is 5 req/min, each symbol uses ~5 requests
 
 function getLastWeekdayEST(): string {
   const now = new Date();
