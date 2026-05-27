@@ -101,7 +101,8 @@ async function fetchPolygon(
   for (let attempt = 0; attempt < 3; attempt++) {
     res = await fetch(url);
     if (res.status !== 429) break;
-    await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+    // Exponential backoff: 3s, 6s, 12s
+    await new Promise((r) => setTimeout(r, 3000 * Math.pow(2, attempt)));
   }
   if (!res || !res.ok) {
     const body = await res?.text().catch(() => "") ?? "";
@@ -110,7 +111,20 @@ async function fetchPolygon(
     throw new Error(detail || `Polygon ${symbol} ${multiplier}${timespan} HTTP ${res?.status}`);
   }
 
-  const json = (await res.json()) as PolygonResponse;
+  // Guard against non-JSON responses (Polygon CDN can return HTML challenge
+  // pages when rate-limited, even with HTTP 200 status).
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`Polygon ${symbol} ${multiplier}${timespan}: non-JSON response (${contentType || "no content-type"})`);
+  }
+
+  let json: PolygonResponse;
+  try {
+    json = (await res.json()) as PolygonResponse;
+  } catch {
+    throw new Error(`Polygon ${symbol} ${multiplier}${timespan}: invalid JSON response`);
+  }
+
   if (json.status === "ERROR") {
     throw new Error(`Polygon error: ${json.error ?? json.message ?? json.status}`);
   }
@@ -635,20 +649,26 @@ export async function enrichSymbol(
   const dailyFrom = new Date(earliest);
   dailyFrom.setUTCDate(dailyFrom.getUTCDate() - 75);
 
-  // Parallel fetches: symbol bars + ticker details + SPY intraday + VIX daily
-  const [raw1m, rawDaily, floatShares, spyRaw, vixRaw] = await Promise.all([
+  // Stagger requests to stay within Polygon free-tier rate limits (5 req/min).
+  // Batch 1: symbol's own bars (essential — 2 requests)
+  const [raw1m, rawDaily] = await Promise.all([
     intradayFrom <= intradayTo
       ? fetchPolygon(symbol, 1, "minute", intradayFrom, intradayTo)
       : Promise.resolve([]),
     fetchPolygon(symbol, 1, "day", fmtDate(dailyFrom), latest),
-    fetchTickerDetails(symbol),
-    intradayFrom <= intradayTo
-      ? fetchPolygon("SPY", 1, "minute", intradayFrom, intradayTo).catch(() => [] as Bar[])
-      : Promise.resolve([] as Bar[]),
-    fetchPolygon("I:VIX", 1, "day", earliest, latest)
-      .catch(() => fetchPolygon("VIX", 1, "day", earliest, latest))
-      .catch(() => [] as Bar[]),
   ]);
+
+  // Small delay to avoid bursting rate limit
+  await new Promise((r) => setTimeout(r, 1500));
+
+  // Batch 2: supplementary data (all gracefully fallback to null/empty)
+  const floatShares = await fetchTickerDetails(symbol);
+  const spyRaw = intradayFrom <= intradayTo
+    ? await fetchPolygon("SPY", 1, "minute", intradayFrom, intradayTo).catch(() => [] as Bar[])
+    : [];
+  const vixRaw = await fetchPolygon("I:VIX", 1, "day", earliest, latest)
+    .catch(() => fetchPolygon("VIX", 1, "day", earliest, latest))
+    .catch(() => [] as Bar[]);
 
   const dailyBars: DailyBar[] = rawDaily.map((b) => ({
     date: timestampToET(b.ts).date,
