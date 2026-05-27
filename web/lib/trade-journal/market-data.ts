@@ -111,8 +111,14 @@ async function fetchPolygon(
   }
 
   const json = (await res.json()) as PolygonResponse;
-  if (json.status === "ERROR" || !json.results) {
+  if (json.status === "ERROR") {
     throw new Error(`Polygon error: ${json.error ?? json.message ?? json.status}`);
+  }
+
+  // Polygon returns {status:"OK"} without results field when there's no data
+  // for the given ticker/date range — this is not an error, just empty data.
+  if (!json.results || json.results.length === 0) {
+    return [];
   }
 
   return json.results.map((r) => ({
@@ -592,10 +598,24 @@ export interface SymbolEnrichmentResult {
   enrichments: { tradeIndex: number; data: MarketEnrichment }[];
 }
 
+// Validate that a symbol looks like a real ticker (letters, dots, colons, hyphens)
+// and not a number or other garbage from a misaligned column read.
+function isValidSymbol(s: string): boolean {
+  if (!s || s.length === 0 || s.length > 15) return false;
+  // Reject if it parses as a number (catches "10.1", "3.5", etc.)
+  if (!isNaN(Number(s))) return false;
+  // Must contain at least one letter
+  return /[A-Za-z]/.test(s);
+}
+
 export async function enrichSymbol(
   symbol: string,
   trades: { date: string; entryTime: string; exitTime: string; side: "Long" | "Short"; avgEntry: number; index: number }[]
 ): Promise<SymbolEnrichmentResult> {
+  if (!isValidSymbol(symbol)) {
+    throw new Error(`Invalid symbol "${symbol}" — expected a ticker like AAPL or SPY, got a number or empty value. This usually means the sheet columns are misaligned.`);
+  }
+
   const tradeDates = [...new Set(trades.map((t) => t.date))].sort();
   const earliest = tradeDates[0];
   const latest = tradeDates[tradeDates.length - 1];

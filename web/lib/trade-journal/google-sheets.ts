@@ -1184,6 +1184,11 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (symIdx < 0 || !row[symIdx]) continue;
+
+    // Validate symbol looks like a real ticker, not a number from a misaligned column
+    const sym = String(row[symIdx]).trim();
+    if (!sym || !isNaN(Number(sym)) || !/[A-Za-z]/.test(sym)) continue;
+
     const hasFullEnrichment = orSizeIdx >= 0 && row[orSizeIdx] !== undefined && row[orSizeIdx] !== "";
     if (hasFullEnrichment) continue;
 
@@ -1192,7 +1197,7 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
       entryTime: entryIdx >= 0 ? row[entryIdx] : "",
       exitTime: exitIdx >= 0 ? (row[exitIdx] || "") : "",
       side: sideIdx >= 0 ? row[sideIdx] : "",
-      symbol: row[symIdx],
+      symbol: sym,
       avgEntry: avgEntryIdx >= 0 ? parseFloat(String(row[avgEntryIdx]).replace(/[$,]/g, "")) || 0 : 0,
       index: r - 1,
     });
