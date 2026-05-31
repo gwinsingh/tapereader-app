@@ -53,15 +53,20 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 ### Google Sheets integration
 - **Auth**: Service account JSON in `GOOGLE_SERVICE_ACCOUNT_JSON` env var. JWT signed with Web Crypto.
 - **Sheet structure**: One tab per trading account (matched by account prefix, e.g. `TRPCT1541-GS`).
-- **44 columns** (A-AR): Auto-filled trade data (A-K), manual per-trade (L-P + U-V), manual daily (Q-T), market data enrichment (W-AR).
+- **50 columns** (A-AX): Auto-filled trade data (A-J), formula columns (Stop after Avg Exit), manual per-trade + daily, enrichment + formula analysis columns (Max R Before Stop, Farthest Price, 1R-6R), market data enrichment.
+- **Auto-filled columns**: Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L.
+- **Formula columns**: Stop (Entry ± R/Shares), P&L (R) (P&L/R), 1R-6R (Y/N whether Max R Before Stop reached each R-multiple).
+- **Max R Before Stop**: Order-aware enrichment field. Walks 1-minute bars from entry to 16:00 ET, tracks max favorable R-multiple reached, stops if stop-loss is hit. Requires R to be filled. Farthest Price is the stock price at that max point.
 - **Per-trade manual columns**: R (Risk), Setup, Process Followed?, Notes, Conviction (1-3), Catalyst — user fills these for every trade.
 - **Daily manual columns**: Sleep Score (0-100), Readiness Score (0-100), Emotional State (dropdown), Market Bias (dropdown) — user fills these once on the first trade of each day.
-- **Market data enrichment columns** (auto-filled from Polygon): #1m, #5m, #1H, %Gap, %ATR, RVOL, %VWAP, OR Size ($), OR %ATR, OR High, OR Low, MFE ($), MAE ($), MFE Time (mins), Breakout Vol Ratio, Prior Close Loc, Dist 20 SMA (%), Dist 50 SMA (%), Float, Avg $ Vol, SPY Dir, VIX.
+- **Market data enrichment columns** (auto-filled from Polygon): #1m, #5m, #1H, %Gap, %ATR, RVOL, %VWAP, OR Size ($), OR %ATR, OR High, OR Low, Breakout Vol Ratio, Prior Close Loc, Dist 20 SMA (%), Dist 50 SMA (%), Float, Avg $ Vol, SPY Dir, VIX.
 - All manual columns have flipped header colors (light bg, dark text) to visually distinguish them.
-- **P&L (R)** is a formula: `=IF(L{row}="","",K{row}/L{row})`.
+- **1R-6R columns** have green/red conditional formatting (Y=green, N=red) like Process Followed.
+- **Formulas use `buildFormulas()`** which generates all formula strings from dynamic colMap — used by both `tradeToRow` and migration.
 - **Dedup** uses key: `Date|Symbol|normalizedEntryTime|Side`. Time is normalized (leading zeros stripped) because Google Sheets strips them.
-- **Formatting**: frozen header, conditional colors (green/red for P&L, Side, Process), currency formats, dropdowns for Setup and Process Followed.
+- **Formatting**: frozen header, conditional colors (green/red for P&L, Side, Process, 1R-6R), currency formats, dropdowns for Setup and Process Followed.
 - **Stats**: computed server-side from all sheet rows — overall stats, hourly breakdown (4 time blocks), setup breakdown.
+- **Profitability Analysis**: client-side simulation of partial-taking strategies using per-trade R and Max R Before Stop data (order-aware). API endpoint: `/api/trade-journal/analysis`.
 
 ### JSON serialization gotcha
 `Infinity` doesn't survive `JSON.stringify()` (becomes `null`). Use `9999` as sentinel, display as `∞` in UI.
@@ -88,6 +93,8 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 | `web/components/trade-journal/AggregateStats.tsx` | Stats cards + breakdown tables |
 | `web/components/trade-journal/TradePreview.tsx` | Trade table + summary cards |
 | `web/components/trade-journal/HowToUse.tsx` | Collapsible instructions with DAS screenshots |
+| `web/components/trade-journal/ProfitabilityAnalysis.tsx` | Partial-taking strategy simulation and R-multiple analysis |
+| `web/app/api/trade-journal/analysis/route.ts` | GET endpoint for raw trade data (R + MFE) for simulation |
 | `web/components/HeaderVisibility.tsx` | Hides main app header on `/pct-bootcamp` routes |
 
 ## Environment variables (production: Cloudflare Pages dashboard)

@@ -12,9 +12,8 @@ export interface MarketEnrichment {
   orAtrPct: number | null;
   orHigh: number | null;
   orLow: number | null;
-  mfeDollars: number | null;
-  maeDollars: number | null;
-  mfeTimeMins: number | null;
+  maxRBeforeStop: number | null;
+  farthestPrice: number | null;
   breakoutVolRatio: number | null;
   priorCloseLoc: number | null;
   dist20Sma: number | null;
@@ -55,9 +54,8 @@ const EMPTY: MarketEnrichment = {
   orAtrPct: null,
   orHigh: null,
   orLow: null,
-  mfeDollars: null,
-  maeDollars: null,
-  mfeTimeMins: null,
+  maxRBeforeStop: null,
+  farthestPrice: null,
   breakoutVolRatio: null,
   priorCloseLoc: null,
   dist20Sma: null,
@@ -364,56 +362,47 @@ function computeOpeningRange(dayBars: Bar[]): OpeningRange | null {
   };
 }
 
-// --- MFE / MAE ---
+// --- Max R Before Stop (order-aware bar walking) ---
 
-interface Excursion {
-  mfe: number;
-  mae: number;
-  mfeTimeMins: number;
+interface MaxRResult {
+  maxR: number;
+  farthestPrice: number;
 }
 
-function computeExcursion(
+function computeMaxRBeforeStop(
   dayBars: Bar[],
   entryMinute: number,
-  exitMinute: number,
   entryPrice: number,
+  riskPerShare: number,
   isLong: boolean
-): Excursion | null {
+): MaxRResult | null {
+  const EOD_MINUTE = 960; // 16:00 ET
   const barsInWindow = dayBars.filter((b) => {
     const et = timestampToET(b.ts);
     const min = etMinutes(et.h, et.m);
-    return min >= entryMinute && min <= exitMinute;
+    return min >= entryMinute && min <= EOD_MINUTE;
   });
-  if (barsInWindow.length === 0) return null;
+  if (barsInWindow.length === 0 || riskPerShare <= 0) return null;
 
-  let mfe = 0;
-  let mae = 0;
-  let mfeBarTs = barsInWindow[0].ts;
+  let maxFavorable = 0;
+  let priceAtMax = entryPrice;
 
   for (const b of barsInWindow) {
-    let favorable: number;
-    let adverse: number;
-    if (isLong) {
-      favorable = b.high - entryPrice;
-      adverse = entryPrice - b.low;
-    } else {
-      favorable = entryPrice - b.low;
-      adverse = b.high - entryPrice;
-    }
-    if (favorable > mfe) {
-      mfe = favorable;
-      mfeBarTs = b.ts;
-    }
-    if (adverse > mae) {
-      mae = adverse;
+    const adverse = isLong ? entryPrice - b.low : b.high - entryPrice;
+
+    if (adverse >= riskPerShare) break;
+
+    const favorable = isLong ? b.high - entryPrice : entryPrice - b.low;
+    if (favorable > maxFavorable) {
+      maxFavorable = favorable;
+      priceAtMax = isLong ? b.high : b.low;
     }
   }
 
-  const entryEt = timestampToET(barsInWindow[0].ts);
-  const mfeEt = timestampToET(mfeBarTs);
-  const mfeTimeMins = etMinutes(mfeEt.h, mfeEt.m) - entryMinute;
-
-  return { mfe: Math.round(mfe * 100) / 100, mae: Math.round(mae * 100) / 100, mfeTimeMins: Math.max(0, mfeTimeMins) };
+  return {
+    maxR: Math.round((maxFavorable / riskPerShare) * 100) / 100,
+    farthestPrice: Math.round(priceAtMax * 100) / 100,
+  };
 }
 
 // --- Breakout volume ratio ---
@@ -508,10 +497,10 @@ function computeEnrichment(
   dailyBars: DailyBar[],
   floatShares: number | null,
   spyBarsForDate: Bar[],
-  vixLevel: number | null
+  vixLevel: number | null,
+  riskPerShare?: number
 ): MarketEnrichment {
   const entryMinute = parseEntryMinutes(trade.entryTime);
-  const exitMinute = trade.exitTime ? parseEntryMinutes(trade.exitTime) : 960; // 16:00 ET fallback
   const dayBars = barsForDate(intradayBars, trade.date);
   if (dayBars.length === 0) return { ...EMPTY };
 
@@ -557,8 +546,10 @@ function computeEnrichment(
     ? Math.round(((or.orHigh - or.orLow) / atr) * 1000) / 10
     : null;
 
-  // MFE / MAE
-  const excursion = computeExcursion(dayBars, entryMinute, exitMinute, trade.avgEntry, isLong);
+  // Max R before stop (order-aware: walks bars, stops at stop-loss)
+  const maxRResult = riskPerShare && riskPerShare > 0
+    ? computeMaxRBeforeStop(dayBars, entryMinute, trade.avgEntry, riskPerShare, isLong)
+    : null;
 
   // Breakout volume ratio
   const breakoutVolRatio = or
@@ -596,9 +587,8 @@ function computeEnrichment(
     orAtrPct,
     orHigh: or ? Math.round(or.orHigh * 100) / 100 : null,
     orLow: or ? Math.round(or.orLow * 100) / 100 : null,
-    mfeDollars: excursion?.mfe ?? null,
-    maeDollars: excursion?.mae ?? null,
-    mfeTimeMins: excursion?.mfeTimeMins ?? null,
+    maxRBeforeStop: maxRResult?.maxR ?? null,
+    farthestPrice: maxRResult?.farthestPrice ?? null,
     breakoutVolRatio,
     priorCloseLoc,
     dist20Sma,
@@ -627,7 +617,7 @@ function isValidSymbol(s: string): boolean {
 
 export async function enrichSymbol(
   symbol: string,
-  trades: { date: string; entryTime: string; exitTime: string; side: "Long" | "Short"; avgEntry: number; index: number }[]
+  trades: { date: string; entryTime: string; exitTime: string; side: "Long" | "Short"; avgEntry: number; index: number; riskPerShare?: number }[]
 ): Promise<SymbolEnrichmentResult> {
   if (!isValidSymbol(symbol)) {
     throw new Error(`Invalid symbol "${symbol}" — expected a ticker like AAPL or SPY, got a number or empty value. This usually means the sheet columns are misaligned.`);
@@ -712,7 +702,8 @@ export async function enrichSymbol(
         dailyBars,
         floatShares,
         spyByDate.get(t.date) || [],
-        vixByDate.get(t.date) ?? null
+        vixByDate.get(t.date) ?? null,
+        t.riskPerShare
       ),
     };
   });

@@ -11,6 +11,7 @@ const SHEET_HEADERS = [
   "Shares",
   "Avg Entry",
   "Avg Exit",
+  "Stop",
   "# Partials",
   "P&L",
   "R (Risk)",
@@ -24,6 +25,14 @@ const SHEET_HEADERS = [
   "Market Bias",
   "Conviction (1-3)",
   "Catalyst",
+  "Max R Before Stop",
+  "Farthest Price",
+  "1R",
+  "2R",
+  "3R",
+  "4R",
+  "5R",
+  "6R",
   "#1m",
   "#5m",
   "#1H",
@@ -35,9 +44,6 @@ const SHEET_HEADERS = [
   "OR %ATR",
   "OR High",
   "OR Low",
-  "MFE ($)",
-  "MAE ($)",
-  "MFE Time (mins)",
   "Breakout Vol Ratio",
   "Prior Close Loc",
   "Dist 20 SMA (%)",
@@ -58,41 +64,47 @@ const COL = {
   SHARES: 6,
   AVG_ENTRY: 7,
   AVG_EXIT: 8,
-  PARTIALS: 9,
-  PNL: 10,
-  RISK: 11,
-  PNL_R: 12,
-  SETUP: 13,
-  PROCESS: 14,
-  NOTES: 15,
-  SLEEP: 16,
-  READINESS: 17,
-  EMOTIONAL: 18,
-  BIAS: 19,
-  CONVICTION: 20,
-  CATALYST: 21,
-  CONSEC_1M: 22,
-  CONSEC_5M: 23,
-  CONSEC_1H: 24,
-  GAP_PCT: 25,
-  ATR_PCT: 26,
-  RVOL: 27,
-  VWAP_PCT: 28,
-  OR_SIZE: 29,
-  OR_ATR_PCT: 30,
-  OR_HIGH: 31,
-  OR_LOW: 32,
-  MFE: 33,
-  MAE: 34,
-  MFE_TIME: 35,
-  BREAKOUT_VOL: 36,
-  PRIOR_CLOSE_LOC: 37,
-  DIST_20_SMA: 38,
-  DIST_50_SMA: 39,
-  FLOAT: 40,
-  AVG_DOLLAR_VOL: 41,
-  SPY_DIR: 42,
-  VIX_LEVEL: 43,
+  STOP: 9,
+  PARTIALS: 10,
+  PNL: 11,
+  RISK: 12,
+  PNL_R: 13,
+  SETUP: 14,
+  PROCESS: 15,
+  NOTES: 16,
+  SLEEP: 17,
+  READINESS: 18,
+  EMOTIONAL: 19,
+  BIAS: 20,
+  CONVICTION: 21,
+  CATALYST: 22,
+  MAX_R_BEFORE_STOP: 23,
+  FARTHEST_PRICE: 24,
+  R1: 25,
+  R2: 26,
+  R3: 27,
+  R4: 28,
+  R5: 29,
+  R6: 30,
+  CONSEC_1M: 31,
+  CONSEC_5M: 32,
+  CONSEC_1H: 33,
+  GAP_PCT: 34,
+  ATR_PCT: 35,
+  RVOL: 36,
+  VWAP_PCT: 37,
+  OR_SIZE: 38,
+  OR_ATR_PCT: 39,
+  OR_HIGH: 40,
+  OR_LOW: 41,
+  BREAKOUT_VOL: 42,
+  PRIOR_CLOSE_LOC: 43,
+  DIST_20_SMA: 44,
+  DIST_50_SMA: 45,
+  FLOAT: 46,
+  AVG_DOLLAR_VOL: 47,
+  SPY_DIR: 48,
+  VIX_LEVEL: 49,
 } as const;
 
 // --- Dynamic column mapping (handles user-reordered sheets) ---
@@ -394,15 +406,15 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   const colWidths: Record<string, number> = {
     "Date": 100, "Entry Time": 90, "Exit Time": 90,
     "Duration (mins)": 105, "Symbol": 80, "Side": 70,
-    "Shares": 70, "Avg Entry": 95, "Avg Exit": 95,
+    "Shares": 70, "Avg Entry": 95, "Avg Exit": 95, "Stop": 95,
     "# Partials": 85, "P&L": 95, "R (Risk)": 95,
     "P&L (R)": 85, "Setup": 140, "Process Followed?": 130, "Notes": 200,
     "Sleep Score": 100, "Readiness Score": 120, "Emotional State": 120, "Market Bias": 100,
     "Conviction (1-3)": 100, "Catalyst": 160,
+    "Max R Before Stop": 120, "Farthest Price": 105, "1R": 45, "2R": 45, "3R": 45, "4R": 45, "5R": 45, "6R": 45,
     "#1m": 55, "#5m": 55, "#1H": 55,
     "%Gap": 70, "%ATR": 70, "RVOL": 65, "%VWAP": 75,
     "OR Size ($)": 85, "OR %ATR": 75, "OR High": 85, "OR Low": 85,
-    "MFE ($)": 75, "MAE ($)": 75, "MFE Time (mins)": 95,
     "Breakout Vol Ratio": 110, "Prior Close Loc": 105,
     "Dist 20 SMA (%)": 105, "Dist 50 SMA (%)": 105,
     "Float": 100, "Avg $ Vol": 100,
@@ -429,7 +441,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   });
 
   // Currency formatting
-  for (const h of ["P&L", "R (Risk)", "OR Size ($)", "OR High", "OR Low", "MFE ($)", "MAE ($)", "Avg Entry", "Avg Exit"]) {
+  for (const h of ["P&L", "R (Risk)", "OR Size ($)", "OR High", "OR Low", "Avg Entry", "Avg Exit", "Stop", "Farthest Price"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -580,6 +592,36 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
+  // Conditional formatting: 1R–6R columns (Y = green, N = red, same style as Process Followed)
+  const rCols = [COL.R1, COL.R2, COL.R3, COL.R4, COL.R5, COL.R6].map(rc).filter((c) => c >= 0);
+  if (rCols.length > 0) {
+    const rRanges = rCols.map((col) => colRange(col));
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: rRanges,
+          booleanRule: {
+            condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Y" }] },
+            format: { backgroundColor: COLORS.vividGreenBg, textFormat: { foregroundColor: COLORS.vividGreenText, bold: true } },
+          },
+        },
+        index: 8,
+      },
+    });
+    requests.push({
+      addConditionalFormatRule: {
+        rule: {
+          ranges: rRanges,
+          booleanRule: {
+            condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "N" }] },
+            format: { backgroundColor: COLORS.vividRedBg, textFormat: { foregroundColor: COLORS.vividRedText, bold: true } },
+          },
+        },
+        index: 9,
+      },
+    });
+  }
+
   // Data validation: Setup
   const setupCol = rc(COL.SETUP);
   if (setupCol >= 0) {
@@ -656,7 +698,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Number format: Sleep & Readiness scores (whole numbers)
-  for (const h of ["Sleep Score", "Readiness Score", "#1m", "#5m", "#1H", "MFE Time (mins)"]) {
+  for (const h of ["Sleep Score", "Readiness Score", "#1m", "#5m", "#1H"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -680,7 +722,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
-  for (const h of ["%ATR", "OR %ATR", "Prior Close Loc"]) {
+  for (const h of ["%ATR", "OR %ATR", "Prior Close Loc", "Max R Before Stop"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -740,7 +782,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "MFE Time (mins)", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
+  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -753,7 +795,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Right-align
-  for (const h of ["Avg Entry", "Avg Exit", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low", "MFE ($)", "MAE ($)"]) {
+  for (const h of ["Avg Entry", "Avg Exit", "Stop", "Max R Before Stop", "Farthest Price", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -767,6 +809,8 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
   await sheetsBatchUpdate(token, spreadsheetId, requests);
 }
+
+const FORMULA_HEADERS = new Set(["Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R"]);
 
 async function migrateTabIfNeeded(
   token: string,
@@ -793,7 +837,56 @@ async function migrateTabIfNeeded(
   await sheetsValuesUpdate(token, spreadsheetId, range, [missingHeaders]);
 
   const fullHeader = [...headerRow, ...missingHeaders];
-  await applyFormatting(token, spreadsheetId, sheetId, buildColMap(fullHeader));
+  const colMap = buildColMap(fullHeader);
+
+  const newFormulaHeaders = missingHeaders.filter((h) => FORMULA_HEADERS.has(h));
+  if (newFormulaHeaders.length > 0) {
+    const lastCol = Math.max(...Object.values(colMap));
+    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${tabTitle}'!A:${colLetter(lastCol)}`);
+    const dataRowCount = allRows.length - 1;
+    if (dataRowCount > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const formulaUpdates: any[] = [];
+      for (let r = 0; r < dataRowCount; r++) {
+        const rowIndex = r + 2;
+        const formulas = buildFormulas(rowIndex, colMap);
+        for (const h of newFormulaHeaders) {
+          const colIdx = colMap[h];
+          if (colIdx === undefined) continue;
+          let value = "";
+          if (h === "Stop") value = formulas.stop;
+          else if (h === "P&L (R)") value = formulas.pnlR;
+          else if (h.match(/^[1-6]R$/)) {
+            const n = parseInt(h[0], 10);
+            value = formulas.rMultiples[n - 1];
+          }
+          if (value) {
+            formulaUpdates.push({
+              range: `'${tabTitle}'!${colLetter(colIdx)}${rowIndex}`,
+              values: [[value]],
+            });
+          }
+        }
+      }
+      if (formulaUpdates.length > 0) {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < formulaUpdates.length; i += BATCH_SIZE) {
+          const batch = formulaUpdates.slice(i, i + BATCH_SIZE);
+          const res = await fetch(
+            `${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: batch }),
+            }
+          );
+          if (!res.ok) throw new Error(`Migration formula update failed: ${await res.text()}`);
+        }
+      }
+    }
+  }
+
+  await applyFormatting(token, spreadsheetId, sheetId, colMap);
 }
 
 async function ensureSheetTab(
@@ -825,6 +918,41 @@ async function ensureSheetTab(
   return { tabName, gid: sheetId };
 }
 
+function buildFormulas(rowIndex: number, colMap: ColMap): { stop: string; pnlR: string; rMultiples: string[] } {
+  const cl = (header: string) => {
+    const idx = colMap[header];
+    return idx !== undefined ? colLetter(idx) : null;
+  };
+  const R = `${rowIndex}`;
+  const risk = cl("R (Risk)");
+  const pnl = cl("P&L");
+  const shares = cl("Shares");
+  const side = cl("Side");
+  const entry = cl("Avg Entry");
+  const maxR = cl("Max R Before Stop");
+
+  const pnlR = risk && pnl
+    ? `=IF(${risk}${R}="","",${pnl}${R}/${risk}${R})`
+    : "";
+
+  const stop = risk && shares && side && entry
+    ? `=IF(OR(${risk}${R}="",${shares}${R}=""),"",IF(${side}${R}="Long",${entry}${R}-${risk}${R}/${shares}${R},${entry}${R}+${risk}${R}/${shares}${R}))`
+    : "";
+
+  const rMultiples: string[] = [];
+  for (let n = 1; n <= 6; n++) {
+    if (maxR) {
+      rMultiples.push(
+        `=IF(${maxR}${R}="","",IF(${maxR}${R}>=${n},"Y","N"))`
+      );
+    } else {
+      rMultiples.push("");
+    }
+  }
+
+  return { stop, pnlR, rMultiples };
+}
+
 function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enrichment?: MarketEnrichment): (string | number)[] {
   const size = Math.max(...Object.values(colMap)) + 1;
   const row: (string | number)[] = new Array(size).fill("");
@@ -834,11 +962,7 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
     if (idx !== undefined) row[idx] = value;
   };
 
-  const riskIdx = colMap["R (Risk)"];
-  const pnlIdx = colMap["P&L"];
-  const pnlRFormula = riskIdx !== undefined && pnlIdx !== undefined
-    ? `=IF(${colLetter(riskIdx)}${rowIndex}="","",${colLetter(pnlIdx)}${rowIndex}/${colLetter(riskIdx)}${rowIndex})`
-    : "";
+  const formulas = buildFormulas(rowIndex, colMap);
 
   set("Date", trade.date);
   set("Entry Time", trade.entryTime);
@@ -849,9 +973,14 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
   set("Shares", trade.totalShares);
   set("Avg Entry", trade.avgEntry);
   set("Avg Exit", trade.avgExit);
+  set("Stop", formulas.stop);
   set("# Partials", trade.numPartials);
   set("P&L", trade.pnl);
-  set("P&L (R)", pnlRFormula);
+  set("P&L (R)", formulas.pnlR);
+  const rHeaders = ["1R", "2R", "3R", "4R", "5R", "6R"];
+  for (let i = 0; i < 6; i++) {
+    set(rHeaders[i], formulas.rMultiples[i]);
+  }
 
   const e = enrichment;
   if (e) {
@@ -866,9 +995,8 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
     set("OR %ATR", e.orAtrPct ?? "");
     set("OR High", e.orHigh ?? "");
     set("OR Low", e.orLow ?? "");
-    set("MFE ($)", e.mfeDollars ?? "");
-    set("MAE ($)", e.maeDollars ?? "");
-    set("MFE Time (mins)", e.mfeTimeMins ?? "");
+    set("Max R Before Stop", e.maxRBeforeStop ?? "");
+    set("Farthest Price", e.farthestPrice ?? "");
     set("Breakout Vol Ratio", e.breakoutVolRatio ?? "");
     set("Prior Close Loc", e.priorCloseLoc ?? "");
     set("Dist 20 SMA (%)", e.dist20Sma ?? "");
@@ -1138,6 +1266,76 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
   };
 }
 
+export interface TradeForAnalysis {
+  date: string;
+  symbol: string;
+  side: string;
+  shares: number;
+  avgEntry: number;
+  avgExit: number;
+  pnl: number;
+  risk: number;
+  maxRBeforeStop: number;
+  setup: string;
+  entryTime: string;
+}
+
+export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter): TradeForAnalysis[] {
+  if (rows.length <= 1) return [];
+
+  const colMap = buildColMap(rows[0]);
+  const pnlIdx = cm(colMap, "P&L");
+  const dateIdx = cm(colMap, "Date");
+  const symbolIdx = cm(colMap, "Symbol");
+  const sideIdx = cm(colMap, "Side");
+  const sharesIdx = cm(colMap, "Shares");
+  const entryIdx = cm(colMap, "Avg Entry");
+  const exitIdx = cm(colMap, "Avg Exit");
+  const riskIdx = cm(colMap, "R (Risk)");
+  const maxRIdx = cm(colMap, "Max R Before Stop");
+  const setupIdx = cm(colMap, "Setup");
+  const processIdx = cm(colMap, "Process Followed?");
+  const entryTimeIdx = cm(colMap, "Entry Time");
+
+  let dataRows = rows.slice(1).filter((r) => pnlIdx >= 0 && r.length > pnlIdx && r[pnlIdx] !== "");
+
+  if (filter?.processFollowed && processIdx >= 0) {
+    dataRows = dataRows.filter((r) => (r[processIdx] || "").trim() === "Yes");
+  }
+  if (filter?.startDate && dateIdx >= 0) {
+    dataRows = dataRows.filter((r) => (r[dateIdx] || "") >= filter.startDate!);
+  }
+  if (filter?.endDate && dateIdx >= 0) {
+    dataRows = dataRows.filter((r) => (r[dateIdx] || "") <= filter.endDate!);
+  }
+
+  const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, "")) || 0;
+
+  return dataRows
+    .filter((r) => riskIdx >= 0 && r[riskIdx] && r[riskIdx] !== "" && maxRIdx >= 0 && r[maxRIdx] && r[maxRIdx] !== "")
+    .map((r) => ({
+      date: dateIdx >= 0 ? r[dateIdx] || "" : "",
+      symbol: symbolIdx >= 0 ? r[symbolIdx] || "" : "",
+      side: sideIdx >= 0 ? r[sideIdx] || "" : "",
+      shares: sharesIdx >= 0 ? parseNum(r[sharesIdx]) : 0,
+      avgEntry: entryIdx >= 0 ? parseNum(r[entryIdx]) : 0,
+      avgExit: exitIdx >= 0 ? parseNum(r[exitIdx]) : 0,
+      pnl: parseNum(r[pnlIdx]),
+      risk: riskIdx >= 0 ? parseNum(r[riskIdx]) : 0,
+      maxRBeforeStop: maxRIdx >= 0 ? parseNum(r[maxRIdx]) : 0,
+      setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
+      entryTime: entryTimeIdx >= 0 ? r[entryTimeIdx] || "" : "",
+    }))
+    .filter((t) => t.shares > 0 && t.risk > 0);
+}
+
+export async function getTradesForAnalysisFromTab(tabName: string, filter?: StatsFilter): Promise<TradeForAnalysis[]> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
+  return extractTradesForAnalysis(rows, filter);
+}
+
 export async function listSheetTabs(): Promise<{ name: string; gid: number }[]> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
@@ -1156,6 +1354,7 @@ export interface BackfillTrade {
   symbol: string;
   avgEntry: number;
   index: number;
+  riskPerShare?: number;
 }
 
 export async function getTradesForBackfill(tabName: string): Promise<BackfillTrade[]> {
@@ -1168,7 +1367,7 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
     await migrateTabIfNeeded(token, spreadsheetId, tabName, tab.properties.sheetId);
   }
 
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AR`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
   if (rows.length <= 1) return [];
 
   const colMap = buildColMap(rows[0]);
@@ -1178,19 +1377,30 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
   const exitIdx = cm(colMap, "Exit Time");
   const sideIdx = cm(colMap, "Side");
   const avgEntryIdx = cm(colMap, "Avg Entry");
+  const sharesIdx = cm(colMap, "Shares");
+  const riskIdx = cm(colMap, "R (Risk)");
   const orSizeIdx = cm(colMap, "OR Size ($)");
+  const maxRIdx = cm(colMap, "Max R Before Stop");
+
+  const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, "")) || 0;
 
   const trades: BackfillTrade[] = [];
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (symIdx < 0 || !row[symIdx]) continue;
 
-    // Validate symbol looks like a real ticker, not a number from a misaligned column
     const sym = String(row[symIdx]).trim();
     if (!sym || !isNaN(Number(sym)) || !/[A-Za-z]/.test(sym)) continue;
 
-    const hasFullEnrichment = orSizeIdx >= 0 && row[orSizeIdx] !== undefined && row[orSizeIdx] !== "";
-    if (hasFullEnrichment) continue;
+    const hasBasicEnrichment = orSizeIdx >= 0 && row[orSizeIdx] !== undefined && row[orSizeIdx] !== "";
+    const hasMaxR = maxRIdx >= 0 && row[maxRIdx] !== undefined && row[maxRIdx] !== "";
+    const riskVal = riskIdx >= 0 ? parseNum(row[riskIdx]) : 0;
+    const sharesVal = sharesIdx >= 0 ? parseNum(row[sharesIdx]) : 0;
+    const hasRisk = riskVal > 0 && sharesVal > 0;
+
+    if (hasBasicEnrichment && (hasMaxR || !hasRisk)) continue;
+
+    const riskPerShare = hasRisk ? riskVal / sharesVal : undefined;
 
     trades.push({
       date: dateIdx >= 0 ? row[dateIdx] : "",
@@ -1198,8 +1408,9 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
       exitTime: exitIdx >= 0 ? (row[exitIdx] || "") : "",
       side: sideIdx >= 0 ? row[sideIdx] : "",
       symbol: sym,
-      avgEntry: avgEntryIdx >= 0 ? parseFloat(String(row[avgEntryIdx]).replace(/[$,]/g, "")) || 0 : 0,
+      avgEntry: avgEntryIdx >= 0 ? parseNum(row[avgEntryIdx]) : 0,
       index: r - 1,
+      riskPerShare,
     });
   }
   return trades;
@@ -1211,7 +1422,7 @@ export async function getStatsForTab(tabName: string, filter?: StatsFilter): Pro
   const meta = await sheetsGet(token, spreadsheetId);
   const tab = meta.sheets.find((s) => s.properties.title === tabName);
   if (!tab) throw new Error(`Sheet tab "${tabName}" not found.`);
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AR`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
   return computeStats(rows, filter);
 }
 
@@ -1237,6 +1448,7 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Shares", "Yes", "Total number of shares traded in the round trip."],
     ["Avg Entry", "Yes", "Volume-weighted average entry price across all entry fills."],
     ["Avg Exit", "Yes", "Volume-weighted average exit price across all exit fills."],
+    ["Stop", "Formula", "Auto-calculated stop price: Entry - R/Shares (Long) or Entry + R/Shares (Short). Populates after you enter R."],
     ["# Partials", "Yes", "Number of individual executions (fills) that made up this trade."],
     ["P&L", "Yes", "Profit or loss in dollars for the round-trip trade."],
     ["R (Risk)", "No — you fill this in", "Your planned dollar risk on this trade (e.g. if your stop was $0.10 on 100 shares, R = $10). Used to calculate P&L in R multiples."],
@@ -1250,6 +1462,14 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Market Bias", "No — you fill this in (daily)", "Your pre-market read on the overall market direction. Select from dropdown: Bullish, Bearish, or Neutral. Fill in once per day."],
     ["Conviction (1-3)", "No — you fill this in", "Your conviction level for this trade before/at entry: 1 (low), 2 (solid), 3 (A+ setup)."],
     ["Catalyst", "No — you fill this in", "The catalyst driving the trade. Select one or type comma-separated: Earnings, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
+    ["Max R Before Stop", "Yes (market data)", "Highest R-multiple the stock reached before the stop was hit (order-aware). If the stop was never hit, this is the max R by end of day. Requires R to be filled in. Used by 1R-6R columns."],
+    ["Farthest Price", "Yes (market data)", "The actual stock price at the farthest favorable point before the stop was hit. Requires R to be filled in."],
+    ["1R", "Formula", "Y/N — did Max R Before Stop reach at least 1x? Green = Y, Red = N."],
+    ["2R", "Formula", "Y/N — did the favorable move reach at least 2x your per-share risk?"],
+    ["3R", "Formula", "Y/N — did the favorable move reach at least 3x your per-share risk?"],
+    ["4R", "Formula", "Y/N — did the favorable move reach at least 4x your per-share risk?"],
+    ["5R", "Formula", "Y/N — did the favorable move reach at least 5x your per-share risk?"],
+    ["6R", "Formula", "Y/N — did the favorable move reach at least 6x your per-share risk?"],
     ["#1m", "Yes (market data)", "Number of consecutive 1-minute candles in the trade direction at entry (including the entry candle). Green candles for Long, red for Short."],
     ["#5m", "Yes (market data)", "Number of consecutive 5-minute candles in the trade direction at entry."],
     ["#1H", "Yes (market data)", "Number of consecutive 1-hour candles in the trade direction at entry."],
@@ -1261,9 +1481,6 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["OR %ATR", "Yes (market data)", "Opening range size as a percentage of ATR-14. Smaller OR relative to ATR means more room to run."],
     ["OR High", "Yes (market data)", "The high price of the 5-minute opening range."],
     ["OR Low", "Yes (market data)", "The low price of the 5-minute opening range."],
-    ["MFE ($)", "Yes (market data)", "Maximum Favorable Excursion: the furthest the trade went in your favor ($/share) between entry and exit."],
-    ["MAE ($)", "Yes (market data)", "Maximum Adverse Excursion: the furthest the trade went against you ($/share) between entry and exit."],
-    ["MFE Time (mins)", "Yes (market data)", "Minutes from entry to when MFE occurred. Shows how quickly the move played out."],
     ["Breakout Vol Ratio", "Yes (market data)", "Volume of the breakout bar divided by avg volume of OR bars. Higher = stronger conviction breakout."],
     ["Prior Close Loc", "Yes (market data)", "Where the previous day closed within its range (0=at low, 100=at high)."],
     ["Dist 20 SMA (%)", "Yes (market data)", "Distance from the 20-day SMA as a percentage. Positive = above SMA."],
@@ -1459,7 +1676,7 @@ export async function appendTrades(
     usedAccounts.push(tabName);
     if (firstGid === null) firstGid = gid;
 
-    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AR`);
+    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
     const tabColMap = existing.length > 0 ? buildColMap(existing[0]) : buildColMap(SHEET_HEADERS);
     const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row, tabColMap)));
 
@@ -1484,7 +1701,7 @@ export async function appendTrades(
 
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
-    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:AR`);
+    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:AX`);
     stats = computeStats(allRows);
   }
 
@@ -1499,7 +1716,7 @@ export async function updateEnrichment(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AR`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
   if (rows.length <= 1) return { updated: 0 };
 
   const colMap = buildColMap(rows[0]);
@@ -1520,9 +1737,8 @@ export async function updateEnrichment(
     ["OR %ATR", (d) => d.orAtrPct],
     ["OR High", (d) => d.orHigh],
     ["OR Low", (d) => d.orLow],
-    ["MFE ($)", (d) => d.mfeDollars],
-    ["MAE ($)", (d) => d.maeDollars],
-    ["MFE Time (mins)", (d) => d.mfeTimeMins],
+    ["Max R Before Stop", (d) => d.maxRBeforeStop],
+    ["Farthest Price", (d) => d.farthestPrice],
     ["Breakout Vol Ratio", (d) => d.breakoutVolRatio],
     ["Prior Close Loc", (d) => d.priorCloseLoc],
     ["Dist 20 SMA (%)", (d) => d.dist20Sma],

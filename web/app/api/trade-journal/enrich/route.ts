@@ -14,6 +14,7 @@ interface EnrichRequest {
     side: "Long" | "Short";
     avgEntry: number;
     index: number;
+    riskPerShare?: number;
   }[];
 }
 

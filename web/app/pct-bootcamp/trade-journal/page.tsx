@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, FormEvent, DragEvent } from "react";
 import TradePreview from "@/components/trade-journal/TradePreview";
 import AggregateStats from "@/components/trade-journal/AggregateStats";
 import HowToUse from "@/components/trade-journal/HowToUse";
+import ProfitabilityAnalysis from "@/components/trade-journal/ProfitabilityAnalysis";
 
 interface TradeRow {
   index: number;
@@ -342,7 +343,7 @@ export default function TradeJournalPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch trades for backfill.");
 
-      interface BackfillTrade { date: string; entryTime: string; exitTime: string; side: string; symbol: string; avgEntry: number; index: number }
+      interface BackfillTrade { date: string; entryTime: string; exitTime: string; side: string; symbol: string; avgEntry: number; index: number; riskPerShare?: number }
       const trades = data.trades as BackfillTrade[];
       if (trades.length === 0) {
         setError("All trades already have market data — nothing to backfill.");
@@ -382,6 +383,7 @@ export default function TradeJournalPage() {
               trades: symbolTrades.map((t) => ({
                 date: t.date, entryTime: t.entryTime, exitTime: t.exitTime,
                 side: t.side, avgEntry: t.avgEntry, index: t.index,
+                riskPerShare: t.riskPerShare,
               })),
             }),
           });
@@ -711,6 +713,13 @@ export default function TradeJournalPage() {
       )}
 
       {sheetStats && <AggregateStats stats={sheetStats.stats} />}
+
+      {getActiveTabName() && (
+        <ProfitabilityAnalysis
+          tabName={getActiveTabName()!}
+          filterParams={buildFilterParams()}
+        />
+      )}
     </div>
   );
 }
