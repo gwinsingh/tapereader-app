@@ -22,6 +22,9 @@ export interface MarketEnrichment {
   avgDollarVol: number | null;
   spyDir: string | null;
   vix: number | null;
+  pdc: number | null;
+  pdh: number | null;
+  pdl: number | null;
 }
 
 interface Bar {
@@ -64,6 +67,9 @@ const EMPTY: MarketEnrichment = {
   avgDollarVol: null,
   spyDir: null,
   vix: null,
+  pdc: null,
+  pdh: null,
+  pdl: null,
 };
 
 // --- Polygon.io fetchers ---
@@ -387,10 +393,15 @@ function computeMaxRBeforeStop(
   let maxFavorable = 0;
   let priceAtMax = entryPrice;
 
-  for (const b of barsInWindow) {
-    const adverse = isLong ? entryPrice - b.low : b.high - entryPrice;
+  for (let i = 0; i < barsInWindow.length; i++) {
+    const b = barsInWindow[i];
 
-    if (adverse >= riskPerShare) break;
+    // Skip adverse check on entry bar — its low/high may reflect
+    // price action before the entry, which happened mid-bar.
+    if (i > 0) {
+      const adverse = isLong ? entryPrice - b.low : b.high - entryPrice;
+      if (adverse >= riskPerShare) break;
+    }
 
     const favorable = isLong ? b.high - entryPrice : entryPrice - b.low;
     if (favorable > maxFavorable) {
@@ -575,6 +586,10 @@ function computeEnrichment(
   // SPY direction
   const spyDir = computeSpyDir(spyBarsForDate, entryMinute);
 
+  // Prior day OHLC
+  const dayIdx = dailyBars.findIndex((b) => b.date === trade.date);
+  const prevDay = dayIdx >= 1 ? dailyBars[dayIdx - 1] : null;
+
   return {
     consec1m,
     consec5m,
@@ -597,6 +612,9 @@ function computeEnrichment(
     avgDollarVol,
     spyDir,
     vix: vixLevel,
+    pdc: prevDay ? Math.round(prevDay.close * 100) / 100 : null,
+    pdh: prevDay ? Math.round(prevDay.high * 100) / 100 : null,
+    pdl: prevDay ? Math.round(prevDay.low * 100) / 100 : null,
   };
 }
 

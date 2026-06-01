@@ -52,6 +52,9 @@ const SHEET_HEADERS = [
   "Avg $ Vol",
   "SPY Dir",
   "VIX",
+  "PDC",
+  "PDH",
+  "PDL",
 ];
 
 const COL = {
@@ -127,6 +130,7 @@ function colLetter(index: number): string {
 }
 
 const TOTAL_COLS = SHEET_HEADERS.length;
+const READ_RANGE_END = colLetter(TOTAL_COLS + 9);
 
 const SETUP_OPTIONS = [
   "ORB",
@@ -419,6 +423,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "Dist 20 SMA (%)": 105, "Dist 50 SMA (%)": 105,
     "Float": 100, "Avg $ Vol": 100,
     "SPY Dir": 70, "VIX": 60,
+    "PDC": 80, "PDH": 80, "PDL": 80,
   };
   for (const [header, width] of Object.entries(colWidths)) {
     const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
@@ -441,7 +446,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   });
 
   // Currency formatting
-  for (const h of ["P&L", "R (Risk)", "OR Size ($)", "OR High", "OR Low", "Avg Entry", "Avg Exit", "Stop", "Farthest Price"]) {
+  for (const h of ["P&L", "R (Risk)", "OR Size ($)", "OR High", "OR Low", "Avg Entry", "Avg Exit", "Stop", "Farthest Price", "PDC", "PDH", "PDL"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -795,7 +800,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Right-align
-  for (const h of ["Avg Entry", "Avg Exit", "Stop", "Max R Before Stop", "Farthest Price", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low"]) {
+  for (const h of ["Avg Entry", "Avg Exit", "Stop", "Max R Before Stop", "Farthest Price", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low", "PDC", "PDH", "PDL"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -812,6 +817,57 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
 const FORMULA_HEADERS = new Set(["Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R"]);
 
+async function repairFormulas(
+  token: string,
+  spreadsheetId: string,
+  tabTitle: string,
+  colMap: ColMap
+): Promise<void> {
+  const lastCol = Math.max(...Object.values(colMap));
+  const allRows = await sheetsValuesGet(token, spreadsheetId, `'${tabTitle}'!A:${colLetter(lastCol)}`);
+  const dataRowCount = allRows.length - 1;
+  if (dataRowCount <= 0) return;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const formulaUpdates: any[] = [];
+  for (let r = 0; r < dataRowCount; r++) {
+    const rowIndex = r + 2;
+    const formulas = buildFormulas(rowIndex, colMap);
+    for (const h of FORMULA_HEADERS) {
+      const colIdx = colMap[h];
+      if (colIdx === undefined) continue;
+      let value = "";
+      if (h === "Stop") value = formulas.stop;
+      else if (h === "P&L (R)") value = formulas.pnlR;
+      else if (h.match(/^[1-6]R$/)) {
+        const n = parseInt(h[0], 10);
+        value = formulas.rMultiples[n - 1];
+      }
+      if (value) {
+        formulaUpdates.push({
+          range: `'${tabTitle}'!${colLetter(colIdx)}${rowIndex}`,
+          values: [[value]],
+        });
+      }
+    }
+  }
+  if (formulaUpdates.length > 0) {
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < formulaUpdates.length; i += BATCH_SIZE) {
+      const batch = formulaUpdates.slice(i, i + BATCH_SIZE);
+      const res = await fetch(
+        `${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: batch }),
+        }
+      );
+      if (!res.ok) throw new Error(`Formula repair failed: ${await res.text()}`);
+    }
+  }
+}
+
 async function migrateTabIfNeeded(
   token: string,
   spreadsheetId: string,
@@ -825,7 +881,11 @@ async function migrateTabIfNeeded(
   const existingSet = new Set(headerRow.map((h) => h.trim()));
   const missingHeaders = SHEET_HEADERS.filter((h) => !existingSet.has(h));
 
-  if (missingHeaders.length === 0) return;
+  if (missingHeaders.length === 0) {
+    const colMap = buildColMap(headerRow);
+    await repairFormulas(token, spreadsheetId, tabTitle, colMap);
+    return;
+  }
 
   await sheetsBatchUpdate(token, spreadsheetId, [
     { appendDimension: { sheetId, dimension: "COLUMNS", length: missingHeaders.length } },
@@ -839,53 +899,7 @@ async function migrateTabIfNeeded(
   const fullHeader = [...headerRow, ...missingHeaders];
   const colMap = buildColMap(fullHeader);
 
-  const newFormulaHeaders = missingHeaders.filter((h) => FORMULA_HEADERS.has(h));
-  if (newFormulaHeaders.length > 0) {
-    const lastCol = Math.max(...Object.values(colMap));
-    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${tabTitle}'!A:${colLetter(lastCol)}`);
-    const dataRowCount = allRows.length - 1;
-    if (dataRowCount > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const formulaUpdates: any[] = [];
-      for (let r = 0; r < dataRowCount; r++) {
-        const rowIndex = r + 2;
-        const formulas = buildFormulas(rowIndex, colMap);
-        for (const h of newFormulaHeaders) {
-          const colIdx = colMap[h];
-          if (colIdx === undefined) continue;
-          let value = "";
-          if (h === "Stop") value = formulas.stop;
-          else if (h === "P&L (R)") value = formulas.pnlR;
-          else if (h.match(/^[1-6]R$/)) {
-            const n = parseInt(h[0], 10);
-            value = formulas.rMultiples[n - 1];
-          }
-          if (value) {
-            formulaUpdates.push({
-              range: `'${tabTitle}'!${colLetter(colIdx)}${rowIndex}`,
-              values: [[value]],
-            });
-          }
-        }
-      }
-      if (formulaUpdates.length > 0) {
-        const BATCH_SIZE = 500;
-        for (let i = 0; i < formulaUpdates.length; i += BATCH_SIZE) {
-          const batch = formulaUpdates.slice(i, i + BATCH_SIZE);
-          const res = await fetch(
-            `${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`,
-            {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: batch }),
-            }
-          );
-          if (!res.ok) throw new Error(`Migration formula update failed: ${await res.text()}`);
-        }
-      }
-    }
-  }
-
+  await repairFormulas(token, spreadsheetId, tabTitle, colMap);
   await applyFormatting(token, spreadsheetId, sheetId, colMap);
 }
 
@@ -1005,6 +1019,9 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
     set("Avg $ Vol", e.avgDollarVol ?? "");
     set("SPY Dir", e.spyDir ?? "");
     set("VIX", e.vix ?? "");
+    set("PDC", e.pdc ?? "");
+    set("PDH", e.pdh ?? "");
+    set("PDL", e.pdl ?? "");
   }
 
   return row;
@@ -1332,7 +1349,7 @@ export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter)
 export async function getTradesForAnalysisFromTab(tabName: string, filter?: StatsFilter): Promise<TradeForAnalysis[]> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:${READ_RANGE_END}`);
   return extractTradesForAnalysis(rows, filter);
 }
 
@@ -1367,7 +1384,7 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
     await migrateTabIfNeeded(token, spreadsheetId, tabName, tab.properties.sheetId);
   }
 
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:${READ_RANGE_END}`);
   if (rows.length <= 1) return [];
 
   const colMap = buildColMap(rows[0]);
@@ -1422,7 +1439,7 @@ export async function getStatsForTab(tabName: string, filter?: StatsFilter): Pro
   const meta = await sheetsGet(token, spreadsheetId);
   const tab = meta.sheets.find((s) => s.properties.title === tabName);
   if (!tab) throw new Error(`Sheet tab "${tabName}" not found.`);
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:${READ_RANGE_END}`);
   return computeStats(rows, filter);
 }
 
@@ -1489,6 +1506,9 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Avg $ Vol", "Yes (market data)", "Average daily dollar volume over the past 20 trading days."],
     ["SPY Dir", "Yes (market data)", "SPY direction at your entry time: Up, Down, or Flat relative to SPY's open."],
     ["VIX", "Yes (market data)", "VIX level on the trade date. Higher VIX = higher implied volatility."],
+    ["PDC", "Yes (market data)", "Prior Day Close — the closing price from the previous trading day."],
+    ["PDH", "Yes (market data)", "Prior Day High — the high price from the previous trading day."],
+    ["PDL", "Yes (market data)", "Prior Day Low — the low price from the previous trading day."],
   ];
 
   const SPACER: string[] = [];
@@ -1676,7 +1696,7 @@ export async function appendTrades(
     usedAccounts.push(tabName);
     if (firstGid === null) firstGid = gid;
 
-    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
+    const existing = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:${READ_RANGE_END}`);
     const tabColMap = existing.length > 0 ? buildColMap(existing[0]) : buildColMap(SHEET_HEADERS);
     const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row, tabColMap)));
 
@@ -1701,7 +1721,7 @@ export async function appendTrades(
 
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
-    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:AX`);
+    const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:${READ_RANGE_END}`);
     stats = computeStats(allRows);
   }
 
@@ -1716,7 +1736,7 @@ export async function updateEnrichment(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:AX`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:${READ_RANGE_END}`);
   if (rows.length <= 1) return { updated: 0 };
 
   const colMap = buildColMap(rows[0]);
@@ -1747,6 +1767,9 @@ export async function updateEnrichment(
     ["Avg $ Vol", (d) => d.avgDollarVol],
     ["SPY Dir", (d) => d.spyDir],
     ["VIX", (d) => d.vix],
+    ["PDC", (d) => d.pdc],
+    ["PDH", (d) => d.pdh],
+    ["PDL", (d) => d.pdl],
   ];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
