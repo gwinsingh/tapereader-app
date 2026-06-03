@@ -25,6 +25,7 @@ const SHEET_HEADERS = [
   "Market Bias",
   "Conviction (1-3)",
   "Catalyst",
+  "Tags",
   "Max R Before Stop",
   "Farthest Price",
   "1R",
@@ -81,33 +82,34 @@ const COL = {
   BIAS: 20,
   CONVICTION: 21,
   CATALYST: 22,
-  MAX_R_BEFORE_STOP: 23,
-  FARTHEST_PRICE: 24,
-  R1: 25,
-  R2: 26,
-  R3: 27,
-  R4: 28,
-  R5: 29,
-  R6: 30,
-  CONSEC_1M: 31,
-  CONSEC_5M: 32,
-  CONSEC_1H: 33,
-  GAP_PCT: 34,
-  ATR_PCT: 35,
-  RVOL: 36,
-  VWAP_PCT: 37,
-  OR_SIZE: 38,
-  OR_ATR_PCT: 39,
-  OR_HIGH: 40,
-  OR_LOW: 41,
-  BREAKOUT_VOL: 42,
-  PRIOR_CLOSE_LOC: 43,
-  DIST_20_SMA: 44,
-  DIST_50_SMA: 45,
-  FLOAT: 46,
-  AVG_DOLLAR_VOL: 47,
-  SPY_DIR: 48,
-  VIX_LEVEL: 49,
+  TAGS: 23,
+  MAX_R_BEFORE_STOP: 24,
+  FARTHEST_PRICE: 25,
+  R1: 26,
+  R2: 27,
+  R3: 28,
+  R4: 29,
+  R5: 30,
+  R6: 31,
+  CONSEC_1M: 32,
+  CONSEC_5M: 33,
+  CONSEC_1H: 34,
+  GAP_PCT: 35,
+  ATR_PCT: 36,
+  RVOL: 37,
+  VWAP_PCT: 38,
+  OR_SIZE: 39,
+  OR_ATR_PCT: 40,
+  OR_HIGH: 41,
+  OR_LOW: 42,
+  BREAKOUT_VOL: 43,
+  PRIOR_CLOSE_LOC: 44,
+  DIST_20_SMA: 45,
+  DIST_50_SMA: 46,
+  FLOAT: 47,
+  AVG_DOLLAR_VOL: 48,
+  SPY_DIR: 49,
+  VIX_LEVEL: 50,
 } as const;
 
 // --- Dynamic column mapping (handles user-reordered sheets) ---
@@ -153,6 +155,20 @@ const CATALYST_OPTIONS = [
   "Other",
 ];
 
+const TAG_OPTIONS = [
+  "clean entry",
+  "extended entry",
+  "chased",
+  "FOMO",
+  "added size",
+  "perfect process",
+  "revenge trade",
+  "oversize",
+  "strong momentum",
+  "gap>2xATR",
+  "gap<2xATR",
+];
+
 const EMOTIONAL_STATE_OPTIONS = [
   "Calm",
   "Anxious",
@@ -192,7 +208,7 @@ function b64url(buf: ArrayBuffer | Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-async function getAccessToken(): Promise<string> {
+export async function getAccessToken(): Promise<string> {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON environment variable is not set.");
   const sa = JSON.parse(raw) as {
@@ -205,7 +221,7 @@ async function getAccessToken(): Promise<string> {
   const header = { alg: "RS256", typ: "JWT" };
   const payload = {
     iss: sa.client_email,
-    scope: "https://www.googleapis.com/auth/spreadsheets",
+    scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly",
     aud: sa.token_uri || "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600,
@@ -357,7 +373,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
   const totalCols = colMap ? Math.max(...Object.values(colMap)) + 1 : TOTAL_COLS;
 
-  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst"];
+  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags"];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const colRange = (col: number) => ({ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 });
@@ -414,7 +430,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "# Partials": 85, "P&L": 95, "R (Risk)": 95,
     "P&L (R)": 85, "Setup": 140, "Process Followed?": 130, "Notes": 200,
     "Sleep Score": 100, "Readiness Score": 120, "Emotional State": 120, "Market Bias": 100,
-    "Conviction (1-3)": 100, "Catalyst": 160,
+    "Conviction (1-3)": 100, "Catalyst": 160, "Tags": 200,
     "Max R Before Stop": 120, "Farthest Price": 105, "1R": 45, "2R": 45, "3R": 45, "4R": 45, "5R": 45, "6R": 45,
     "#1m": 55, "#5m": 55, "#1H": 55,
     "%Gap": 70, "%ATR": 70, "RVOL": 65, "%VWAP": 75,
@@ -672,6 +688,21 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
+  // Data validation: Tags
+  const tagsCol = rc(COL.TAGS);
+  if (tagsCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(tagsCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: TAG_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: false,
+        },
+      },
+    });
+  }
+
   // Data validation: Emotional State
   const emotionalCol = rc(COL.EMOTIONAL);
   if (emotionalCol >= 0) {
@@ -774,7 +805,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Text wrapping
-  for (const h of ["Setup", "Notes", "Catalyst"]) {
+  for (const h of ["Setup", "Notes", "Catalyst", "Tags"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1479,6 +1510,7 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Market Bias", "No — you fill this in (daily)", "Your pre-market read on the overall market direction. Select from dropdown: Bullish, Bearish, or Neutral. Fill in once per day."],
     ["Conviction (1-3)", "No — you fill this in", "Your conviction level for this trade before/at entry: 1 (low), 2 (solid), 3 (A+ setup)."],
     ["Catalyst", "No — you fill this in", "The catalyst driving the trade. Select one or type comma-separated: Earnings, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
+    ["Tags", "No — you fill this in", "Retrospective pattern tags applied during screenshot review. Comma-separated: clean entry, extended entry, chased, FOMO, added size, perfect process, revenge trade, oversize, strong momentum, gap>2xATR, gap<2xATR, or custom."],
     ["Max R Before Stop", "Yes (market data)", "Highest R-multiple the stock reached before the stop was hit (order-aware). If the stop was never hit, this is the max R by end of day. Requires R to be filled in. Used by 1R-6R columns."],
     ["Farthest Price", "Yes (market data)", "The actual stock price at the farthest favorable point before the stop was hit. Requires R to be filled in."],
     ["1R", "Formula", "Y/N — did Max R Before Stop reach at least 1x? Green = Y, Red = N."],
@@ -1520,6 +1552,7 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Notes", "Write anything that will help you learn: your reasoning, emotions, what the chart looked like, what you'd do differently."],
     ["Conviction (1-3)", "Rate your conviction before entry: 1 = low (taking it but not ideal), 2 = solid setup, 3 = A+ setup. Over time, compare your P&L across conviction levels."],
     ["Catalyst", "Select the catalyst from dropdown or type comma-separated values for multiple: Earnings, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
+    ["Tags", "Add tags during screenshot review to categorize patterns. Comma-separated. Use the web app's Screenshot Review page or type directly."],
     ["Sleep Score", "Rate your sleep quality 0–100. Fill in once on the first trade row of each day."],
     ["Readiness Score", "Rate your overall readiness to trade 0–100. Fill in once on the first trade row of each day."],
     ["Emotional State", "Select from dropdown. Fill in once per day. Track this to find correlations between your state and your P&L."],
@@ -1818,4 +1851,72 @@ export async function updateEnrichment(
   }
 
   return { updated: valueRanges.length };
+}
+
+export interface TradeRowForReview {
+  date: string;
+  symbol: string;
+  side: string;
+  entryTime: string;
+  pnl: number;
+  pnlR: number;
+  risk: number;
+  setup: string;
+  tags: string;
+  processFollowed: string;
+  catalyst: string;
+  shares: number;
+  avgEntry: number;
+  avgExit: number;
+  notes: string;
+  rowIndex: number; // 1-based sheet row number
+}
+
+export async function getTradesForReview(tabName: string): Promise<TradeRowForReview[]> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:${READ_RANGE_END}`);
+  if (rows.length <= 1) return [];
+
+  const colMap = buildColMap(rows[0]);
+  const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, "")) || 0;
+
+  return rows.slice(1)
+    .map((r, i) => ({
+      date: r[cm(colMap, "Date")] || "",
+      symbol: r[cm(colMap, "Symbol")] || "",
+      side: r[cm(colMap, "Side")] || "",
+      entryTime: r[cm(colMap, "Entry Time")] || "",
+      pnl: parseNum(r[cm(colMap, "P&L")]),
+      pnlR: parseNum(r[cm(colMap, "P&L (R)")]),
+      risk: parseNum(r[cm(colMap, "R (Risk)")]),
+      setup: (r[cm(colMap, "Setup")] || "").trim(),
+      tags: (r[cm(colMap, "Tags")] || "").trim(),
+      processFollowed: (r[cm(colMap, "Process Followed?")] || "").trim(),
+      catalyst: (r[cm(colMap, "Catalyst")] || "").trim(),
+      shares: parseNum(r[cm(colMap, "Shares")]),
+      avgEntry: parseNum(r[cm(colMap, "Avg Entry")]),
+      avgExit: parseNum(r[cm(colMap, "Avg Exit")]),
+      notes: (r[cm(colMap, "Notes")] || "").trim(),
+      rowIndex: i + 2, // 1-based, header is row 1
+    }))
+    .filter((t) => t.date && t.symbol);
+}
+
+export async function updateTradeTags(
+  tabName: string,
+  rowIndex: number,
+  tags: string
+): Promise<void> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+
+  // Read headers to find Tags column position (handles reordered sheets)
+  const headerRows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!1:1`);
+  const colMap = buildColMap(headerRows[0] || []);
+  const tagsIdx = cm(colMap, "Tags");
+  if (tagsIdx < 0) throw new Error("Tags column not found in sheet.");
+
+  const range = `'${tabName}'!${colLetter(tagsIdx)}${rowIndex}`;
+  await sheetsValuesUpdate(token, spreadsheetId, range, [[tags]]);
 }

@@ -419,15 +419,24 @@ export default function TradeJournalPage() {
             entries and appended to the shared Google Sheet.
           </p>
         </div>
-        <a
-          href={result?.sheetGid != null ? `${SHEET_URL}#gid=${result.sheetGid}` : SHEET_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
-          style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }}
-        >
-          Open Trade Journal &raquo;
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href="/pct-bootcamp/trade-journal/screenshots"
+            className="shrink-0 rounded border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
+          >
+            Screenshot Review
+          </a>
+          <a
+            href={result?.sheetGid != null ? `${SHEET_URL}#gid=${result.sheetGid}` : SHEET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+            style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }}
+          >
+            Open Trade Journal &raquo;
+          </a>
+        </div>
       </div>
 
       <HowToUse />
