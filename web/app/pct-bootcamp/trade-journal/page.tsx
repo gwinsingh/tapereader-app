@@ -122,7 +122,13 @@ export default function TradeJournalPage() {
   const [sheetStats, setSheetStats] = useState<{ stats: StatsData; tabName: string } | null>(null);
 
   const [filterProcessFollowed, setFilterProcessFollowed] = useState(false);
-  const [filterStartDate, setFilterStartDate] = useState("2025-05-01");
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    // Default to first of current month
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}-01`;
+  });
   const [filterEndDate, setFilterEndDate] = useState("");
 
   const [backfillEnrichment, setBackfillEnrichment] = useState<EnrichmentProgress | null>(null);
