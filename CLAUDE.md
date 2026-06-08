@@ -6,18 +6,27 @@ TapeReader is a trader's tool — a free US-stock setup scanner with annotated c
 
 The repo also contains the **PCT Bootcamp** section (`/pct-bootcamp/*`), which includes an **Auto Trade Journal** that processes DAS Trader CSV exports into round-trip trades and writes them to a shared Google Sheet.
 
+It also hosts the **4-Week Challenge** (`/4-week-challenge`), a standalone Vite + React fitness tracker with Cloudflare KV cloud sync, shared across a crew of athletes.
+
 ## Repo layout
 
 ```
 tapereader-app/
-├── data/                    # static refs (ticker universe CSV, images)
-├── scanner/                 # Python scanner (not yet built)
-└── web/                     # Next.js 15 app (Cloudflare Pages)
-    ├── app/                 # App Router pages
-    │   ├── pct-bootcamp/    # PCT Bootcamp section (trade journal, etc.)
-    │   └── api/trade-journal/  # API routes (edge runtime)
+├── apps/
+│   └── 4-week-challenge/        # Vite + React source (standalone build)
+│       ├── src/                  # App.jsx, main.jsx
+│       ├── public/               # Static assets (og.svg) copied to build
+│       ├── vite.config.js        # Builds to web/public/4-week-challenge/
+│       └── .env                  # VITE_WRITE_KEY (gitignored)
+├── data/                         # static refs (ticker universe CSV, images)
+├── scanner/                      # Python scanner (not yet built)
+└── web/                          # Next.js 15 app (Cloudflare Pages)
+    ├── app/                      # App Router pages
+    │   ├── 4-week-challenge/api/ # KV API route (edge, reads Cloudflare KV)
+    │   ├── pct-bootcamp/         # PCT Bootcamp section (trade journal, etc.)
+    │   └── api/trade-journal/    # API routes (edge runtime)
     ├── components/
-    │   └── trade-journal/   # Journal-specific UI components
+    │   └── trade-journal/        # Journal-specific UI components
     └── lib/
         ├── data/            # Data interface (fixtures, Yahoo, Polygon, Turso)
         └── trade-journal/   # CSV parser, trade grouper, Google Sheets client
@@ -80,6 +89,15 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 ### JSON serialization gotcha
 `Infinity` doesn't survive `JSON.stringify()` (becomes `null`). Use `9999` as sentinel, display as `∞` in UI.
 
+### 4-Week Challenge
+- **Standalone Vite + React app** at `apps/4-week-challenge/`, builds to `web/public/4-week-challenge/`.
+- **Pre-built & committed**: run `cd apps/4-week-challenge && npm run build` locally, commit the output. Vite's `emptyOutDir: true` clears the output folder on each build — static assets (like `og.svg`) must live in `apps/4-week-challenge/public/` to survive.
+- **Cloud data via Cloudflare KV**: roster + athlete records stored in KV namespace `crew-data` (binding: `CREW_KV`). Per-device localStorage only stores "who am I" pointer.
+- **KV API route**: `web/app/4-week-challenge/api/kv/route.ts` — a Next.js edge route (not a standalone Pages Function, because `@cloudflare/next-on-pages` ignores `functions/`).
+- **Write protection**: client sends `x-write-key` header; server checks against `WRITE_KEY` env var. Both must match `VITE_WRITE_KEY` in `apps/4-week-challenge/.env`.
+- **Next.js rewrite** in `web/next.config.mjs` maps `/4-week-challenge` → `/4-week-challenge/index.html` (Next.js doesn't auto-serve index.html from `public/` subdirectories).
+- **Local dev**: KV endpoint returns 503 locally (no KV binding). UI renders but can't persist. Use production for full testing.
+
 ## Trade journal data flow
 
 1. User uploads DAS Trader CSV on `/pct-bootcamp/trade-journal`
@@ -112,6 +130,9 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 | `web/app/pct-bootcamp/trade-journal/screenshots/page.tsx` | Screenshot Review page |
 | `web/components/trade-journal/ScreenshotReview.tsx` | Screenshot review UI with filters, carousel, tags, lightbox |
 | `web/components/HeaderVisibility.tsx` | Hides main app header on `/pct-bootcamp` routes |
+| `apps/4-week-challenge/src/App.jsx` | 4-Week Challenge React app (single-file) |
+| `apps/4-week-challenge/vite.config.js` | Vite config, builds to `web/public/4-week-challenge/` |
+| `web/app/4-week-challenge/api/kv/route.ts` | KV GET/POST endpoint for crew data |
 
 ## Environment variables (production: Cloudflare Pages dashboard)
 
@@ -123,6 +144,7 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 | `POLYGON_API_KEY` | Required if `DATA_SOURCE=polygon` |
 | `GOOGLE_DRIVE_ENTRY_FOLDER_ID` | Google Drive folder ID for entry screenshots |
 | `GOOGLE_DRIVE_EOD_FOLDER_ID` | Google Drive folder ID for EOD screenshots |
+| `WRITE_KEY` | Shared secret for 4-Week Challenge KV writes (must match `VITE_WRITE_KEY`) |
 
 ## Conventions
 
