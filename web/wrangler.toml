@@ -2,3 +2,7 @@ name = "tapereader-app"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
+
+[[kv_namespaces]]
+binding = "CREW_KV"
+id = "57b33b4997ba4df0ad550c43c9e232d2"
