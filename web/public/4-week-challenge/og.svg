@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="g1" cx="12%" cy="-10%" r="50%">
+      <stop offset="0%" stop-color="rgba(200,255,0,0.12)"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="100%" cy="0%" r="45%">
+      <stop offset="0%" stop-color="rgba(55,197,240,0.08)"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#0b0b0c"/>
+  <rect width="1200" height="630" fill="url(#g1)"/>
+  <rect width="1200" height="630" fill="url(#g2)"/>
+  <text x="80" y="120" font-family="system-ui,sans-serif" font-size="18" font-weight="700" letter-spacing="6" fill="#c8ff00">4-WEEK STRENGTH + CUT</text>
+  <text x="80" y="260" font-family="system-ui,sans-serif" font-size="140" font-weight="900" fill="#ffffff" letter-spacing="-2">THE</text>
+  <text x="80" y="400" font-family="system-ui,sans-serif" font-size="140" font-weight="900" fill="#7b7b82" letter-spacing="-2">PROGRAM</text>
+  <text x="80" y="480" font-family="system-ui,sans-serif" font-size="20" fill="#8e8e96" letter-spacing="0.5">Train · Track · Repeat — shared across your crew</text>
+  <rect x="80" y="530" width="90" height="6" rx="3" fill="#ff5630"/>
+  <rect x="185" y="530" width="90" height="6" rx="3" fill="#ff5630"/>
+  <rect x="290" y="530" width="90" height="6" rx="3" fill="#ff5630"/>
+  <rect x="395" y="530" width="90" height="6" rx="3" fill="#ff5630"/>
+  <rect x="500" y="530" width="90" height="6" rx="3" fill="#ff5630"/>
+  <rect x="605" y="530" width="90" height="6" rx="3" fill="#37c5f0"/>
+  <rect x="710" y="530" width="90" height="6" rx="3" fill="#52525b"/>
+  <text x="80" y="580" font-family="monospace" font-size="13" letter-spacing="4" fill="#52525b">M        T        W        T         F        S        S</text>
+  <text x="1120" y="580" font-family="monospace" font-size="14" fill="#52525b" text-anchor="end">tapereader.us</text>
+  <text x="1050" y="200" font-size="120">🏋️</text>
+</svg>
