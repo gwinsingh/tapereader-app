@@ -44,7 +44,7 @@ const store = {
   async set(k, v, shared) { return shared ? remote.set(k, v) : LS.set(k, v); },
 };
 
-const blankRecord = () => ({ bodyweight: 175, calTarget: 2200, caloriesLogged: 0, weighIns: [], strength: [] });
+const blankRecord = () => ({ bodyweight: 175, calTarget: 2200, caloriesLogged: 0, weighIns: [], strength: [], completedDays: [] });
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 14) || "lifter";
 const yt = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q + " proper form technique")}`;
 
@@ -337,6 +337,15 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
     });
   };
 
+  const done = me.completedDays || [];
+  const doneSet = useMemo(() => new Set(done), [done]);
+  const toggleDay = (dayNum) => {
+    updateMe(c => {
+      const arr = c.completedDays || [];
+      return { ...c, completedDays: arr.includes(dayNum) ? arr.filter(d => d !== dayNum) : [...arr, dayNum].sort((a,b) => a - b) };
+    });
+  };
+
   const calendar = useMemo(() => { const cells=[]; for(let i=0;i<28;i++) cells.push({n:i+1,week:Math.floor(i/7)+1,plan:SCHEDULE[i%7]}); return cells; }, []);
 
   return (
@@ -346,9 +355,10 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
         <div className="crew-chips">{roster.map(a => {
           const rec=data[a.id]||blankRecord();
           const w=rec.weighIns?.length?rec.weighIns[rec.weighIns.length-1].weight:rec.bodyweight;
+          const doneCount=(rec.completedDays||[]).length;
           return (
             <button key={a.id} className={`chip ${a.id===meId?"on":""}`} onClick={()=>onSwitch(a.id)}>
-              <span className="chip-name">{a.name}</span><span className="chip-w mono">{w}lb</span>
+              <span className="chip-name">{a.name}</span><span className="chip-w mono">{w}lb</span><span className="chip-days mono">{doneCount}/28</span>
             </button>
           );
         })}</div>
@@ -362,7 +372,7 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
           <StatCard icon={Scale} label="CURRENT WEIGHT" value={currentWeight} unit="lb" accent="#c8ff00" />
           <StatCard icon={Activity} label="CHANGE" value={weightDelta===null?"—":`${weightDelta>0?"+":""}${weightDelta}`} unit="lb" accent="#37c5f0" />
           <StatCard icon={Flame} label="CALORIES LOGGED" value={(me.caloriesLogged||0).toLocaleString()} unit="kcal" accent="#ff8a3d" />
-          <StatCard icon={Trophy} label="SQUAT PR" value={prs.Squat??"—"} unit="lb" accent="#ff5630" />
+          <StatCard icon={Target} label="DAYS DONE" value={`${done.length}/28`} unit="" accent="#ff5630" />
         </div>
       </header>
 
@@ -516,7 +526,7 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
                 );
               })}
             </div>
-            <button className="btn full" style={{marginTop:12}} onClick={newWeek}><Plus size={15} /> New Entry</button>
+            <button className="btn full" style={{marginTop:12}} onClick={newWeek}><Check size={15} /> Super Set Complete</button>
           </div>
         </div>
         <div className="pr-strip">
@@ -531,7 +541,14 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
       </section>
 
       <section className="section">
-        <SectionHead icon={CalIcon} kicker="04 / OVERVIEW" title="The 28 Days" />
+        <SectionHead icon={CalIcon} kicker="04 / JOURNEY" title="The 28 Days" />
+        <div className="journey-progress">
+          <div className="journey-meta">
+            <span className="mono journey-count">{done.length} <span className="journey-of">/ 28 days</span></span>
+            <span className="mono journey-pct">{Math.round((done.length/28)*100)}%</span>
+          </div>
+          <Bar pct={(done.length/28)*100} color="#c8ff00" />
+        </div>
         <div className="legend">{Object.values(INTENSITY).map(m=>(
           <span key={m.label} className="legend-item mono"><span className="ix-dot" style={{background:m.color}} /> {m.label}</span>
         ))}</div>
@@ -539,13 +556,26 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
           <div className="cal-dows">{["M","T","W","T","F","S","S"].map((d,i)=><span key={i} className="mono">{d}</span>)}</div>
           <div className="cal-grid">{calendar.map(c => {
             const meta=INTENSITY[c.plan.intensity];
+            const isDone=doneSet.has(c.n);
             return (
-              <button key={c.n} className="cal-cell" style={{"--c":meta.color}} onClick={()=>setCalDay(c)}>
+              <button key={c.n} className={`cal-cell ${isDone?"cal-done":""}`} style={{"--c":meta.color}} onClick={()=>setCalDay(c)}>
+                {isDone && <span className="cal-check"><Check size={14} strokeWidth={3} /></span>}
                 <span className="cal-n mono">{c.n}</span>
                 <span className="cal-bar" style={{background:meta.color}} />
               </button>
             );
           })}</div>
+        </div>
+        <div className="mark-done-row">
+          <p className="mark-hint">Tap a day number above to view details, or mark today's workout below.</p>
+          {Array.from({length:28},(_,i)=>i+1).filter(n=>!doneSet.has(n)).length > 0 ? (
+            <button className="btn full" onClick={()=>{
+              const next=Array.from({length:28},(_,i)=>i+1).find(n=>!doneSet.has(n));
+              if(next) toggleDay(next);
+            }}><Check size={15} /> Mark Day {Array.from({length:28},(_,i)=>i+1).find(n=>!doneSet.has(n))} Done</button>
+          ) : (
+            <div className="journey-complete mono">🏆 ALL 28 DAYS COMPLETE!</div>
+          )}
         </div>
       </section>
 
@@ -628,7 +658,9 @@ const CSS = `
 .chip.on{border-color:var(--accent); background:rgba(200,255,0,.08);}
 .chip-name{font-weight:600;}
 .chip-w{font-size:11px; color:var(--muted);}
+.chip-days{font-size:10px; color:var(--muted); opacity:.7;}
 .chip.on .chip-w{color:var(--accent);}
+.chip.on .chip-days{color:var(--accent); opacity:.8;}
 .hero{padding:40px 20px 32px; max-width:1100px; margin:0 auto;}
 .hero-tag{display:inline-flex; align-items:center; gap:7px; font-size:11px; letter-spacing:.24em; color:var(--accent); margin-bottom:14px;}
 .hero-title{font-family:'Anton',sans-serif; font-weight:400; line-height:.86; font-size:clamp(60px,16vw,140px); letter-spacing:-.01em; margin:0; text-transform:uppercase; background:linear-gradient(170deg,#fff 30%,#7b7b82); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
@@ -741,10 +773,21 @@ const CSS = `
 .cal-dows{display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:10px;}
 .cal-dows span{text-align:center; font-size:11px; color:var(--muted);}
 .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:8px;}
-.cal-cell{aspect-ratio:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--text); font-family:inherit; padding:4px; transition:transform .12s, border-color .15s;}
+.journey-progress{margin-bottom:18px;}
+.journey-meta{display:flex; justify-content:space-between; margin-bottom:8px;}
+.journey-count{font-size:18px; font-weight:700; color:var(--text);}
+.journey-of{font-size:13px; color:var(--muted); font-weight:400;}
+.journey-pct{font-size:14px; color:var(--accent);}
+.cal-cell{aspect-ratio:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:var(--text); font-family:inherit; padding:4px; transition:transform .12s, border-color .15s; position:relative;}
 .cal-cell:hover{transform:translateY(-2px); border-color:var(--c);}
+.cal-done{border-color:var(--accent); background:rgba(200,255,0,.06);}
+.cal-check{color:var(--accent); line-height:0;}
+.cal-done .cal-n{color:var(--accent);}
 .cal-n{font-size:13px;}
 .cal-bar{width:60%; height:4px; border-radius:4px;}
+.mark-done-row{margin-top:16px;}
+.mark-hint{font-size:12px; color:var(--muted); margin:0 0 10px; line-height:1.5;}
+.journey-complete{text-align:center; padding:18px; font-size:14px; letter-spacing:.12em; color:var(--accent); border:1px solid var(--accent); border-radius:12px; background:rgba(200,255,0,.06);}
 .res-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
 .res{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:15px 16px; color:var(--text); text-decoration:none; font-size:14px; font-weight:500; transition:border-color .15s, transform .1s;}
 .res:hover{border-color:var(--accent); transform:translateX(3px);}
