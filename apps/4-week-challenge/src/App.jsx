@@ -314,7 +314,7 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
     updateMe(c => {
       const arr = [...(c.strength || [])];
       if (arr.length === 0) {
-        const entry = { week: "W1" };
+        const entry = { week: "#1" };
         LIFT_KEYS.forEach(k => { entry[k] = 0; });
         entry[key] = v;
         arr.push(entry);
@@ -332,7 +332,7 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
       const arr = c.strength || [];
       if (!arr.length) return c;
       const prev = arr[arr.length - 1];
-      const entry = { ...prev, week: `W${arr.length + 1}` };
+      const entry = { ...prev, week: `#${arr.length + 1}` };
       return { ...c, strength: [...arr, entry] };
     });
   };
@@ -516,7 +516,7 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
                 );
               })}
             </div>
-            <button className="btn full" style={{marginTop:12}} onClick={newWeek}><Plus size={15} /> New Week</button>
+            <button className="btn full" style={{marginTop:12}} onClick={newWeek}><Plus size={15} /> New Entry</button>
           </div>
         </div>
         <div className="pr-strip">
