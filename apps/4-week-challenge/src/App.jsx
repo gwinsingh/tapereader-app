@@ -99,6 +99,22 @@ const SCHEDULE = [
   { day: "SUN", title: "Rest", intensity: "rest", badge: "MANDATORY", note: "Mandatory rest. No training today — sleep, eat your protein, and meal-prep the week. Recovery is when you actually grow.", exercises: [] },
 ];
 
+const ALL_LIFTS = [
+  { key: "Squat", label: "Squat", color: "#ff5630", group: "compound" },
+  { key: "Bench", label: "Bench", color: "#37c5f0", group: "compound" },
+  { key: "Deadlift", label: "Deadlift", color: "#c8ff00", group: "compound" },
+  { key: "OHP", label: "OHP", color: "#ff8a3d", group: "compound" },
+  { key: "Row", label: "Row", color: "#ff5c9d", group: "compound" },
+  { key: "PullUp", label: "Pull-Up", color: "#a78bfa", group: "compound" },
+  { key: "FacePull", label: "Face Pull", color: "#22d3ee", group: "accessory" },
+  { key: "TricepPushdown", label: "Tricep Pushdown", color: "#f472b6", group: "accessory" },
+  { key: "BicepCurl", label: "Bicep Curl", color: "#fbbf24", group: "accessory" },
+  { key: "LegExtension", label: "Leg Extension", color: "#34d399", group: "accessory" },
+  { key: "CalfRaise", label: "Calf Raise", color: "#fb923c", group: "accessory" },
+  { key: "CableFly", label: "Cable Fly", color: "#c084fc", group: "accessory" },
+];
+const LIFT_KEYS = ALL_LIFTS.map(l => l.key);
+
 const INTENSITY = {
   high:     { label: "Heavy",    color: "#ff5630" },
   recovery: { label: "Recovery", color: "#37c5f0" },
@@ -214,7 +230,7 @@ export default function App() {
 function Shell({ children }) { return <div className="root"><style>{CSS}</style>{children}</div>; }
 
 function Setup({ roster, onSave, setData }) {
-  const [names, setNames] = useState(() => { const b = ["","",""]; roster.forEach((r,i) => { if(i<3) b[i]=r.name; }); return b; });
+  const [names, setNames] = useState(() => { const b = ["","","",""]; roster.forEach((r,i) => { if(i<4) b[i]=r.name; }); return b; });
   const save = async () => {
     const clean = names.map(n=>n.trim()).filter(Boolean); if(!clean.length) return;
     const seen = {};
@@ -229,7 +245,7 @@ function Setup({ roster, onSave, setData }) {
       <div className="hero-tag mono"><Users size={13} /> SHARED CREW · ONE-TIME SETUP</div>
       <h1 className="gate-title">SET UP<br />YOUR CREW</h1>
       <p className="gate-sub">Add the three of you. Everyone who opens this link shares the same roster and can see each other's progress.</p>
-      <div className="gate-fields">{[0,1,2].map(i=>(
+      <div className="gate-fields">{[0,1,2,3].map(i=>(
         <input key={i} className="gate-input" placeholder={`Lifter ${i+1}${i>0?" (optional)":""}`} value={names[i]} onChange={e=>setNames(p=>p.map((v,j)=>j===i?e.target.value:v))} />
       ))}</div>
       <button className="btn full big" onClick={save}>Lock in the crew <ChevronRight size={18} /></button>
@@ -268,7 +284,7 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
   const [finOpen, setFinOpen] = useState(null);
   const [weighInput, setWeighInput] = useState("");
   const [calInput, setCalInput] = useState("");
-  const [lifts, setLifts] = useState({ Squat:"", Bench:"", Deadlift:"", OHP:"", Row:"", PullUp:"" });
+  const [liftInput, setLiftInput] = useState({});
   const meName = roster.find(r=>r.id===meId)?.name || "Lifter";
 
   const proteinLow = Math.round(me.bodyweight * 0.8);
@@ -286,22 +302,39 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
   const currentWeight = wi.length ? wi[wi.length-1].weight : me.bodyweight;
   const weightDelta = wi.length >= 2 ? (currentWeight - wi[0].weight).toFixed(1) : null;
   const prs = useMemo(() => {
-    const keys = ["Squat","Bench","Deadlift","OHP","Row","PullUp"]; const out = {};
-    keys.forEach(k => { const vals = st.map(s=>s[k]||0); out[k] = vals.length ? Math.max(...vals) : null; });
+    const out = {};
+    LIFT_KEYS.forEach(k => { const vals = st.map(s=>s[k]||0); out[k] = vals.length ? Math.max(...vals) : null; });
     return out;
   }, [st]);
 
   const addWeighIn = () => { const w=parseFloat(weighInput); if(!w) return; updateMe(c=>({...c,weighIns:[...(c.weighIns||[]),{week:`W${(c.weighIns?.length||0)+1}`,weight:w}]})); setWeighInput(""); };
   const logCalories = () => { const c=parseInt(calInput,10); if(!c) return; updateMe(r=>({...r,caloriesLogged:(r.caloriesLogged||0)+c})); setCalInput(""); };
-  const addStrength = () => {
-    let any=false;
+  const logLift = (key) => {
+    const v = parseFloat(liftInput[key]); if (!v) return;
     updateMe(c => {
-      const prev=c.strength?.[c.strength.length-1]||{};
-      const entry={week:`W${(c.strength?.length||0)+1}`};
-      ["Squat","Bench","Deadlift","OHP","Row","PullUp"].forEach(k=>{ const v=parseFloat(lifts[k]); entry[k]=v||prev[k]||0; if(v) any=true; });
-      return any ? {...c,strength:[...(c.strength||[]),entry]} : c;
+      const arr = [...(c.strength || [])];
+      if (arr.length === 0) {
+        const entry = { week: "W1" };
+        LIFT_KEYS.forEach(k => { entry[k] = 0; });
+        entry[key] = v;
+        arr.push(entry);
+      } else {
+        const last = { ...arr[arr.length - 1] };
+        last[key] = v;
+        arr[arr.length - 1] = last;
+      }
+      return { ...c, strength: arr };
     });
-    setLifts({Squat:"",Bench:"",Deadlift:"",OHP:"",Row:"",PullUp:""});
+    setLiftInput(p => ({ ...p, [key]: "" }));
+  };
+  const newWeek = () => {
+    updateMe(c => {
+      const arr = c.strength || [];
+      if (!arr.length) return c;
+      const prev = arr[arr.length - 1];
+      const entry = { ...prev, week: `W${arr.length + 1}` };
+      return { ...c, strength: [...arr, entry] };
+    });
   };
 
   const calendar = useMemo(() => { const cells=[]; for(let i=0;i<28;i++) cells.push({n:i+1,week:Math.floor(i/7)+1,plan:SCHEDULE[i%7]}); return cells; }, []);
@@ -454,40 +487,46 @@ function Dashboard({ roster, data, meId, updateMe, onSwitch }) {
               <button className="btn" onClick={addWeighIn}><Plus size={15} /> Log</button>
             </div>
           </div>
-          <div className="card">
+          <div className="card span-2">
             <div className="card-label mono">STRENGTH PROGRESSION</div>
             {st.length ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={st} margin={{top:8,right:8,left:-18,bottom:0}}>
                   <CartesianGrid stroke="#26262b" strokeDasharray="3 3" />
                   <XAxis dataKey="week" stroke="#6a6a72" fontSize={11} />
                   <YAxis stroke="#6a6a72" fontSize={11} />
-                  <Tooltip contentStyle={TT} /><Legend wrapperStyle={{fontSize:11}} />
-                  <Line type="monotone" dataKey="Squat" stroke="#ff5630" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="Bench" stroke="#37c5f0" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="Deadlift" stroke="#c8ff00" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="OHP" stroke="#ff8a3d" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="Row" stroke="#ff5c9d" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="PullUp" stroke="#a78bfa" strokeWidth={2} dot={false} />
+                  <Tooltip contentStyle={TT} /><Legend wrapperStyle={{fontSize:10}} />
+                  {ALL_LIFTS.map(l => (
+                    <Line key={l.key} type="monotone" dataKey={l.key} name={l.label} stroke={l.color} strokeWidth={l.group==="compound"?2.5:1.5} strokeDasharray={l.group==="accessory"?"5 3":undefined} dot={false} />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
-            ) : <div className="empty mono">NO LIFTS LOGGED YET — ADD A WEEK BELOW</div>}
-            <div className="lift-inputs">
-              {["Squat","Bench","Deadlift","OHP","Row","PullUp"].map(k=>(
-                <input key={k} type="number" placeholder={k==="PullUp"?"Pull-Up":k} value={lifts[k]} onChange={e=>setLifts(p=>({...p,[k]:e.target.value}))} />
-              ))}
+            ) : <div className="empty mono">NO LIFTS LOGGED YET — LOG YOUR FIRST BELOW</div>}
+            <div className="lift-log-list">
+              {ALL_LIFTS.map(l => {
+                const cur = st.length ? (st[st.length-1][l.key]||0) : 0;
+                return (
+                  <div key={l.key} className="lift-row">
+                    <span className="lift-dot" style={{background:l.color}} />
+                    <span className="lift-name">{l.label}</span>
+                    <span className="lift-cur mono">{cur||"—"}</span>
+                    <input type="number" className="lift-input" placeholder="lb" value={liftInput[l.key]||""} onChange={e=>setLiftInput(p=>({...p,[l.key]:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&logLift(l.key)} />
+                    <button className="btn-sm" onClick={()=>logLift(l.key)}>Log</button>
+                  </div>
+                );
+              })}
             </div>
-            <button className="btn full" onClick={addStrength}><Plus size={15} /> Log week</button>
+            <button className="btn full" style={{marginTop:12}} onClick={newWeek}><Plus size={15} /> New Week</button>
           </div>
         </div>
         <div className="pr-strip">
-          {Object.entries(prs).map(([k,v]) => (
-            <div key={k} className="pr">
+          {ALL_LIFTS.map(l => { const v=prs[l.key]; return (
+            <div key={l.key} className="pr">
               <Trophy size={14} style={{color:"#ffce3f"}} />
-              <span className="pr-name mono">{k==="PullUp"?"Pull-Up":k}</span>
+              <span className="pr-name mono">{l.label}</span>
               <span className="pr-val">{v??"—"}{v!=null&&<span className="pr-unit">lb</span>}</span>
             </div>
-          ))}
+          ); })}
         </div>
       </section>
 
@@ -682,10 +721,16 @@ const CSS = `
 .log-meta{display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px;}
 .prog-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
 .empty{height:200px; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--muted); font-size:11px; letter-spacing:.12em; border:1px dashed var(--border); border-radius:10px; padding:20px;}
-.lift-inputs{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px;}
-.lift-inputs input{width:100%; min-width:0; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:9px 6px; color:var(--text); font-family:'Space Mono',monospace; font-size:12px; text-align:center;}
-.lift-inputs input:focus{outline:none; border-color:var(--accent);}
-.pr-strip{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px;}
+.lift-log-list{display:flex; flex-direction:column; gap:6px; margin-top:14px;}
+.lift-row{display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:10px;}
+.lift-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+.lift-name{font-size:13px; font-weight:600; flex:1; min-width:0;}
+.lift-cur{font-size:12px; color:var(--muted); width:44px; text-align:right; flex-shrink:0;}
+.lift-input{width:64px; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:7px 8px; color:var(--text); font-family:'Space Mono',monospace; font-size:12px; text-align:right; flex-shrink:0;}
+.lift-input:focus{outline:none; border-color:var(--accent);}
+.btn-sm{background:var(--accent); color:#0b0b0c; border:none; border-radius:7px; padding:7px 12px; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:opacity .15s;}
+.btn-sm:hover{opacity:.85;}
+.pr-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:12px;}
 .pr{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px;}
 .pr-name{font-size:10px; letter-spacing:.12em; color:var(--muted); text-transform:uppercase;}
 .pr-val{font-family:'Anton',sans-serif; font-size:30px; line-height:1;}
@@ -719,5 +764,5 @@ const CSS = `
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes rise{from{opacity:0; transform:translateY(14px)}to{opacity:1; transform:translateY(0)}}
 @media(min-width:720px){ .stat-grid{grid-template-columns:repeat(4,1fr);} }
-@media(max-width:560px){ .nut-grid,.prog-grid,.res-grid{grid-template-columns:1fr;} .pr-strip{grid-template-columns:repeat(2,1fr);} .stat-val{font-size:30px;} }
+@media(max-width:560px){ .nut-grid,.prog-grid,.res-grid{grid-template-columns:1fr;} .pr-strip{grid-template-columns:repeat(3,1fr);} .stat-val{font-size:30px;} }
 `;
