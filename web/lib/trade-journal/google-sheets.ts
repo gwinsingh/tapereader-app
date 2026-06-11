@@ -1870,6 +1870,8 @@ export interface TradeRowForReview {
   avgExit: number;
   notes: string;
   rowIndex: number; // 1-based sheet row number
+  maxRBeforeStop: number | null;
+  duration: number; // minutes
 }
 
 export async function getTradesForReview(tabName: string): Promise<TradeRowForReview[]> {
@@ -1899,6 +1901,11 @@ export async function getTradesForReview(tabName: string): Promise<TradeRowForRe
       avgExit: parseNum(r[cm(colMap, "Avg Exit")]),
       notes: (r[cm(colMap, "Notes")] || "").trim(),
       rowIndex: i + 2, // 1-based, header is row 1
+      maxRBeforeStop: (() => {
+        const v = parseFloat(String(r[cm(colMap, "Max R Before Stop")] || "").replace(/[$,]/g, ""));
+        return isNaN(v) ? null : v;
+      })(),
+      duration: parseNum(r[cm(colMap, "Duration (mins)")]),
     }))
     .filter((t) => t.date && t.symbol);
 }

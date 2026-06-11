@@ -34,6 +34,8 @@ interface TradeForReview {
   avgExit: number;
   rowIndex: number;
   notes: string;
+  maxRBeforeStop: number | null;
+  duration: number;
 }
 
 interface TradeWithScreenshots extends TradeForReview {
@@ -74,7 +76,10 @@ export default function ScreenshotReview({ tabName }: { tabName: string }) {
   const [symbolFilter, setSymbolFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [screenshotsOnly, setScreenshotsOnly] = useState(true);
-  const [startDate, setStartDate] = useState("2025-05-01");
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  });
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -210,7 +215,11 @@ export default function ScreenshotReview({ tabName }: { tabName: string }) {
     }
   }
 
-  const hasActiveFilters = setupFilter || symbolFilter || tagFilter || sideFilter || processFilter !== "all" || startDate !== "2025-05-01" || endDate !== "";
+  const defaultStart = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  }, []);
+  const hasActiveFilters = setupFilter || symbolFilter || tagFilter || sideFilter || processFilter !== "all" || startDate !== defaultStart || endDate !== "";
 
   if (loading) {
     return (
@@ -320,7 +329,7 @@ export default function ScreenshotReview({ tabName }: { tabName: string }) {
             <button
               onClick={() => {
                 setSetupFilter(""); setSymbolFilter(""); setTagFilter(""); setSideFilter("");
-                setProcessFilter("all"); setStartDate("2025-05-01");
+                setProcessFilter("all"); setStartDate(defaultStart);
                 setEndDate(new Date().toISOString().slice(0, 10));
               }}
               className="rounded border px-2 py-1.5 text-xs hover:opacity-80 self-end"
@@ -574,23 +583,32 @@ function TradeCard({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-3 text-sm">
             <span
               className="font-semibold"
               style={{ color: isWinner ? "#48bb78" : "#f56565" }}
             >
               {isWinner ? "+" : ""}${trade.pnl.toFixed(2)}
+              {trade.pnlR !== 0 && (
+                <span className="font-normal text-xs ml-1">
+                  ({isWinner ? "+" : ""}{trade.pnlR.toFixed(1)}R)
+                </span>
+              )}
             </span>
-            {trade.pnlR !== 0 && (
+            {trade.maxRBeforeStop != null && (
               <span
-                className="text-xs"
-                style={{ color: isWinner ? "#48bb78" : "#f56565" }}
+                className="text-xs px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: "rgba(99,179,237,0.12)", color: "#63b3ed" }}
+                title="Max R Before Stop — best the trade could have done"
               >
-                {isWinner ? "+" : ""}{trade.pnlR.toFixed(1)}R
+                MFE {trade.maxRBeforeStop.toFixed(1)}R
               </span>
             )}
             <span className="text-xs" style={{ color: "var(--color-muted)" }}>
               {trade.entryTime}
+            </span>
+            <span className="text-xs" style={{ color: "var(--color-muted)" }} title="Trade duration">
+              {trade.duration < 1 ? "<1m" : `${Math.round(trade.duration)}m`}
             </span>
           </div>
         </div>
