@@ -33,7 +33,7 @@ const UNIT_LABELS: Record<Unit, string> = {
   dollar: "$",
 };
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // --- Helpers ---
@@ -266,7 +266,7 @@ export default function TradingCalendar({ tabName }: { tabName: string }) {
       </div>
 
       {/* Grid header */}
-      <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(7, 1fr) 1.1fr" }}>
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(5, 1fr) 1.1fr" }}>
         {WEEKDAYS.map((d) => (
           <div key={d} className="text-center text-xs font-semibold uppercase tracking-wider pb-1" style={{ color: "var(--color-muted)" }}>
             {d}
@@ -332,7 +332,7 @@ function WeekRow({
 }) {
   return (
     <>
-      {week.map((cell, di) => (
+      {week.slice(0, 5).map((cell, di) => (
         <DayCell key={di} cell={cell} unit={unit} maxAbs={maxAbs} />
       ))}
       <div
@@ -379,9 +379,9 @@ function DayCell({ cell, unit, maxAbs }: { cell: DailyCalendarCell | null | unde
       : "var(--color-panel)";
   const border = positive ? GREEN : negative ? RED : "var(--color-border)";
 
-  // size pill: avg deployed risk vs full R target
+  // size pill: avg deployed risk vs full R target (shown on every traded day)
   const sizeFrac = cell.avgRisk !== null && cell.fullR ? cell.avgRisk / cell.fullR : null;
-  const showSize = sizeFrac !== null && sizeFrac < 0.95;
+  const showSize = sizeFrac !== null;
 
   return (
     <div
@@ -404,7 +404,7 @@ function DayCell({ cell, unit, maxAbs }: { cell: DailyCalendarCell | null | unde
           {fmtValue(val, unit)}
         </span>
         <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>
-          {cell.trades}t · {cell.wins}/{cell.losses}
+          #{cell.trades} · {cell.wins}/{cell.losses}
         </span>
       </div>
     </div>
