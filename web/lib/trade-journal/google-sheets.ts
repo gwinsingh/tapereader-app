@@ -1474,6 +1474,177 @@ export async function getStatsForTab(tabName: string, filter?: StatsFilter): Pro
   return computeStats(rows, filter);
 }
 
+// --- Trading Calendar ---
+
+const CALENDAR_CONFIG_TAB = "Calendar Config";
+
+interface FullREntry {
+  effectiveDate: string; // YYYY-MM-DD
+  fullR: number;
+}
+
+// account (or tab prefix) -> entries sorted by effectiveDate ascending
+type FullRSchedule = { [account: string]: FullREntry[] };
+
+// Reads the "Calendar Config" tab. Returns {} if the tab is absent or empty —
+// callers fall back to Realized R when no Full R baseline is configured.
+async function getFullRSchedule(token: string, spreadsheetId: string): Promise<FullRSchedule> {
+  let rows: string[][];
+  try {
+    rows = await sheetsValuesGet(token, spreadsheetId, `'${CALENDAR_CONFIG_TAB}'!A:C`);
+  } catch {
+    return {};
+  }
+  if (rows.length <= 1) return {};
+
+  const colMap = buildColMap(rows[0]);
+  const acctIdx = cm(colMap, "Account");
+  const dateIdx = cm(colMap, "Effective Date");
+  const fullRIdx = cm(colMap, "Full R($)");
+  if (acctIdx < 0 || dateIdx < 0 || fullRIdx < 0) return {};
+
+  const schedule: FullRSchedule = {};
+  for (const r of rows.slice(1)) {
+    const account = (r[acctIdx] || "").trim();
+    const effectiveDate = (r[dateIdx] || "").trim();
+    const fullR = parseFloat(String(r[fullRIdx] || "").replace(/[$,]/g, ""));
+    if (!account || !effectiveDate || isNaN(fullR) || fullR <= 0) continue;
+    if (!schedule[account]) schedule[account] = [];
+    schedule[account].push({ effectiveDate, fullR });
+  }
+  for (const acct of Object.keys(schedule)) {
+    schedule[acct].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+  }
+  return schedule;
+}
+
+// Picks the Full R baseline applicable to a tab on a given date: the latest
+// schedule entry whose effectiveDate <= date, for the matching account.
+function fullRForDate(schedule: FullRSchedule, tabName: string, date: string): number | null {
+  // Match the config "Account" to this tab: exact, or the tab starts with it
+  // (e.g. account "TRPCT1541" applies to tab "TRPCT1541-GURI").
+  let entries: FullREntry[] | undefined;
+  if (schedule[tabName]) {
+    entries = schedule[tabName];
+  } else {
+    const key = Object.keys(schedule).find(
+      (acct) => tabName === acct || tabName.startsWith(`${acct}-`) || tabName.startsWith(acct)
+    );
+    entries = key ? schedule[key] : undefined;
+  }
+  if (!entries || entries.length === 0) return null;
+
+  let applicable: number | null = null;
+  for (const e of entries) {
+    if (e.effectiveDate <= date) applicable = e.fullR;
+    else break;
+  }
+  // If the date predates every configured entry, fall back to the earliest one.
+  return applicable ?? entries[0].fullR;
+}
+
+export interface DailyCalendarCell {
+  date: string; // YYYY-MM-DD
+  pnl: number;
+  realizedR: number; // sum of P&L (R) — each trade vs its own risk
+  standardR: number | null; // sum of P&L / Full R target for the date; null if no baseline
+  trades: number;
+  wins: number;
+  losses: number;
+  avgRisk: number | null; // average deployed $ risk across the day's trades
+  fullR: number | null; // Full R target in effect that date
+  hasNote: boolean;
+}
+
+export interface CalendarData {
+  cells: DailyCalendarCell[];
+  hasFullRConfig: boolean;
+}
+
+export async function getDailyCalendar(tabName: string): Promise<CalendarData> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  const meta = await sheetsGet(token, spreadsheetId);
+  const tab = meta.sheets.find((s) => s.properties.title === tabName);
+  if (!tab) throw new Error(`Sheet tab "${tabName}" not found.`);
+
+  const [rows, schedule] = await Promise.all([
+    sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:${READ_RANGE_END}`),
+    getFullRSchedule(token, spreadsheetId),
+  ]);
+  if (rows.length <= 1) return { cells: [], hasFullRConfig: false };
+
+  const colMap = buildColMap(rows[0]);
+  const dateIdx = cm(colMap, "Date");
+  const pnlIdx = cm(colMap, "P&L");
+  const pnlRIdx = cm(colMap, "P&L (R)");
+  const riskIdx = cm(colMap, "R (Risk)");
+  const notesIdx = cm(colMap, "Notes");
+  const eodIdx = cm(colMap, "EOD Screenshot");
+  const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, ""));
+
+  const hasFullRConfig = fullRForDate(schedule, tabName, "9999-12-31") !== null;
+
+  interface Acc {
+    pnl: number;
+    realizedR: number;
+    trades: number;
+    wins: number;
+    losses: number;
+    riskSum: number;
+    riskCount: number;
+    hasNote: boolean;
+  }
+  const byDate = new Map<string, Acc>();
+
+  for (const r of rows.slice(1)) {
+    const date = (dateIdx >= 0 ? r[dateIdx] : "") || "";
+    if (!date) continue;
+    const pnlRaw = pnlIdx >= 0 ? r[pnlIdx] : "";
+    if (pnlRaw === undefined || pnlRaw === "") continue; // skip rows without a closed P&L
+    const pnl = parseNum(pnlRaw) || 0;
+
+    if (!byDate.has(date)) {
+      byDate.set(date, { pnl: 0, realizedR: 0, trades: 0, wins: 0, losses: 0, riskSum: 0, riskCount: 0, hasNote: false });
+    }
+    const a = byDate.get(date)!;
+    a.pnl += pnl;
+    a.trades += 1;
+    if (pnl > 0) a.wins += 1;
+    else if (pnl < 0) a.losses += 1;
+
+    const pnlR = pnlRIdx >= 0 ? parseNum(r[pnlRIdx]) : NaN;
+    const risk = riskIdx >= 0 ? parseNum(r[riskIdx]) : NaN;
+    if (!isNaN(pnlR)) a.realizedR += pnlR;
+    else if (!isNaN(risk) && risk > 0) a.realizedR += pnl / risk;
+    if (!isNaN(risk) && risk > 0) { a.riskSum += risk; a.riskCount += 1; }
+
+    const notes = notesIdx >= 0 ? (r[notesIdx] || "").trim() : "";
+    const eod = eodIdx >= 0 ? (r[eodIdx] || "").trim() : "";
+    if (notes || eod) a.hasNote = true;
+  }
+
+  const cells: DailyCalendarCell[] = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, a]) => {
+      const fullR = fullRForDate(schedule, tabName, date);
+      return {
+        date,
+        pnl: Math.round(a.pnl * 100) / 100,
+        realizedR: Math.round(a.realizedR * 100) / 100,
+        standardR: fullR ? Math.round((a.pnl / fullR) * 100) / 100 : null,
+        trades: a.trades,
+        wins: a.wins,
+        losses: a.losses,
+        avgRisk: a.riskCount > 0 ? Math.round((a.riskSum / a.riskCount) * 100) / 100 : null,
+        fullR,
+        hasNote: a.hasNote,
+      };
+    });
+
+  return { cells, hasFullRConfig };
+}
+
 export async function populateInstructionsSheet(): Promise<void> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();

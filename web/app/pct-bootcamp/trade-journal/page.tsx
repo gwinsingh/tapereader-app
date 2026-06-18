@@ -5,6 +5,7 @@ import TradePreview from "@/components/trade-journal/TradePreview";
 import AggregateStats from "@/components/trade-journal/AggregateStats";
 import HowToUse from "@/components/trade-journal/HowToUse";
 import ProfitabilityAnalysis from "@/components/trade-journal/ProfitabilityAnalysis";
+import TradingCalendar from "@/components/trade-journal/TradingCalendar";
 
 interface TradeRow {
   index: number;
@@ -728,6 +729,16 @@ export default function TradeJournalPage() {
       )}
 
       {sheetStats && <AggregateStats stats={sheetStats.stats} />}
+
+      {getActiveTabName() && (
+        <div
+          className="rounded-lg border p-4 space-y-3"
+          style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)" }}
+        >
+          <h2 className="text-lg font-bold">Calendar</h2>
+          <TradingCalendar tabName={getActiveTabName()!} />
+        </div>
+      )}
 
       {getActiveTabName() && (
         <ProfitabilityAnalysis

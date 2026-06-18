@@ -1,0 +1,412 @@
+"use client";
+
+import { useState, useEffect, useMemo, useCallback } from "react";
+
+// --- Types ---
+
+interface DailyCalendarCell {
+  date: string;
+  pnl: number;
+  realizedR: number;
+  standardR: number | null;
+  trades: number;
+  wins: number;
+  losses: number;
+  avgRisk: number | null;
+  fullR: number | null;
+  hasNote: boolean;
+}
+
+interface CalendarData {
+  cells: DailyCalendarCell[];
+  hasFullRConfig: boolean;
+}
+
+type Unit = "standardR" | "realizedR" | "dollar";
+
+const GREEN = "#48bb78";
+const RED = "#f56565";
+
+const UNIT_LABELS: Record<Unit, string> = {
+  standardR: "R (Standard)",
+  realizedR: "Realized R",
+  dollar: "$",
+};
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// --- Helpers ---
+
+function parseDate(s: string): { y: number; m: number; d: number } {
+  const [y, m, d] = s.split("-").map(Number);
+  return { y, m, d };
+}
+
+function dowMonStart(y: number, m: number, d: number): number {
+  // 0 = Mon ... 6 = Sun
+  const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sun..6=Sat
+  return (js + 6) % 7;
+}
+
+function valueFor(cell: DailyCalendarCell, unit: Unit): number | null {
+  if (unit === "standardR") return cell.standardR;
+  if (unit === "realizedR") return cell.realizedR;
+  return cell.pnl;
+}
+
+function fmtValue(val: number | null, unit: Unit): string {
+  if (val === null) return "—";
+  const sign = val > 0 ? "+" : val < 0 ? "−" : "";
+  if (unit === "dollar") return `${sign}$${Math.abs(val).toFixed(2)}`;
+  return `${sign}${Math.abs(val).toFixed(1)}R`;
+}
+
+function colorFor(val: number | null): string {
+  if (val === null || val === 0) return "var(--color-muted)";
+  return val > 0 ? GREEN : RED;
+}
+
+// --- Main Component ---
+
+export default function TradingCalendar({ tabName }: { tabName: string }) {
+  const [data, setData] = useState<CalendarData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [unit, setUnit] = useState<Unit>("standardR");
+  const [monthCursor, setMonthCursor] = useState<{ y: number; m: number } | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/trade-journal/calendar?tab=${encodeURIComponent(tabName)}`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Failed to load calendar");
+        setData(json as CalendarData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [tabName]);
+
+  // Default the unit toggle away from Standard R if there's no Full R config
+  useEffect(() => {
+    if (data && !data.hasFullRConfig && unit === "standardR") setUnit("realizedR");
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Index cells by date + figure out the data's month range
+  const { byDate, months } = useMemo(() => {
+    const map = new Map<string, DailyCalendarCell>();
+    const monthSet = new Set<string>();
+    for (const c of data?.cells || []) {
+      map.set(c.date, c);
+      const { y, m } = parseDate(c.date);
+      monthSet.add(`${y}-${String(m).padStart(2, "0")}`);
+    }
+    const monthList = [...monthSet].sort();
+    return { byDate: map, months: monthList };
+  }, [data]);
+
+  // Default cursor to the latest month with data
+  useEffect(() => {
+    if (!monthCursor && months.length > 0) {
+      const last = months[months.length - 1];
+      const [y, m] = last.split("-").map(Number);
+      setMonthCursor({ y, m });
+    }
+  }, [months, monthCursor]);
+
+  const canPrev = useMemo(() => {
+    if (!monthCursor || months.length === 0) return false;
+    return `${monthCursor.y}-${String(monthCursor.m).padStart(2, "0")}` > months[0];
+  }, [monthCursor, months]);
+
+  const canNext = useMemo(() => {
+    if (!monthCursor || months.length === 0) return false;
+    return `${monthCursor.y}-${String(monthCursor.m).padStart(2, "0")}` < months[months.length - 1];
+  }, [monthCursor, months]);
+
+  const step = useCallback((dir: -1 | 1) => {
+    setMonthCursor((c) => {
+      if (!c) return c;
+      let m = c.m + dir;
+      let y = c.y;
+      if (m < 1) { m = 12; y -= 1; }
+      if (m > 12) { m = 1; y += 1; }
+      return { y, m };
+    });
+  }, []);
+
+  // Build the week rows for the active month
+  const weeks = useMemo(() => {
+    if (!monthCursor) return [];
+    const { y, m } = monthCursor;
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const lead = dowMonStart(y, m, 1);
+
+    const slots: (DailyCalendarCell | null | undefined)[] = [];
+    for (let i = 0; i < lead; i++) slots.push(undefined); // padding before month start
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      slots.push(byDate.get(ds) ?? null);
+    }
+    while (slots.length % 7 !== 0) slots.push(undefined);
+
+    const rows: (DailyCalendarCell | null | undefined)[][] = [];
+    for (let i = 0; i < slots.length; i += 7) rows.push(slots.slice(i, i + 7));
+    return rows;
+  }, [monthCursor, byDate]);
+
+  // Monthly aggregate + intensity scaling
+  const monthCells = useMemo(() => {
+    if (!monthCursor) return [];
+    const prefix = `${monthCursor.y}-${String(monthCursor.m).padStart(2, "0")}`;
+    return (data?.cells || []).filter((c) => c.date.startsWith(prefix));
+  }, [data, monthCursor]);
+
+  const maxAbs = useMemo(() => {
+    let mx = 0;
+    for (const c of monthCells) {
+      const v = valueFor(c, unit);
+      if (v !== null) mx = Math.max(mx, Math.abs(v));
+    }
+    return mx || 1;
+  }, [monthCells, unit]);
+
+  const monthSummary = useMemo(() => {
+    let pnl = 0, realizedR = 0, standardR = 0, hasStd = false, wins = 0, losses = 0, days = 0;
+    let best: DailyCalendarCell | null = null, worst: DailyCalendarCell | null = null;
+    for (const c of monthCells) {
+      pnl += c.pnl; realizedR += c.realizedR;
+      if (c.standardR !== null) { standardR += c.standardR; hasStd = true; }
+      wins += c.wins; losses += c.losses; days += 1;
+      const v = valueFor(c, unit);
+      if (v !== null) {
+        if (best === null || v > (valueFor(best, unit) ?? -Infinity)) best = c;
+        if (worst === null || v < (valueFor(worst, unit) ?? Infinity)) worst = c;
+      }
+    }
+    const total = unit === "dollar" ? pnl : unit === "realizedR" ? realizedR : (hasStd ? standardR : null);
+    const wr = wins + losses > 0 ? (wins / (wins + losses)) * 100 : null;
+    return { total, days, wr, best, worst, pnl };
+  }, [monthCells, unit]);
+
+  if (loading) {
+    return <div className="py-12 text-center text-sm" style={{ color: "var(--color-muted)" }}>Loading calendar...</div>;
+  }
+  if (error) {
+    return <div className="rounded border px-4 py-3 text-sm" style={{ borderColor: RED, color: RED }}>{error}</div>;
+  }
+  if (!data || data.cells.length === 0) {
+    return <div className="py-8 text-center text-sm" style={{ color: "var(--color-muted)" }}>No trades to display on the calendar yet.</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => step(-1)}
+            disabled={!canPrev}
+            className="rounded border px-2.5 py-1 text-sm disabled:opacity-30"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
+          >
+            &laquo;
+          </button>
+          <span className="text-sm font-semibold min-w-[140px] text-center">
+            {monthCursor ? `${MONTH_NAMES[monthCursor.m - 1]} ${monthCursor.y}` : ""}
+          </span>
+          <button
+            onClick={() => step(1)}
+            disabled={!canNext}
+            className="rounded border px-2.5 py-1 text-sm disabled:opacity-30"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
+          >
+            &raquo;
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1">
+          {(["standardR", "realizedR", "dollar"] as Unit[]).map((u) => {
+            const disabled = u === "standardR" && !data.hasFullRConfig;
+            return (
+              <button
+                key={u}
+                onClick={() => !disabled && setUnit(u)}
+                disabled={disabled}
+                title={disabled ? "Set a Full R baseline in the Calendar Config tab to enable this view" : undefined}
+                className="rounded border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-30"
+                style={{
+                  borderColor: unit === u ? "var(--color-accent)" : "var(--color-border)",
+                  backgroundColor: unit === u ? "var(--color-accent)" : "transparent",
+                  color: unit === u ? "var(--color-bg)" : "var(--color-text)",
+                }}
+              >
+                {UNIT_LABELS[u]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Monthly summary */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border px-4 py-2.5" style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}>
+        <SummaryStat label="Month" value={fmtValue(monthSummary.total, unit)} color={colorFor(monthSummary.total)} />
+        <SummaryStat label="Days Traded" value={String(monthSummary.days)} />
+        <SummaryStat label="Win Rate" value={monthSummary.wr === null ? "—" : `${monthSummary.wr.toFixed(1)}%`} />
+        <SummaryStat label="Best Day" value={monthSummary.best ? fmtValue(valueFor(monthSummary.best, unit), unit) : "—"} color={GREEN} />
+        <SummaryStat label="Worst Day" value={monthSummary.worst ? fmtValue(valueFor(monthSummary.worst, unit), unit) : "—"} color={RED} />
+      </div>
+
+      {/* Grid header */}
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(7, 1fr) 1.1fr" }}>
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="text-center text-xs font-semibold uppercase tracking-wider pb-1" style={{ color: "var(--color-muted)" }}>
+            {d}
+          </div>
+        ))}
+        <div className="text-center text-xs font-semibold uppercase tracking-wider pb-1" style={{ color: "var(--color-muted)" }}>
+          Week
+        </div>
+
+        {/* Week rows */}
+        {weeks.map((week, wi) => {
+          // weekly aggregate
+          let wPnl = 0, wReal = 0, wStd = 0, wHasStd = false, wWins = 0, wLoss = 0, wDays = 0;
+          for (const c of week) {
+            if (!c) continue;
+            wPnl += c.pnl; wReal += c.realizedR;
+            if (c.standardR !== null) { wStd += c.standardR; wHasStd = true; }
+            wWins += c.wins; wLoss += c.losses; wDays += 1;
+          }
+          const wTotal = unit === "dollar" ? wPnl : unit === "realizedR" ? wReal : (wHasStd ? wStd : null);
+
+          return (
+            <WeekRow
+              key={wi}
+              week={week}
+              unit={unit}
+              maxAbs={maxAbs}
+              weekTotal={wTotal}
+              weekDays={wDays}
+            />
+          );
+        })}
+      </div>
+
+      {/* Legend / context */}
+      <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+        {unit === "standardR" && "Standard R = daily $ P&L ÷ your Full R target for that date. Half-size days show proportionally smaller R. "}
+        {unit === "realizedR" && "Realized R = each trade scored against its own risk. Reveals when position sizing rescued or sank a day. "}
+        {unit === "dollar" && "Raw dollar P&L per day. "}
+        A <span style={{ color: "var(--color-accent)" }}>●</span> dot marks days with a note or EOD screenshot; a size pill (e.g. <span className="font-mono">50%</span>) flags days traded below full risk.
+      </p>
+    </div>
+  );
+}
+
+function SummaryStat({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-xs" style={{ color: "var(--color-muted)" }}>{label}</span>
+      <span className="text-sm font-semibold font-mono" style={{ color: color || "var(--color-text)" }}>{value}</span>
+    </div>
+  );
+}
+
+function WeekRow({
+  week, unit, maxAbs, weekTotal, weekDays,
+}: {
+  week: (DailyCalendarCell | null | undefined)[];
+  unit: Unit;
+  maxAbs: number;
+  weekTotal: number | null;
+  weekDays: number;
+}) {
+  return (
+    <>
+      {week.map((cell, di) => (
+        <DayCell key={di} cell={cell} unit={unit} maxAbs={maxAbs} />
+      ))}
+      <div
+        className="rounded-lg border px-2 py-2 flex flex-col justify-center"
+        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
+      >
+        {weekDays > 0 ? (
+          <>
+            <span className="text-sm font-semibold font-mono leading-tight" style={{ color: colorFor(weekTotal) }}>
+              {fmtValue(weekTotal, unit)}
+            </span>
+            <span className="text-xs" style={{ color: "var(--color-muted)" }}>{weekDays}d</span>
+          </>
+        ) : (
+          <span className="text-xs" style={{ color: "var(--color-border)" }}>—</span>
+        )}
+      </div>
+    </>
+  );
+}
+
+function DayCell({ cell, unit, maxAbs }: { cell: DailyCalendarCell | null | undefined; unit: Unit; maxAbs: number }) {
+  // undefined = padding outside the month; null = in-month day with no trades
+  if (cell === undefined) {
+    return <div className="rounded-lg" style={{ minHeight: "76px" }} />;
+  }
+
+  const dayNum = cell ? parseDate(cell.date).d : null;
+
+  if (cell === null) {
+    return (
+      <div className="rounded-lg border" style={{ minHeight: "76px", borderColor: "var(--color-border)", opacity: 0.4 }} />
+    );
+  }
+
+  const val = valueFor(cell, unit);
+  const positive = val !== null && val > 0;
+  const negative = val !== null && val < 0;
+  const intensity = val === null ? 0 : Math.min(0.4, 0.1 + (Math.abs(val) / maxAbs) * 0.3);
+  const bg = positive
+    ? `color-mix(in srgb, ${GREEN} ${intensity * 100}%, var(--color-panel))`
+    : negative
+      ? `color-mix(in srgb, ${RED} ${intensity * 100}%, var(--color-panel))`
+      : "var(--color-panel)";
+  const border = positive ? GREEN : negative ? RED : "var(--color-border)";
+
+  // size pill: avg deployed risk vs full R target
+  const sizeFrac = cell.avgRisk !== null && cell.fullR ? cell.avgRisk / cell.fullR : null;
+  const showSize = sizeFrac !== null && sizeFrac < 0.95;
+
+  return (
+    <div
+      className="rounded-lg border px-1.5 py-1.5 flex flex-col"
+      style={{ minHeight: "76px", borderColor: `color-mix(in srgb, ${border} 45%, var(--color-border))`, backgroundColor: bg }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium" style={{ color: "var(--color-muted)" }}>{dayNum}</span>
+        <div className="flex items-center gap-1">
+          {showSize && (
+            <span className="text-[10px] font-mono rounded px-1" style={{ backgroundColor: "var(--color-border)", color: "var(--color-text)" }}>
+              {Math.round(sizeFrac! * 100)}%
+            </span>
+          )}
+          {cell.hasNote && <span style={{ color: "var(--color-accent)", fontSize: "8px" }}>●</span>}
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center">
+        <span className="text-sm font-bold font-mono leading-tight" style={{ color: colorFor(val) }}>
+          {fmtValue(val, unit)}
+        </span>
+        <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>
+          {cell.trades}t · {cell.wins}/{cell.losses}
+        </span>
+      </div>
+    </div>
+  );
+}

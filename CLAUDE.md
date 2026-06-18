@@ -77,6 +77,7 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 - **Formatting**: frozen header, conditional colors (green/red for P&L, Side, Process, 1R-6R), currency formats, dropdowns for Setup and Process Followed.
 - **Stats**: computed server-side from all sheet rows — overall stats, hourly breakdown (4 time blocks), setup breakdown.
 - **Profitability Analysis**: client-side simulation of partial-taking strategies using per-trade R and Max R Before Stop data (order-aware). API endpoint: `/api/trade-journal/analysis`.
+- **Trading Calendar**: monthly calendar of daily performance with three unit modes — **R (Standard)** = daily $ P&L ÷ Full R target for that date (default; conviction-aware so half-size days show smaller R), **Realized R** = sum of `P&L (R)` (each trade vs its own risk; exposes when sizing rescued/sank a day), and **$**. The Full R target comes from the `Calendar Config` sheet tab (`Account | Effective Date | Full R($)`), applied by latest effective date ≤ trade date — so changing the risk unit over time (e.g. $28 → $48) doesn't retroactively rescale history. API endpoint: `/api/trade-journal/calendar`.
 
 ### Google Drive integration (Screenshot Review)
 - **Auth**: Shares service account OAuth2 token with Sheets (scope: `drive.readonly`).
@@ -129,6 +130,8 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 | `web/app/api/trade-journal/tags/route.ts` | PATCH endpoint to update trade tags |
 | `web/app/pct-bootcamp/trade-journal/screenshots/page.tsx` | Screenshot Review page |
 | `web/components/trade-journal/ScreenshotReview.tsx` | Screenshot review UI with filters, carousel, tags, lightbox |
+| `web/components/trade-journal/TradingCalendar.tsx` | Monthly calendar view (Standard R / Realized R / $ toggle) |
+| `web/app/api/trade-journal/calendar/route.ts` | GET endpoint for per-day calendar cells |
 | `web/components/HeaderVisibility.tsx` | Hides main app header on `/pct-bootcamp` routes |
 | `apps/4-week-challenge/src/App.jsx` | 4-Week Challenge React app (single-file) |
 | `apps/4-week-challenge/vite.config.js` | Vite config, builds to `web/public/4-week-challenge/` |

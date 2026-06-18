@@ -26,6 +26,15 @@ Key functions:
 - `getTradesForReview()` — returns trades with tags for screenshot review page
 - `updateTradeTags()` — writes tags to a specific trade row
 - `populateInstructionsSheet()` — one-shot: writes column reference to Instructions tab
+- `getDailyCalendar()` — per-day calendar cells (P&L, Realized R, Standard R, trades, W/L, avg risk, note flag)
+
+## Trading Calendar
+Monthly calendar view of daily performance, three unit modes:
+- **R (Standard)** — `daily $ P&L ÷ Full R target for that date`. Default. Conviction-aware: half-size days show proportionally smaller R.
+- **Realized R** — sum of the `P&L (R)` column (each trade vs its own risk). Reveals when position sizing rescued/sank a day (a day can be green in $ but red in Realized R).
+- **$** — raw dollar P&L.
+
+The **Full R target** is read from a `Calendar Config` tab: columns `Account | Effective Date | Full R($)`. For each trade, the latest entry whose Effective Date ≤ the trade's date (matched by account/tab prefix) is used. This handles risk-unit changes over time (e.g. $28 → $48) without retroactively rescaling history. If no config row matches an account, the Standard R view is disabled and falls back to Realized R.
 
 ## Google Drive API (edge-compatible)
 In `google-drive.ts`. Lists screenshot files from two configurable Google Drive folders (entry + EOD), parses filenames to extract date/symbol, builds an index for matching with trades.
