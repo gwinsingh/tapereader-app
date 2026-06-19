@@ -26,7 +26,9 @@ Key functions:
 - `getTradesForReview()` — returns trades with tags for screenshot review page
 - `updateTradeTags()` — writes tags to a specific trade row
 - `populateInstructionsSheet()` — one-shot: writes column reference to Instructions tab
-- `getDailyCalendar()` — per-day calendar cells (P&L, Realized R, Standard R, trades, W/L, avg risk, note flag)
+- `getDailyCalendar()` — per-day calendar cells (P&L, Realized R, Standard R, trades, W/L, avg risk, note flag) + a per-day `tradeList` for the calendar drill-down
+- `applyRowFilter()` — shared row filter used by `computeStats`, `extractTradesForAnalysis`, and `getDailyCalendar` so all three sections filter identically (no drift)
+- `parseStatsFilter()` — parses a `StatsFilter` from URL query params; shared by the stats, analysis, and calendar routes (`includeDates: false` for the calendar, which uses month nav for time)
 
 ## Trading Calendar
 Monthly calendar view of daily performance, three unit modes:
@@ -35,6 +37,10 @@ Monthly calendar view of daily performance, three unit modes:
 - **$** — raw dollar P&L.
 
 The **Full R target** is read from a `Calendar Config` tab: columns `Account | Effective Date | Full R($)`. For each trade, the latest entry whose Effective Date ≤ the trade's date (matched by account/tab prefix) is used. This handles risk-unit changes over time (e.g. $28 → $48) without retroactively rescaling history. If no config row matches an account, the Standard R view is disabled and falls back to Realized R.
+
+**Day drill-down**: clicking a calendar day expands a table of that day's trades (from the cell's `tradeList`). Columns are all sortable (Time, Symbol, Side, Setup, Conv, Risk, P&L, Realized R, Std R — numeric-aware, nulls last). A "Shots" column shows Entry/EOD screenshots (matched by `date|symbol` via the screenshots index) and opens a full-screen lightbox gallery. The screenshot index is lazily fetched once on first drill-down, cached, and fails soft. Constraint: shots key on `date|symbol`, so multiple same-symbol trades on a day share one screenshot set.
+
+**Shared filters**: the page-level filter bar (Process Followed, date range, Setup, Conviction, Side, Symbol, Catalyst, Tags) drives Performance Overview, the Calendar, and Profitability Analysis together via `applyRowFilter`/`parseStatsFilter`. The calendar ignores the date range (it uses month navigation).
 
 ## Google Drive API (edge-compatible)
 In `google-drive.ts`. Lists screenshot files from two configurable Google Drive folders (entry + EOD), parses filenames to extract date/symbol, builds an index for matching with trades.
