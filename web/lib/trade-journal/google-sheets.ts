@@ -1114,6 +1114,83 @@ export interface StatsFilter {
   processFollowed?: boolean;
   startDate?: string;
   endDate?: string;
+  setup?: string;
+  conviction?: string;
+  side?: string;
+  symbol?: string;
+  catalyst?: string;
+  tags?: string;
+}
+
+// Shared row filter used by computeStats, extractTradesForAnalysis, and
+// getDailyCalendar so all three sections filter identically (no drift).
+// Exact match: Process/Setup/Conviction/Side/Symbol. "Contains" (comma-separated
+// multi-value): Catalyst/Tags. Date range: Date.
+function applyRowFilter(dataRows: string[][], colMap: ColMap, filter?: StatsFilter): string[][] {
+  if (!filter) return dataRows;
+  const dateIdx = cm(colMap, "Date");
+  const processIdx = cm(colMap, "Process Followed?");
+  const setupIdx = cm(colMap, "Setup");
+  const convictionIdx = cm(colMap, "Conviction (1-3)");
+  const sideIdx = cm(colMap, "Side");
+  const symbolIdx = cm(colMap, "Symbol");
+  const catalystIdx = cm(colMap, "Catalyst");
+  const tagsIdx = cm(colMap, "Tags");
+
+  let out = dataRows;
+  if (filter.processFollowed && processIdx >= 0) {
+    out = out.filter((r) => (r[processIdx] || "").trim() === "Yes");
+  }
+  if (filter.startDate && dateIdx >= 0) {
+    out = out.filter((r) => (r[dateIdx] || "") >= filter.startDate!);
+  }
+  if (filter.endDate && dateIdx >= 0) {
+    out = out.filter((r) => (r[dateIdx] || "") <= filter.endDate!);
+  }
+  if (filter.setup && setupIdx >= 0) {
+    out = out.filter((r) => (r[setupIdx] || "").trim() === filter.setup);
+  }
+  if (filter.conviction && convictionIdx >= 0) {
+    out = out.filter((r) => (r[convictionIdx] || "").trim() === filter.conviction);
+  }
+  if (filter.side && sideIdx >= 0) {
+    out = out.filter((r) => (r[sideIdx] || "").trim() === filter.side);
+  }
+  if (filter.symbol && symbolIdx >= 0) {
+    const sym = filter.symbol.trim().toUpperCase();
+    out = out.filter((r) => (r[symbolIdx] || "").trim().toUpperCase() === sym);
+  }
+  if (filter.catalyst && catalystIdx >= 0) {
+    const c = filter.catalyst.toLowerCase();
+    out = out.filter((r) => (r[catalystIdx] || "").toLowerCase().includes(c));
+  }
+  if (filter.tags && tagsIdx >= 0) {
+    const t = filter.tags.toLowerCase();
+    out = out.filter((r) => (r[tagsIdx] || "").toLowerCase().includes(t));
+  }
+  return out;
+}
+
+// Parses a StatsFilter from URL query params. Shared by the stats, analysis,
+// and calendar routes. `includeDates: false` for the calendar (it uses month
+// navigation for time, so start/end date are ignored there).
+export function parseStatsFilter(
+  searchParams: URLSearchParams,
+  opts?: { includeDates?: boolean }
+): StatsFilter {
+  const filter: StatsFilter = {};
+  if (searchParams.get("processFollowed") === "true") filter.processFollowed = true;
+  if (opts?.includeDates !== false) {
+    if (searchParams.get("startDate")) filter.startDate = searchParams.get("startDate")!;
+    if (searchParams.get("endDate")) filter.endDate = searchParams.get("endDate")!;
+  }
+  if (searchParams.get("setup")) filter.setup = searchParams.get("setup")!;
+  if (searchParams.get("conviction")) filter.conviction = searchParams.get("conviction")!;
+  if (searchParams.get("side")) filter.side = searchParams.get("side")!;
+  if (searchParams.get("symbol")) filter.symbol = searchParams.get("symbol")!;
+  if (searchParams.get("catalyst")) filter.catalyst = searchParams.get("catalyst")!;
+  if (searchParams.get("tags")) filter.tags = searchParams.get("tags")!;
+  return filter;
 }
 
 const HOUR_BLOCKS: { label: string; startMin: number; endMin: number }[] = [
@@ -1186,7 +1263,6 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
   const colMap = buildColMap(rows[0]);
   const pnlIdx = cm(colMap, "P&L");
   const dateIdx = cm(colMap, "Date");
-  const processIdx = cm(colMap, "Process Followed?");
   const durationIdx = cm(colMap, "Duration (mins)");
   const entryTimeIdx = cm(colMap, "Entry Time");
   const setupIdx = cm(colMap, "Setup");
@@ -1194,16 +1270,7 @@ export function computeStats(rows: string[][], filter?: StatsFilter): AggregateS
   const catalystIdx = cm(colMap, "Catalyst");
 
   let dataRows = rows.slice(1).filter((r) => pnlIdx >= 0 && r.length > pnlIdx && r[pnlIdx] !== "");
-
-  if (filter?.processFollowed && processIdx >= 0) {
-    dataRows = dataRows.filter((r) => (r[processIdx] || "").trim() === "Yes");
-  }
-  if (filter?.startDate && dateIdx >= 0) {
-    dataRows = dataRows.filter((r) => (r[dateIdx] || "") >= filter.startDate!);
-  }
-  if (filter?.endDate && dateIdx >= 0) {
-    dataRows = dataRows.filter((r) => (r[dateIdx] || "") <= filter.endDate!);
-  }
+  dataRows = applyRowFilter(dataRows, colMap, filter);
 
   const parsed: ParsedRow[] = dataRows.map((r) => ({
     pnl: parseFloat(String(pnlIdx >= 0 ? r[pnlIdx] : "0").replace(/[$,]/g, "")) || 0,
@@ -1342,20 +1409,10 @@ export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter)
   const riskIdx = cm(colMap, "R (Risk)");
   const maxRIdx = cm(colMap, "Max R Before Stop");
   const setupIdx = cm(colMap, "Setup");
-  const processIdx = cm(colMap, "Process Followed?");
   const entryTimeIdx = cm(colMap, "Entry Time");
 
   let dataRows = rows.slice(1).filter((r) => pnlIdx >= 0 && r.length > pnlIdx && r[pnlIdx] !== "");
-
-  if (filter?.processFollowed && processIdx >= 0) {
-    dataRows = dataRows.filter((r) => (r[processIdx] || "").trim() === "Yes");
-  }
-  if (filter?.startDate && dateIdx >= 0) {
-    dataRows = dataRows.filter((r) => (r[dateIdx] || "") >= filter.startDate!);
-  }
-  if (filter?.endDate && dateIdx >= 0) {
-    dataRows = dataRows.filter((r) => (r[dateIdx] || "") <= filter.endDate!);
-  }
+  dataRows = applyRowFilter(dataRows, colMap, filter);
 
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, "")) || 0;
 
@@ -1543,6 +1600,19 @@ function fullRForDate(schedule: FullRSchedule, tabName: string, date: string): n
   return applicable ?? entries[0].fullR;
 }
 
+export interface DailyTrade {
+  symbol: string;
+  setup: string;
+  side: string;
+  entryTime: string;
+  pnl: number;
+  realizedR: number | null; // P&L vs its own risk
+  standardR: number | null; // P&L ÷ Full R target for the date
+  risk: number | null; // deployed $ risk
+  conviction: string;
+  hasNote: boolean;
+}
+
 export interface DailyCalendarCell {
   date: string; // YYYY-MM-DD
   pnl: number;
@@ -1554,6 +1624,7 @@ export interface DailyCalendarCell {
   avgRisk: number | null; // average deployed $ risk across the day's trades
   fullR: number | null; // Full R target in effect that date
   hasNote: boolean;
+  tradeList: DailyTrade[]; // per-trade detail for drill-down
 }
 
 export interface CalendarData {
@@ -1561,7 +1632,7 @@ export interface CalendarData {
   hasFullRConfig: boolean;
 }
 
-export async function getDailyCalendar(tabName: string): Promise<CalendarData> {
+export async function getDailyCalendar(tabName: string, filter?: StatsFilter): Promise<CalendarData> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
   const meta = await sheetsGet(token, spreadsheetId);
@@ -1581,6 +1652,11 @@ export async function getDailyCalendar(tabName: string): Promise<CalendarData> {
   const riskIdx = cm(colMap, "R (Risk)");
   const notesIdx = cm(colMap, "Notes");
   const eodIdx = cm(colMap, "EOD Screenshot");
+  const symbolIdx = cm(colMap, "Symbol");
+  const setupIdx = cm(colMap, "Setup");
+  const sideIdx = cm(colMap, "Side");
+  const entryTimeIdx = cm(colMap, "Entry Time");
+  const convictionIdx = cm(colMap, "Conviction (1-3)");
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, ""));
 
   const hasFullRConfig = fullRForDate(schedule, tabName, "9999-12-31") !== null;
@@ -1594,18 +1670,20 @@ export async function getDailyCalendar(tabName: string): Promise<CalendarData> {
     riskSum: number;
     riskCount: number;
     hasNote: boolean;
+    rawTrades: { pnl: number; realizedR: number | null; risk: number | null; symbol: string; setup: string; side: string; entryTime: string; conviction: string; hasNote: boolean }[];
   }
   const byDate = new Map<string, Acc>();
 
-  for (const r of rows.slice(1)) {
+  let dataRows = rows.slice(1).filter((r) => pnlIdx >= 0 && r.length > pnlIdx && r[pnlIdx] !== undefined && r[pnlIdx] !== "");
+  dataRows = applyRowFilter(dataRows, colMap, filter);
+
+  for (const r of dataRows) {
     const date = (dateIdx >= 0 ? r[dateIdx] : "") || "";
     if (!date) continue;
-    const pnlRaw = pnlIdx >= 0 ? r[pnlIdx] : "";
-    if (pnlRaw === undefined || pnlRaw === "") continue; // skip rows without a closed P&L
-    const pnl = parseNum(pnlRaw) || 0;
+    const pnl = parseNum(r[pnlIdx]) || 0;
 
     if (!byDate.has(date)) {
-      byDate.set(date, { pnl: 0, realizedR: 0, trades: 0, wins: 0, losses: 0, riskSum: 0, riskCount: 0, hasNote: false });
+      byDate.set(date, { pnl: 0, realizedR: 0, trades: 0, wins: 0, losses: 0, riskSum: 0, riskCount: 0, hasNote: false, rawTrades: [] });
     }
     const a = byDate.get(date)!;
     a.pnl += pnl;
@@ -1621,7 +1699,20 @@ export async function getDailyCalendar(tabName: string): Promise<CalendarData> {
 
     const notes = notesIdx >= 0 ? (r[notesIdx] || "").trim() : "";
     const eod = eodIdx >= 0 ? (r[eodIdx] || "").trim() : "";
-    if (notes || eod) a.hasNote = true;
+    const rowHasNote = !!(notes || eod);
+    if (rowHasNote) a.hasNote = true;
+
+    a.rawTrades.push({
+      pnl: Math.round(pnl * 100) / 100,
+      realizedR: !isNaN(pnlR) ? pnlR : (!isNaN(risk) && risk > 0 ? Math.round((pnl / risk) * 100) / 100 : null),
+      risk: !isNaN(risk) && risk > 0 ? risk : null,
+      symbol: symbolIdx >= 0 ? (r[symbolIdx] || "").trim() : "",
+      setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
+      side: sideIdx >= 0 ? (r[sideIdx] || "").trim() : "",
+      entryTime: entryTimeIdx >= 0 ? (r[entryTimeIdx] || "").trim() : "",
+      conviction: convictionIdx >= 0 ? (r[convictionIdx] || "").trim() : "",
+      hasNote: rowHasNote,
+    });
   }
 
   const cells: DailyCalendarCell[] = [...byDate.entries()]
@@ -1639,6 +1730,20 @@ export async function getDailyCalendar(tabName: string): Promise<CalendarData> {
         avgRisk: a.riskCount > 0 ? Math.round((a.riskSum / a.riskCount) * 100) / 100 : null,
         fullR,
         hasNote: a.hasNote,
+        tradeList: a.rawTrades
+          .sort((x, y) => x.entryTime.localeCompare(y.entryTime))
+          .map((t) => ({
+            symbol: t.symbol,
+            setup: t.setup,
+            side: t.side,
+            entryTime: t.entryTime,
+            pnl: t.pnl,
+            realizedR: t.realizedR,
+            standardR: fullR ? Math.round((t.pnl / fullR) * 100) / 100 : null,
+            risk: t.risk,
+            conviction: t.conviction,
+            hasNote: t.hasNote,
+          })),
       };
     });
 

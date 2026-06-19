@@ -4,6 +4,19 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 
 // --- Types ---
 
+interface DailyTrade {
+  symbol: string;
+  setup: string;
+  side: string;
+  entryTime: string;
+  pnl: number;
+  realizedR: number | null;
+  standardR: number | null;
+  risk: number | null;
+  conviction: string;
+  hasNote: boolean;
+}
+
 interface DailyCalendarCell {
   date: string;
   pnl: number;
@@ -15,6 +28,7 @@ interface DailyCalendarCell {
   avgRisk: number | null;
   fullR: number | null;
   hasNote: boolean;
+  tradeList: DailyTrade[];
 }
 
 interface CalendarData {
@@ -69,20 +83,21 @@ function colorFor(val: number | null): string {
 
 // --- Main Component ---
 
-export default function TradingCalendar({ tabName }: { tabName: string }) {
+export default function TradingCalendar({ tabName, filterParams = "" }: { tabName: string; filterParams?: string }) {
   const [data, setData] = useState<CalendarData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [unit, setUnit] = useState<Unit>("standardR");
   const [monthCursor, setMonthCursor] = useState<{ y: number; m: number } | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/trade-journal/calendar?tab=${encodeURIComponent(tabName)}`);
+        const res = await fetch(`/api/trade-journal/calendar?tab=${encodeURIComponent(tabName)}${filterParams}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Failed to load calendar");
         setData(json as CalendarData);
@@ -93,7 +108,10 @@ export default function TradingCalendar({ tabName }: { tabName: string }) {
       }
     }
     load();
-  }, [tabName]);
+  }, [tabName, filterParams]);
+
+  // Clear any open drill-down when the data set changes
+  useEffect(() => { setSelectedDate(null); }, [filterParams, tabName]);
 
   // Default the unit toggle away from Standard R if there's no Full R config
   useEffect(() => {
@@ -197,6 +215,8 @@ export default function TradingCalendar({ tabName }: { tabName: string }) {
     return { total, days, wr, best, worst, pnl };
   }, [monthCells, unit]);
 
+  const selectedCell = selectedDate ? byDate.get(selectedDate) ?? null : null;
+
   if (loading) {
     return <div className="py-12 text-center text-sm" style={{ color: "var(--color-muted)" }}>Loading calendar...</div>;
   }
@@ -296,17 +316,28 @@ export default function TradingCalendar({ tabName }: { tabName: string }) {
               maxAbs={maxAbs}
               weekTotal={wTotal}
               weekDays={wDays}
+              selectedDate={selectedDate}
+              onSelect={(d) => setSelectedDate((cur) => (cur === d ? null : d))}
             />
           );
         })}
       </div>
+
+      {/* Drill-down for the selected day */}
+      {selectedCell && (
+        <DayDrillDown
+          cell={selectedCell}
+          unit={unit}
+          onClose={() => setSelectedDate(null)}
+        />
+      )}
 
       {/* Legend / context */}
       <p className="text-xs" style={{ color: "var(--color-muted)" }}>
         {unit === "standardR" && "Standard R = daily $ P&L ÷ your Full R target for that date. Half-size days show proportionally smaller R. "}
         {unit === "realizedR" && "Realized R = each trade scored against its own risk. Reveals when position sizing rescued or sank a day. "}
         {unit === "dollar" && "Raw dollar P&L per day. "}
-        A <span style={{ color: "var(--color-accent)" }}>●</span> dot marks days with a note or EOD screenshot; a size pill (e.g. <span className="font-mono">50%</span>) flags days traded below full risk.
+        Click a day to see its trades. A <span style={{ color: "var(--color-accent)" }}>●</span> dot marks days with a note or EOD screenshot; the size pill (e.g. <span className="font-mono">50%</span>) shows avg risk vs full R.
       </p>
     </div>
   );
@@ -322,18 +353,20 @@ function SummaryStat({ label, value, color }: { label: string; value: string; co
 }
 
 function WeekRow({
-  week, unit, maxAbs, weekTotal, weekDays,
+  week, unit, maxAbs, weekTotal, weekDays, selectedDate, onSelect,
 }: {
   week: (DailyCalendarCell | null | undefined)[];
   unit: Unit;
   maxAbs: number;
   weekTotal: number | null;
   weekDays: number;
+  selectedDate: string | null;
+  onSelect: (date: string) => void;
 }) {
   return (
     <>
       {week.slice(0, 5).map((cell, di) => (
-        <DayCell key={di} cell={cell} unit={unit} maxAbs={maxAbs} />
+        <DayCell key={di} cell={cell} unit={unit} maxAbs={maxAbs} selectedDate={selectedDate} onSelect={onSelect} />
       ))}
       <div
         className="rounded-lg border px-2 py-2 flex flex-col justify-center"
@@ -354,7 +387,13 @@ function WeekRow({
   );
 }
 
-function DayCell({ cell, unit, maxAbs }: { cell: DailyCalendarCell | null | undefined; unit: Unit; maxAbs: number }) {
+function DayCell({ cell, unit, maxAbs, selectedDate, onSelect }: {
+  cell: DailyCalendarCell | null | undefined;
+  unit: Unit;
+  maxAbs: number;
+  selectedDate: string | null;
+  onSelect: (date: string) => void;
+}) {
   // undefined = padding outside the month; null = in-month day with no trades
   if (cell === undefined) {
     return <div className="rounded-lg" style={{ minHeight: "76px" }} />;
@@ -368,7 +407,8 @@ function DayCell({ cell, unit, maxAbs }: { cell: DailyCalendarCell | null | unde
     );
   }
 
-  const val = valueFor(cell, unit);
+  const cellData = cell; // narrowed (not null/undefined)
+  const val = valueFor(cellData, unit);
   const positive = val !== null && val > 0;
   const negative = val !== null && val < 0;
   const intensity = val === null ? 0 : Math.min(0.4, 0.1 + (Math.abs(val) / maxAbs) * 0.3);
@@ -378,15 +418,25 @@ function DayCell({ cell, unit, maxAbs }: { cell: DailyCalendarCell | null | unde
       ? `color-mix(in srgb, ${RED} ${intensity * 100}%, var(--color-panel))`
       : "var(--color-panel)";
   const border = positive ? GREEN : negative ? RED : "var(--color-border)";
+  const isSelected = selectedDate === cellData.date;
 
   // size pill: avg deployed risk vs full R target (shown on every traded day)
-  const sizeFrac = cell.avgRisk !== null && cell.fullR ? cell.avgRisk / cell.fullR : null;
+  const sizeFrac = cellData.avgRisk !== null && cellData.fullR ? cellData.avgRisk / cellData.fullR : null;
   const showSize = sizeFrac !== null;
 
   return (
     <div
-      className="rounded-lg border px-1.5 py-1.5 flex flex-col"
-      style={{ minHeight: "76px", borderColor: `color-mix(in srgb, ${border} 45%, var(--color-border))`, backgroundColor: bg }}
+      onClick={() => onSelect(cellData.date)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(cellData.date); } }}
+      className="rounded-lg border px-1.5 py-1.5 flex flex-col cursor-pointer transition-shadow hover:brightness-105"
+      style={{
+        minHeight: "76px",
+        borderColor: isSelected ? "var(--color-accent)" : `color-mix(in srgb, ${border} 45%, var(--color-border))`,
+        borderWidth: isSelected ? "2px" : "1px",
+        backgroundColor: bg,
+      }}
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: "var(--color-muted)" }}>{dayNum}</span>
@@ -406,6 +456,73 @@ function DayCell({ cell, unit, maxAbs }: { cell: DailyCalendarCell | null | unde
         <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>
           #{cell.trades} · {cell.wins}/{cell.losses}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function fmtR(val: number | null): string {
+  if (val === null) return "—";
+  const sign = val > 0 ? "+" : val < 0 ? "−" : "";
+  return `${sign}${Math.abs(val).toFixed(1)}R`;
+}
+
+function fmtDollar(val: number): string {
+  const sign = val > 0 ? "+" : val < 0 ? "−" : "";
+  return `${sign}$${Math.abs(val).toFixed(2)}`;
+}
+
+function DayDrillDown({ cell, unit, onClose }: { cell: DailyCalendarCell; unit: Unit; onClose: () => void }) {
+  const dayTotal = valueFor(cell, unit);
+  return (
+    <div className="rounded-lg border" style={{ borderColor: "var(--color-accent)", backgroundColor: "var(--color-panel)" }}>
+      <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--color-border)" }}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-semibold font-mono">{cell.date}</span>
+          <span className="text-xs" style={{ color: "var(--color-muted)" }}>
+            #{cell.trades} · {cell.wins}W/{cell.losses}L
+          </span>
+          <span className="text-sm font-semibold font-mono" style={{ color: colorFor(dayTotal) }}>
+            {fmtValue(dayTotal, unit)}
+          </span>
+          {cell.avgRisk !== null && cell.fullR && (
+            <span className="text-xs" style={{ color: "var(--color-muted)" }}>
+              avg risk ${cell.avgRisk} of ${cell.fullR} ({Math.round((cell.avgRisk / cell.fullR) * 100)}%)
+            </span>
+          )}
+        </div>
+        <button onClick={onClose} className="text-xs rounded px-2 py-0.5 hover:opacity-70" style={{ color: "var(--color-muted)" }}>
+          ✕ Close
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr style={{ color: "var(--color-muted)" }}>
+              {["Time", "Symbol", "Side", "Setup", "Conv", "Risk", "P&L", "Realized R", "Std R", ""].map((h) => (
+                <th key={h} className="text-left font-medium px-3 py-1.5 whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cell.tradeList.map((t, i) => (
+              <tr key={i} className="border-t" style={{ borderColor: "var(--color-border)" }}>
+                <td className="px-3 py-1.5 font-mono whitespace-nowrap" style={{ color: "var(--color-muted)" }}>{t.entryTime}</td>
+                <td className="px-3 py-1.5 font-semibold">{t.symbol}</td>
+                <td className="px-3 py-1.5">
+                  <span style={{ color: t.side === "Long" ? GREEN : t.side === "Short" ? RED : "var(--color-text)" }}>{t.side}</span>
+                </td>
+                <td className="px-3 py-1.5 whitespace-nowrap">{t.setup || "—"}</td>
+                <td className="px-3 py-1.5 text-center">{t.conviction || "—"}</td>
+                <td className="px-3 py-1.5 font-mono whitespace-nowrap">{t.risk !== null ? `$${t.risk}` : "—"}</td>
+                <td className="px-3 py-1.5 font-mono whitespace-nowrap" style={{ color: colorFor(t.pnl) }}>{fmtDollar(t.pnl)}</td>
+                <td className="px-3 py-1.5 font-mono whitespace-nowrap" style={{ color: colorFor(t.realizedR) }}>{fmtR(t.realizedR)}</td>
+                <td className="px-3 py-1.5 font-mono whitespace-nowrap" style={{ color: colorFor(t.standardR) }}>{fmtR(t.standardR)}</td>
+                <td className="px-3 py-1.5">{t.hasNote && <span style={{ color: "var(--color-accent)", fontSize: "8px" }}>●</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

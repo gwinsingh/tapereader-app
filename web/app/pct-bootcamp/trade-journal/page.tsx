@@ -77,6 +77,40 @@ interface EnrichmentProgress {
   done: boolean;
 }
 
+interface Filters {
+  processFollowed: boolean;
+  startDate: string;
+  endDate: string;
+  setup: string;
+  conviction: string;
+  side: string;
+  symbol: string;
+  catalyst: string;
+  tags: string;
+}
+
+const EMPTY_FILTERS: Filters = {
+  processFollowed: false,
+  startDate: "",
+  endDate: "",
+  setup: "",
+  conviction: "",
+  side: "",
+  symbol: "",
+  catalyst: "",
+  tags: "",
+};
+
+const SETUP_FILTER_OPTIONS = ["ORB", "ABCD", "BHOD", "BLOD", "VWAP Bounce", "Mean Reversion"];
+const CATALYST_FILTER_OPTIONS = [
+  "Earnings", "Upgrade/Downgrade", "FDA/Regulatory", "Sector Momentum",
+  "Gap Only", "Key Daily Level", "Day 2", "Pullback to DEMA", "Other",
+];
+const TAG_FILTER_OPTIONS = [
+  "clean entry", "extended entry", "chased", "FOMO", "added size", "perfect process",
+  "revenge trade", "oversize", "strong momentum", "gap>2xATR", "gap<2xATR",
+];
+
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Hg1g73D8l8EH0j65IQBJhSEHzp3Ot_ib-ZD9UcN3ucU/edit";
 const ENRICH_DELAY_MS = 65000; // 65s between symbols — Polygon free tier is 5 req/min, each symbol uses ~5 requests
 
@@ -122,15 +156,14 @@ export default function TradeJournalPage() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [sheetStats, setSheetStats] = useState<{ stats: StatsData; tabName: string } | null>(null);
 
-  const [filterProcessFollowed, setFilterProcessFollowed] = useState(false);
-  const [filterStartDate, setFilterStartDate] = useState(() => {
-    // Default to first of current month
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    return `${y}-${m}-01`;
-  });
-  const [filterEndDate, setFilterEndDate] = useState("");
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...EMPTY_FILTERS,
+    // Default start date to first of current month
+    startDate: (() => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    })(),
+  }));
 
   const [backfillEnrichment, setBackfillEnrichment] = useState<EnrichmentProgress | null>(null);
 
@@ -276,23 +309,26 @@ export default function TradeJournalPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function buildFilterParams(overrides?: { processFollowed?: boolean; startDate?: string; endDate?: string }): string {
-    const pf = overrides?.processFollowed ?? filterProcessFollowed;
-    const sd = overrides?.startDate ?? filterStartDate;
-    const ed = overrides?.endDate ?? filterEndDate;
+  function buildFilterParams(f: Filters = filters): string {
     const params = new URLSearchParams();
-    if (pf) params.set("processFollowed", "true");
-    if (sd) params.set("startDate", sd);
-    if (ed) params.set("endDate", ed);
+    if (f.processFollowed) params.set("processFollowed", "true");
+    if (f.startDate) params.set("startDate", f.startDate);
+    if (f.endDate) params.set("endDate", f.endDate);
+    if (f.setup) params.set("setup", f.setup);
+    if (f.conviction) params.set("conviction", f.conviction);
+    if (f.side) params.set("side", f.side);
+    if (f.symbol) params.set("symbol", f.symbol);
+    if (f.catalyst) params.set("catalyst", f.catalyst);
+    if (f.tags) params.set("tags", f.tags);
     const qs = params.toString();
     return qs ? `&${qs}` : "";
   }
 
-  async function fetchStats(tabName: string, filterOverrides?: { processFollowed?: boolean; startDate?: string; endDate?: string }) {
+  async function fetchStats(tabName: string, f: Filters = filters) {
     setStatsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/trade-journal/stats?tab=${encodeURIComponent(tabName)}${buildFilterParams(filterOverrides)}`);
+      const res = await fetch(`/api/trade-journal/stats?tab=${encodeURIComponent(tabName)}${buildFilterParams(f)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load stats.");
       setSheetStats({ stats: data.stats, tabName });
@@ -331,11 +367,14 @@ export default function TradeJournalPage() {
     await fetchStats(tab.name);
   }
 
-  async function handleFilterChange(overrides: { processFollowed?: boolean; startDate?: string; endDate?: string }) {
+  function updateFilters(patch: Partial<Filters>) {
+    const next = { ...filters, ...patch };
+    setFilters(next);
     const tabName = getActiveTabName();
-    if (!tabName) return;
-    setResult(null);
-    await fetchStats(tabName, overrides);
+    if (tabName) {
+      setResult(null);
+      fetchStats(tabName, next);
+    }
   }
 
   async function handleBackfill() {
@@ -648,28 +687,27 @@ export default function TradeJournalPage() {
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>
             Filters
           </p>
+          <p className="text-xs" style={{ color: "var(--color-muted)", opacity: 0.7 }}>
+            Applies to Performance Overview, Calendar, and Profitability Analysis. (The calendar uses month navigation, so it ignores the date range.)
+          </p>
           <div className="flex flex-wrap items-end gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <button
                 type="button"
                 role="switch"
-                aria-checked={filterProcessFollowed}
-                onClick={() => {
-                  const next = !filterProcessFollowed;
-                  setFilterProcessFollowed(next);
-                  handleFilterChange({ processFollowed: next });
-                }}
+                aria-checked={filters.processFollowed}
+                onClick={() => updateFilters({ processFollowed: !filters.processFollowed })}
                 className="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
                 style={{
-                  borderColor: filterProcessFollowed ? "var(--color-accent)" : "var(--color-border)",
-                  backgroundColor: filterProcessFollowed ? "var(--color-accent)" : "var(--color-border)",
+                  borderColor: filters.processFollowed ? "var(--color-accent)" : "var(--color-border)",
+                  backgroundColor: filters.processFollowed ? "var(--color-accent)" : "var(--color-border)",
                 }}
               >
                 <span
                   className="inline-block h-4 w-4 rounded-full transition-transform"
                   style={{
                     backgroundColor: "var(--color-bg)",
-                    transform: filterProcessFollowed ? "translateX(16px)" : "translateX(1px)",
+                    transform: filters.processFollowed ? "translateX(16px)" : "translateX(1px)",
                     marginTop: "1px",
                   }}
                 />
@@ -677,47 +715,31 @@ export default function TradeJournalPage() {
               <span className="text-xs font-medium">Process Followed</span>
             </label>
 
+            <FilterDateInput label="Start Date" value={filters.startDate} onChange={(v) => updateFilters({ startDate: v })} />
+            <FilterDateInput label="End Date" value={filters.endDate} onChange={(v) => updateFilters({ endDate: v })} />
+
+            <FilterDropdown label="Setup" value={filters.setup} onChange={(v) => updateFilters({ setup: v })} options={SETUP_FILTER_OPTIONS} placeholder="All Setups" />
+            <FilterDropdown label="Conviction" value={filters.conviction} onChange={(v) => updateFilters({ conviction: v })} options={["1", "2", "3"]} placeholder="All" />
+            <FilterDropdown label="Side" value={filters.side} onChange={(v) => updateFilters({ side: v })} options={["Long", "Short"]} placeholder="All Sides" />
+            <FilterDropdown label="Catalyst" value={filters.catalyst} onChange={(v) => updateFilters({ catalyst: v })} options={CATALYST_FILTER_OPTIONS} placeholder="All Catalysts" />
+            <FilterDropdown label="Tags" value={filters.tags} onChange={(v) => updateFilters({ tags: v })} options={TAG_FILTER_OPTIONS} placeholder="All Tags" />
+
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
-                Start Date
-              </label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>Symbol</label>
               <input
-                type="date"
-                value={filterStartDate}
-                onChange={(e) => {
-                  setFilterStartDate(e.target.value);
-                  handleFilterChange({ startDate: e.target.value });
-                }}
-                className="cursor-pointer rounded border py-1.5 px-2 text-xs focus:outline-none"
+                type="text"
+                value={filters.symbol}
+                onChange={(e) => updateFilters({ symbol: e.target.value.toUpperCase() })}
+                placeholder="All"
+                className="w-24 rounded border py-1.5 px-2 text-xs focus:outline-none"
                 style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)", color: "var(--color-text)" }}
               />
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
-                End Date
-              </label>
-              <input
-                type="date"
-                value={filterEndDate}
-                onChange={(e) => {
-                  setFilterEndDate(e.target.value);
-                  handleFilterChange({ endDate: e.target.value });
-                }}
-                className="cursor-pointer rounded border py-1.5 px-2 text-xs focus:outline-none"
-                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)", color: "var(--color-text)" }}
-              />
-            </div>
-
-            {(filterProcessFollowed || filterStartDate || filterEndDate) && (
+            {Object.entries(filters).some(([k, v]) => k === "startDate" ? v !== EMPTY_FILTERS.startDate : Boolean(v)) && (
               <button
                 type="button"
-                onClick={() => {
-                  setFilterProcessFollowed(false);
-                  setFilterStartDate("");
-                  setFilterEndDate("");
-                  handleFilterChange({ processFollowed: false, startDate: "", endDate: "" });
-                }}
+                onClick={() => updateFilters({ ...EMPTY_FILTERS })}
                 className="rounded border px-2 py-1.5 text-xs hover:opacity-80"
                 style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}
               >
@@ -736,7 +758,7 @@ export default function TradeJournalPage() {
           style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)" }}
         >
           <h2 className="text-lg font-bold">Calendar</h2>
-          <TradingCalendar tabName={getActiveTabName()!} />
+          <TradingCalendar tabName={getActiveTabName()!} filterParams={buildFilterParams()} />
         </div>
       )}
 
@@ -746,6 +768,50 @@ export default function TradeJournalPage() {
           filterParams={buildFilterParams()}
         />
       )}
+    </div>
+  );
+}
+
+function FilterDropdown({ label, value, onChange, options, placeholder }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded border py-1.5 px-2 text-xs focus:outline-none"
+        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)", color: "var(--color-text)" }}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function FilterDateInput({ label, value, onChange }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>{label}</label>
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="cursor-pointer rounded border py-1.5 px-2 text-xs focus:outline-none"
+        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)", color: "var(--color-text)" }}
+      />
     </div>
   );
 }

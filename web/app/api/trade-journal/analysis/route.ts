@@ -1,7 +1,6 @@
 export const runtime = "edge";
 
-import { getTradesForAnalysisFromTab } from "@/lib/trade-journal/google-sheets";
-import type { StatsFilter } from "@/lib/trade-journal/google-sheets";
+import { getTradesForAnalysisFromTab, parseStatsFilter } from "@/lib/trade-journal/google-sheets";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -10,10 +9,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "Missing ?tab= parameter." }, { status: 400 });
   }
 
-  const filter: StatsFilter = {};
-  if (searchParams.get("processFollowed") === "true") filter.processFollowed = true;
-  if (searchParams.get("startDate")) filter.startDate = searchParams.get("startDate")!;
-  if (searchParams.get("endDate")) filter.endDate = searchParams.get("endDate")!;
+  const filter = parseStatsFilter(searchParams);
 
   try {
     const trades = await getTradesForAnalysisFromTab(tab, filter);

@@ -1,6 +1,6 @@
 export const runtime = "edge";
 
-import { getDailyCalendar } from "@/lib/trade-journal/google-sheets";
+import { getDailyCalendar, parseStatsFilter } from "@/lib/trade-journal/google-sheets";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,8 +9,12 @@ export async function GET(request: Request) {
     return Response.json({ error: "Missing ?tab= parameter." }, { status: 400 });
   }
 
+  // Categorical filters only — the calendar uses month navigation for time,
+  // so start/end date are intentionally ignored here.
+  const filter = parseStatsFilter(searchParams, { includeDates: false });
+
   try {
-    const data = await getDailyCalendar(tab);
+    const data = await getDailyCalendar(tab, filter);
     return Response.json(data);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
