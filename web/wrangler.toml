@@ -6,3 +6,12 @@ pages_build_output_dir = ".vercel/output/static"
 [[kv_namespaces]]
 binding = "CREW_KV"
 id = "57b33b4997ba4df0ad550c43c9e232d2"
+
+# USMLE Step 1 prep app — flashcards (FSRS), topics, review log, scores.
+# Create the DB once with:  npx wrangler d1 create usmle_db
+# then paste the returned database_id below (replace the TODO placeholder).
+[[d1_databases]]
+binding = "usmle_db"
+database_name = "usmle_db"
+database_id = "TODO_RUN_wrangler_d1_create_usmle_db"
+migrations_dir = "migrations/usmle"

@@ -6,7 +6,8 @@ import { ReactNode } from "react";
 export default function HeaderVisibility({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isPCTRoute = pathname.startsWith("/pct-bootcamp");
+  const isUsmleRoute = pathname.startsWith("/usmle");
 
-  if (isPCTRoute) return null;
+  if (isPCTRoute || isUsmleRoute) return null;
   return <>{children}</>;
 }
