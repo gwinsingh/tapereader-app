@@ -83,8 +83,7 @@ export default function ReviewSession({ deckId }: { deckId?: string }) {
       <div className="rounded-md border p-4 text-sm" style={{ borderColor: "var(--color-border)" }}>
         <p style={{ color: "var(--color-danger)" }}>{error}</p>
         <p className="mt-1" style={{ color: "var(--color-muted)" }}>
-          If this is a database error, the D1 binding isn’t set up locally yet (see the plan’s P0 deploy steps).
-          A 401 means the write key isn’t set — set it in the Build tab.
+          A database error usually means the D1 binding isn’t available (e.g. running under <code>next dev</code> instead of <code>wrangler pages dev</code>, or not deployed yet).
         </p>
         <button onClick={() => { setError(null); load(); }} className="mt-2 text-xs underline" style={{ color: "var(--color-accent)" }}>Retry</button>
       </div>

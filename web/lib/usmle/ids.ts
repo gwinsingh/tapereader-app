@@ -7,7 +7,15 @@ export function newId(prefix = ""): string {
   return prefix ? `${prefix}_${uuid}` : uuid;
 }
 
-/** True when the request carries the shared write key. Mutations require this. */
-export function isAuthorized(req: NextRequest): boolean {
-  return req.headers.get("x-write-key") === process.env.WRITE_KEY;
+/**
+ * Authorization gate for USMLE mutations. This is a single-user app and the
+ * owner opted out of a write key, so it is intentionally open.
+ *
+ * Note: decoupled from the project-wide WRITE_KEY (which the 4-Week Challenge
+ * uses) on purpose — that key may be set for the other app, and we don't want
+ * USMLE to require it. To lock these routes later, gate on a dedicated env var,
+ * e.g.: `const k = process.env.USMLE_WRITE_KEY; return !k || req.headers.get("x-write-key") === k;`
+ */
+export function isAuthorized(_req: NextRequest): boolean {
+  return true;
 }

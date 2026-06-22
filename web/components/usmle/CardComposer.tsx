@@ -13,7 +13,7 @@ const inputStyle = {
 } as const;
 
 export default function CardComposer({ onChange }: { onChange?: () => void }) {
-  const { key, setKey, ready, writeHeaders } = useWriteKey();
+  const { ready, writeHeaders } = useWriteKey();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [deckId, setDeckId] = useState("");
   const [newDeckName, setNewDeckName] = useState("");
@@ -109,18 +109,6 @@ export default function CardComposer({ onChange }: { onChange?: () => void }) {
 
   return (
     <div className="space-y-6">
-      {/* Write key */}
-      {!key && (
-        <div className="rounded-md border p-3" style={{ borderColor: "var(--color-warn)" }}>
-          <label className="text-xs font-medium" style={{ color: "var(--color-warn)" }}>Write key required to save</label>
-          <input
-            type="password" placeholder="Paste your WRITE_KEY"
-            className="mt-1 w-full rounded border px-2 py-1 text-sm" style={inputStyle}
-            onChange={(e) => setKey(e.target.value)}
-          />
-        </div>
-      )}
-
       {msg && <p className="text-sm" style={{ color: "var(--color-accent)" }}>{msg}</p>}
       {err && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{err}</p>}
 

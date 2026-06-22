@@ -24,7 +24,7 @@ const inputStyle = { backgroundColor: "var(--color-bg)", borderColor: "var(--col
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ScoresPage() {
-  const { key, setKey, ready, writeHeaders } = useWriteKey();
+  const { ready, writeHeaders } = useWriteKey();
   const [scores, setScores] = useState<Score[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -74,12 +74,6 @@ export default function ScoresPage() {
         </p>
       </header>
 
-      {!key && ready && (
-        <div className="rounded-md border p-3" style={{ borderColor: "var(--color-warn)" }}>
-          <label className="text-xs font-medium" style={{ color: "var(--color-warn)" }}>Write key required to log scores</label>
-          <input type="password" placeholder="Paste your WRITE_KEY" className="mt-1 w-full rounded border px-2 py-1 text-sm" style={inputStyle} onChange={(e) => setKey(e.target.value)} />
-        </div>
-      )}
       {error && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{error}</p>}
       {msg && <p className="text-sm" style={{ color: "var(--color-accent)" }}>{msg}</p>}
 
@@ -118,7 +112,7 @@ export default function ScoresPage() {
             <input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
           </div>
         </div>
-        <button onClick={submit} disabled={!key} className="mt-3 rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50" style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }}>Log score</button>
+        <button onClick={submit} className="mt-3 rounded px-3 py-1.5 text-sm font-medium" style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }}>Log score</button>
       </div>
 
       {scores && scores.length > 0 && (

@@ -57,7 +57,7 @@ function Bar({ value, color }: { value: number; color?: string }) {
 }
 
 export default function TopicsPage() {
-  const { key, ready, writeHeaders } = useWriteKey();
+  const { ready, writeHeaders } = useWriteKey();
   const [topics, setTopics] = useState<Topic[] | null>(null);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,15 +120,9 @@ export default function TopicsPage() {
         <div className="rounded-md border p-4 text-sm" style={{ borderColor: "var(--color-border)" }}>
           <p style={{ color: "var(--color-danger)" }}>{error}</p>
           <p className="mt-1" style={{ color: "var(--color-muted)" }}>
-            DB errors mean the D1 binding isn’t set up locally; a 401 means the write key isn’t set (set it in Flashcards → Build).
+            A database error usually means the D1 binding isn’t available (running under <code>next dev</code> rather than <code>wrangler pages dev</code>, or not deployed yet).
           </p>
         </div>
-      )}
-
-      {!key && ready && (
-        <p className="rounded-md border p-3 text-xs" style={{ borderColor: "var(--color-warn)", color: "var(--color-warn)" }}>
-          Set your write key in Flashcards → Build to edit topic status.
-        </p>
       )}
 
       {/* Coverage summary */}
@@ -187,7 +181,6 @@ export default function TopicsPage() {
                   </span>
                   <select
                     value={c.status}
-                    disabled={!key}
                     onChange={(e) => setStatus(c.id, e.target.value)}
                     className="rounded border px-1.5 py-0.5 text-xs"
                     style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)", color: STATUS_COLOR[c.status] }}

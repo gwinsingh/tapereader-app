@@ -13,5 +13,5 @@ id = "57b33b4997ba4df0ad550c43c9e232d2"
 [[d1_databases]]
 binding = "usmle_db"
 database_name = "usmle_db"
-database_id = "TODO_RUN_wrangler_d1_create_usmle_db"
+database_id = "d27e343f-018c-44b2-9a50-c0e5b9c41a34"
 migrations_dir = "migrations/usmle"
