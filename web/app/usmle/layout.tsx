@@ -28,6 +28,7 @@ export default function UsmleLayout({ children }: { children: React.ReactNode })
               <nav className="flex gap-3 text-xs" style={{ color: "var(--color-muted)" }}>
                 <Link href="/usmle" className="hover:underline">Dashboard</Link>
                 <Link href="/usmle/cards" className="hover:underline">Flashcards</Link>
+                <Link href="/usmle/notes" className="hover:underline">Notes</Link>
                 <Link href="/usmle/topics" className="hover:underline">Topics</Link>
                 <Link href="/usmle/scores" className="hover:underline">Scores</Link>
               </nav>
