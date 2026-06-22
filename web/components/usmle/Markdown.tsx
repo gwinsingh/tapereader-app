@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import MermaidDiagram from "./MermaidDiagram";
 
 // Minimal, dependency-free Markdown renderer that emits React elements (never
 // dangerouslySetInnerHTML, so it's XSS-safe even for AI-authored content).
@@ -68,17 +69,22 @@ export default function Markdown({ children }: { children: string }) {
     // blank
     if (line.trim() === "") { i++; continue; }
 
-    // fenced code
+    // fenced code (```mermaid renders a diagram; others render as code)
     if (line.trim().startsWith("```")) {
+      const lang = line.trim().slice(3).trim().toLowerCase();
       const buf: string[] = [];
       i++;
       while (i < lines.length && !lines[i].trim().startsWith("```")) { buf.push(lines[i]); i++; }
       i++; // closing fence
-      blocks.push(
-        <pre key={k()} className="overflow-x-auto rounded border p-3 font-mono text-xs" style={{ ...border, backgroundColor: "var(--color-bg)" }}>
-          <code>{buf.join("\n")}</code>
-        </pre>
-      );
+      if (lang === "mermaid") {
+        blocks.push(<MermaidDiagram key={k()} code={buf.join("\n")} />);
+      } else {
+        blocks.push(
+          <pre key={k()} className="overflow-x-auto rounded border p-3 font-mono text-xs" style={{ ...border, backgroundColor: "var(--color-bg)" }}>
+            <code>{buf.join("\n")}</code>
+          </pre>
+        );
+      }
       continue;
     }
 
