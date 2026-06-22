@@ -29,6 +29,7 @@ export default function UsmleLayout({ children }: { children: React.ReactNode })
                 <Link href="/usmle" className="hover:underline">Dashboard</Link>
                 <Link href="/usmle/cards" className="hover:underline">Flashcards</Link>
                 <Link href="/usmle/topics" className="hover:underline">Topics</Link>
+                <Link href="/usmle/scores" className="hover:underline">Scores</Link>
               </nav>
             </div>
             <ThemeToggle />

@@ -331,7 +331,7 @@ PATCH  /api/usmle/topics/:id/progress → update status/confidence
 - [ ] P1 (deploy step, user): set `ANTHROPIC_API_KEY` (and optionally `USMLE_AI_MODEL`) in Cloudflare Pages env for AI generation. FSRS/review/manual cards work without it.
 - [x] P2: topic tracker tree (inline status editing) + weighted coverage % + weakness view. *(`PATCH /api/usmle/topics/[id]/progress`; `GET /api/usmle/stats/coverage` → `lib/usmle/coverage.ts` pure scorer, aggregates by top-level node; `app/usmle/topics/page.tsx` shows overall weighted coverage, "where to focus" ranking, per-system bars + card counts, per-subtopic status dropdowns.)*
 - [ ] P3: Anki `.apkg` client-side import; cloze; tagging.
-- [ ] P4: study planner; NBME score log; missed-Q → card pipeline.
+- [x] P4: study planner ("Today" panel) + practice-score logging. *(`components/usmle/TodayPanel.tsx` on the dashboard = due cards + weakest topics + latest NBME readiness, composed client-side from queue/coverage/scores endpoints. `GET`/`POST /api/usmle/scores` + `app/usmle/scores/page.tsx` log form + history for UWorld/NBME/Free120. "Scores" nav link added.)* Missed-Q → card pipeline already exists via AI generation's `missedConcept` input (P1).
 - [ ] P5 (stretch): vignette practice + exam simulator.
 
 ---
@@ -355,6 +355,7 @@ PATCH  /api/usmle/topics/:id/progress → update status/confidence
 | 2026-06-22 | **AI generation uses raw `fetch` to the Anthropic Messages API** (no SDK), default model `claude-opus-4-8`, structured-output JSON + adaptive thinking, human approval queue. | Matches repo's edge/Web-Crypto/fetch convention; `claude-opus-4-8` is the documented default; cost lever exposed via `USMLE_AI_MODEL` env. Generated cards never auto-save. |
 | 2026-06-22 | **Mutations require the write key** (`x-write-key`, stored client-side in `localStorage['usmle-write-key']`); reads (queue/topics) are open. | Single-user low-stakes; same model as 4-Week Challenge. |
 | 2026-06-22 | **Coverage aggregates by top-level taxonomy node**, not the shared `organ_system` label; status→fraction (not_started 0 / learning .34 / reviewed .67 / confident 1); overall = exam-weight-weighted avg; weakness = `examWeight × (1 − coverage)`. | Node-level matches the tree and avoids collapsing Endocrine+Reproductive (both "Reproductive & Endocrine"). Weights are relative priorities, so the headline is labeled "weighted coverage," not a literal exam %. |
+| 2026-06-22 | **Study planner is composed client-side** from existing endpoints (queue + coverage + scores) — no dedicated planner endpoint/table. | Avoids a new aggregation surface; the "Today" panel just joins three reads. Revisit if the plan grows richer (scheduling beyond "due now"). |
 
 ### Open questions (resolve in future chats)
 1. **AI model + budget:** which Claude model for bulk card gen vs. quality, and rough monthly API cost ceiling? *(Decide at start of P1.)*
