@@ -24,6 +24,8 @@ export default function CardComposer({ onChange }: { onChange?: () => void }) {
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [extra, setExtra] = useState("");
+  const [cardType, setCardType] = useState<"basic" | "cloze">("basic");
+  const [tags, setTags] = useState("");
 
   // AI generation
   const [topicName, setTopicName] = useState("");
@@ -54,13 +56,19 @@ export default function CardComposer({ onChange }: { onChange?: () => void }) {
   }
 
   async function addManual() {
-    if (!deckId || !front.trim() || !back.trim()) { setErr("Pick a deck and fill front + back"); return; }
+    // Cloze cards only need the front (the cloze text); basic cards need both.
+    const needsBack = cardType === "basic";
+    if (!deckId || !front.trim() || (needsBack && !back.trim())) {
+      setErr(needsBack ? "Pick a deck and fill front + back" : "Pick a deck and fill the cloze text");
+      return;
+    }
+    const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
     const r = await fetch("/api/usmle/cards", {
       method: "POST", headers: writeHeaders(),
-      body: JSON.stringify({ deckId, front, back, extra: extra || undefined }),
+      body: JSON.stringify({ deckId, type: cardType, front, back, extra: extra || undefined, tags: tagList }),
     });
     if (!r.ok) { setErr((await r.json().catch(() => ({})))?.error || `HTTP ${r.status}`); return; }
-    setFront(""); setBack(""); setExtra(""); flash("Card added"); loadDecks(); onChange?.();
+    setFront(""); setBack(""); setExtra(""); setTags(""); flash("Card added"); loadDecks(); onChange?.();
   }
 
   async function generate() {
@@ -173,11 +181,31 @@ export default function CardComposer({ onChange }: { onChange?: () => void }) {
 
       {/* Manual card */}
       <div className="rounded-lg border p-4" style={{ borderColor: "var(--color-border)" }}>
-        <h3 className="text-sm font-semibold" style={{ color: "var(--color-accent)" }}>Add a card manually</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold" style={{ color: "var(--color-accent)" }}>Add a card manually</h3>
+          <div className="flex gap-1 rounded border p-0.5" style={{ borderColor: "var(--color-border)" }}>
+            {(["basic", "cloze"] as const).map((t) => (
+              <button key={t} onClick={() => setCardType(t)} className="rounded px-2 py-0.5 text-xs capitalize"
+                style={cardType === t ? { backgroundColor: "var(--color-accent)", color: "var(--color-bg)" } : { color: "var(--color-muted)" }}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="mt-3 space-y-2">
-          <textarea value={front} onChange={(e) => setFront(e.target.value)} placeholder="Front" rows={2} className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
-          <textarea value={back} onChange={(e) => setBack(e.target.value)} placeholder="Back" rows={2} className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
-          <input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="Mnemonic / source (optional)" className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
+          {cardType === "cloze" ? (
+            <>
+              <textarea value={front} onChange={(e) => setFront(e.target.value)} placeholder="Cloze text — wrap hidden parts like {{c1::answer}}" rows={2} className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
+              <textarea value={back} onChange={(e) => setBack(e.target.value)} placeholder="Explanation shown after flip (optional)" rows={2} className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
+            </>
+          ) : (
+            <>
+              <textarea value={front} onChange={(e) => setFront(e.target.value)} placeholder="Front" rows={2} className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
+              <textarea value={back} onChange={(e) => setBack(e.target.value)} placeholder="Back" rows={2} className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
+            </>
+          )}
+          <input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="Mnemonic / source ref (e.g. Pathoma 3.2) — optional" className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
+          <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Tags, comma-separated (e.g. pathology, sketchy) — optional" className="w-full rounded border px-2 py-1.5 text-sm" style={inputStyle} />
           <button onClick={addManual} className="rounded px-3 py-1.5 text-sm font-medium" style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }}>Add card</button>
         </div>
       </div>

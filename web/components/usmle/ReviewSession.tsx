@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useWriteKey } from "./useWriteKey";
+import { renderCloze } from "./Cloze";
 
 interface QueueCard {
   id: string;
@@ -114,11 +115,26 @@ export default function ReviewSession({ deckId }: { deckId?: string }) {
         style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
         onClick={() => !flipped && setFlipped(true)}
       >
-        <p className="whitespace-pre-wrap text-base">{current.front}</p>
+        {current.type === "cloze" ? (
+          <p className="text-base">{renderCloze(current.front, flipped)}</p>
+        ) : (
+          <p className="whitespace-pre-wrap text-base">{current.front}</p>
+        )}
         {flipped && (
           <>
-            <hr className="my-4" style={{ borderColor: "var(--color-border)" }} />
-            <p className="whitespace-pre-wrap text-base">{current.back}</p>
+            {current.type === "cloze" ? (
+              current.back ? (
+                <>
+                  <hr className="my-4" style={{ borderColor: "var(--color-border)" }} />
+                  <p className="whitespace-pre-wrap text-base">{current.back}</p>
+                </>
+              ) : null
+            ) : (
+              <>
+                <hr className="my-4" style={{ borderColor: "var(--color-border)" }} />
+                <p className="whitespace-pre-wrap text-base">{current.back}</p>
+              </>
+            )}
             {current.extra && (
               <p className="mt-3 text-sm italic" style={{ color: "var(--color-muted)" }}>{current.extra}</p>
             )}
