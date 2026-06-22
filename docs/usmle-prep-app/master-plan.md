@@ -324,10 +324,11 @@ PATCH  /api/usmle/topics/:id/progress → update status/confidence
 - [x] P0: add `usmle_db` D1 binding to `web/wrangler.toml`; write first migration; `lib/usmle/db.ts`. *(migrations/usmle/0001_init.sql; D1 typings + getDB helper. ⚠️ binding `database_id` is a TODO placeholder — run `npx wrangler d1 create usmle_db` and paste the id.)*
 - [x] P0: topic taxonomy seeded. *(lib/usmle/taxonomy.ts = General Principles + 10 organ systems, First-Aid-level subtopics, NBME organ-system + discipline tags. Seed via `POST /api/usmle/seed` (write-key protected); `GET /api/usmle/topics` reads tree+progress. NOTE: still reconcile node names/weights vs official usmle.org PDF.)*
 - [ ] P0 (deploy step, needs user's Cloudflare account): `wrangler d1 create usmle_db` → paste id into wrangler.toml → `wrangler d1 migrations apply usmle_db` (and `--local` for dev) → `POST /api/usmle/seed` with the write key.
-- [ ] P1: integrate `ts-fsrs`; `grade` + `queue` endpoints; `card_srs` + `review_log`.
-- [ ] P1: manual card/deck CRUD.
-- [ ] P1: review UI (mobile-first, keyboard, 1–4).
-- [ ] P1: AI `generate-cards` (Claude via fetch) + approval queue.
+- [x] P1: integrate `ts-fsrs` (`lib/usmle/srs.ts`); `POST /api/usmle/review/grade` + `GET /api/usmle/review/queue`; writes `card_srs` + append-only `review_log`.
+- [x] P1: manual card/deck CRUD — `decks` (GET/POST), `cards` (POST), `cards/[id]` (PATCH edit/suspend), `cards/bulk` (POST). New cards auto-create a `card_srs` row (due now) via `lib/usmle/cards.ts`.
+- [x] P1: review UI — `components/usmle/ReviewSession.tsx` (today queue, flip, 1–4 keyboard ratings, mobile layout) + `CardComposer.tsx`; tabs in `app/usmle/cards/page.tsx`.
+- [x] P1: AI `POST /api/usmle/ai/generate-cards` (Claude via raw fetch, `lib/usmle/anthropic.ts`, default `claude-opus-4-8`, structured-output JSON, adaptive thinking) + edit/approve queue in `CardComposer.tsx` → `cards/bulk`.
+- [ ] P1 (deploy step, user): set `ANTHROPIC_API_KEY` (and optionally `USMLE_AI_MODEL`) in Cloudflare Pages env for AI generation. FSRS/review/manual cards work without it.
 - [ ] P2: topic tracker tree + weighted coverage % + weakness view.
 - [ ] P3: Anki `.apkg` client-side import; cloze; tagging.
 - [ ] P4: study planner; NBME score log; missed-Q → card pipeline.
@@ -350,6 +351,9 @@ PATCH  /api/usmle/topics/:id/progress → update status/confidence
 | 2026-06-21 | **Taxonomy depth = First-Aid section level** (System → subsection). | The granularity Step 1 students actually track by; leaf diseases deepened later as a living taxonomy. |
 | 2026-06-21 | **Include score tracking** (`practice_scores` table built in P0; UI surfaced ~P4). | User wants both flashcards + topic coverage + UWorld/NBME score history. |
 | 2026-06-21 | **No external imports for now** — student/AI-authored cards only; no AnKing/copyrighted redistribution. | User confirmed. Anki `.apkg` import deferred / may stay out entirely. |
+| 2026-06-22 | **FSRS via `ts-fsrs` 5.4.1** (zero-dep, edge-safe); target retention 0.90. | Don't hand-roll the math; library is pure functions, works on Cloudflare edge. |
+| 2026-06-22 | **AI generation uses raw `fetch` to the Anthropic Messages API** (no SDK), default model `claude-opus-4-8`, structured-output JSON + adaptive thinking, human approval queue. | Matches repo's edge/Web-Crypto/fetch convention; `claude-opus-4-8` is the documented default; cost lever exposed via `USMLE_AI_MODEL` env. Generated cards never auto-save. |
+| 2026-06-22 | **Mutations require the write key** (`x-write-key`, stored client-side in `localStorage['usmle-write-key']`); reads (queue/topics) are open. | Single-user low-stakes; same model as 4-Week Challenge. |
 
 ### Open questions (resolve in future chats)
 1. **AI model + budget:** which Claude model for bulk card gen vs. quality, and rough monthly API cost ceiling? *(Decide at start of P1.)*

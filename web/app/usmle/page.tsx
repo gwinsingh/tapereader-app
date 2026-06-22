@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-const PHASES: { phase: string; window: string; theme: string; active?: boolean }[] = [
-  { phase: "P0 · Foundation", window: "late Jun – early Jul", theme: "Scaffolding, topic taxonomy, DB", active: true },
-  { phase: "P1 · Flashcards MVP", window: "Jul", theme: "FSRS engine, manual + AI cards, review UI" },
+const PHASES: { phase: string; window: string; theme: string; active?: boolean; done?: boolean }[] = [
+  { phase: "P0 · Foundation", window: "late Jun – early Jul", theme: "Scaffolding, topic taxonomy, DB", done: true },
+  { phase: "P1 · Flashcards MVP", window: "Jul", theme: "FSRS engine, manual + AI cards, review UI", active: true },
   { phase: "P2 · Topic Tracker", window: "Jul – Aug", theme: "Coverage % + weakness analytics" },
   { phase: "P3 · Richer cards", window: "Aug", theme: "Cloze, tagging, FSRS optimization" },
   { phase: "P4 · Gap-fill & readiness", window: "Sep", theme: "Study planner, NBME score logging" },
@@ -36,7 +36,7 @@ export default function UsmleDashboard() {
             Flashcards
           </h2>
           <p className="mt-2 text-sm" style={{ color: "var(--color-muted)" }}>
-            FSRS spaced repetition with AI-assisted card generation. Coming in P1.
+            FSRS spaced repetition with manual + AI card generation. Review due cards, build decks, generate from a topic or a missed concept.
           </p>
           <Link
             href="/usmle/cards"
@@ -86,6 +86,9 @@ export default function UsmleDashboard() {
                   >
                     current
                   </span>
+                )}
+                {p.done && (
+                  <span className="ml-2 text-[11px]" style={{ color: "var(--stat-green)" }}>✓ done</span>
                 )}
                 <p className="text-xs" style={{ color: "var(--color-muted)" }}>{p.theme}</p>
               </div>

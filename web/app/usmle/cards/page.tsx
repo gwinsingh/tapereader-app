@@ -1,12 +1,39 @@
+"use client";
+
+import { useState } from "react";
+import ReviewSession from "@/components/usmle/ReviewSession";
+import CardComposer from "@/components/usmle/CardComposer";
+
 export default function CardsPage() {
+  const [tab, setTab] = useState<"review" | "build">("review");
+  // Bumping this key remounts the review session so newly-added cards show up.
+  const [reviewKey, setReviewKey] = useState(0);
+
   return (
-    <div className="space-y-3">
-      <h1 className="text-2xl font-bold">Flashcards</h1>
-      <p className="text-sm" style={{ color: "var(--color-muted)" }}>
-        Spaced-repetition review (FSRS) with manual and AI-generated cards lands in P1.
-        The data model, FSRS engine, and review API are specified in{" "}
-        <code>docs/usmle-prep-app/master-plan.md</code> §8.
-      </p>
+    <div className="space-y-5">
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Flashcards</h1>
+        <div className="flex gap-1 rounded-md border p-0.5" style={{ borderColor: "var(--color-border)" }}>
+          {(["review", "build"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="rounded px-3 py-1 text-sm capitalize"
+              style={tab === t
+                ? { backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }
+                : { color: "var(--color-muted)" }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {tab === "review" ? (
+        <ReviewSession key={reviewKey} />
+      ) : (
+        <CardComposer onChange={() => setReviewKey((k) => k + 1)} />
+      )}
     </div>
   );
 }
