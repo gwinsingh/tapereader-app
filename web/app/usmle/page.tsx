@@ -2,8 +2,8 @@ import Link from "next/link";
 
 const PHASES: { phase: string; window: string; theme: string; active?: boolean; done?: boolean }[] = [
   { phase: "P0 · Foundation", window: "late Jun – early Jul", theme: "Scaffolding, topic taxonomy, DB", done: true },
-  { phase: "P1 · Flashcards MVP", window: "Jul", theme: "FSRS engine, manual + AI cards, review UI", active: true },
-  { phase: "P2 · Topic Tracker", window: "Jul – Aug", theme: "Coverage % + weakness analytics" },
+  { phase: "P1 · Flashcards MVP", window: "Jul", theme: "FSRS engine, manual + AI cards, review UI", done: true },
+  { phase: "P2 · Topic Tracker", window: "Jul – Aug", theme: "Coverage % + weakness analytics", active: true },
   { phase: "P3 · Richer cards", window: "Aug", theme: "Cloze, tagging, FSRS optimization" },
   { phase: "P4 · Gap-fill & readiness", window: "Sep", theme: "Study planner, NBME score logging" },
   { phase: "P5 · Practice (stretch)", window: "Sep – Oct", theme: "Vignettes, exam simulator" },
@@ -51,7 +51,7 @@ export default function UsmleDashboard() {
             Topic coverage
           </h2>
           <p className="mt-2 text-sm" style={{ color: "var(--color-muted)" }}>
-            The full Step 1 taxonomy (organ systems + disciplines) with per-topic status.
+            The full Step 1 taxonomy with per-topic status, exam-weighted coverage %, and a “where to focus” weakness view.
           </p>
           <Link
             href="/usmle/topics"
