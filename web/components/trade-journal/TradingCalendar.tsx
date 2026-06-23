@@ -14,6 +14,7 @@ interface DailyTrade {
   standardR: number | null;
   risk: number | null;
   conviction: string;
+  processFollowed: string; // "Yes" | "No" | ""
   hasNote: boolean;
 }
 
@@ -57,7 +58,7 @@ interface GalleryImage {
 
 type Unit = "standardR" | "realizedR" | "dollar";
 
-type DrillSortKey = "entryTime" | "symbol" | "side" | "setup" | "conviction" | "risk" | "pnl" | "realizedR" | "standardR";
+type DrillSortKey = "entryTime" | "symbol" | "side" | "setup" | "process" | "conviction" | "risk" | "pnl" | "realizedR" | "standardR";
 type SortDir = "asc" | "desc";
 
 const GREEN = "#48bb78";
@@ -534,6 +535,7 @@ const DRILL_COLUMNS: { key: DrillSortKey; label: string; numeric: boolean }[] = 
   { key: "symbol", label: "Symbol", numeric: false },
   { key: "side", label: "Side", numeric: false },
   { key: "setup", label: "Setup", numeric: false },
+  { key: "process", label: "Process", numeric: false },
   { key: "conviction", label: "Conv", numeric: true },
   { key: "risk", label: "Risk", numeric: true },
   { key: "pnl", label: "P&L", numeric: true },
@@ -547,6 +549,13 @@ function drillSortValue(t: DailyTrade, key: DrillSortKey): number | string | nul
     case "symbol": return t.symbol;
     case "side": return t.side;
     case "setup": return t.setup;
+    case "process": {
+      // Sort: Yes=0, No=1, blank=null (last)
+      const p = t.processFollowed;
+      if (p === "Yes") return 0;
+      if (p === "No") return 1;
+      return null;
+    }
     case "conviction": return t.conviction ? Number(t.conviction) : null;
     case "risk": return t.risk;
     case "pnl": return t.pnl;
@@ -652,6 +661,15 @@ function DayDrillDown({ cell, unit, ssIndex, ssLoading, onOpenGallery, onClose }
                     <span style={{ color: t.side === "Long" ? GREEN : t.side === "Short" ? RED : "var(--color-text)" }}>{t.side}</span>
                   </td>
                   <td className="px-3 py-1.5 whitespace-nowrap">{t.setup || "—"}</td>
+                  <td className="px-3 py-1.5 text-center">
+                    {t.processFollowed === "Yes" ? (
+                      <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: "rgba(72,187,120,0.18)", color: GREEN }}>Y</span>
+                    ) : t.processFollowed === "No" ? (
+                      <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: "rgba(245,101,101,0.18)", color: RED }}>N</span>
+                    ) : (
+                      <span style={{ color: "var(--color-muted)", opacity: 0.4 }}>—</span>
+                    )}
+                  </td>
                   <td className="px-3 py-1.5 text-center">{t.conviction || "—"}</td>
                   <td className="px-3 py-1.5 font-mono whitespace-nowrap">{t.risk !== null ? `$${t.risk}` : "—"}</td>
                   <td className="px-3 py-1.5 font-mono whitespace-nowrap" style={{ color: colorFor(t.pnl) }}>{fmtDollar(t.pnl)}</td>

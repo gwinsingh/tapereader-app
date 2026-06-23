@@ -77,8 +77,9 @@ interface EnrichmentProgress {
   done: boolean;
 }
 
+// processFollowed: "" = all, "yes" = followed, "no" = not followed
 interface Filters {
-  processFollowed: boolean;
+  processFollowed: "" | "yes" | "no";
   startDate: string;
   endDate: string;
   setup: string;
@@ -90,7 +91,7 @@ interface Filters {
 }
 
 const EMPTY_FILTERS: Filters = {
-  processFollowed: false,
+  processFollowed: "",
   startDate: "",
   endDate: "",
   setup: "",
@@ -311,7 +312,7 @@ export default function TradeJournalPage() {
 
   function buildFilterParams(f: Filters = filters): string {
     const params = new URLSearchParams();
-    if (f.processFollowed) params.set("processFollowed", "true");
+    if (f.processFollowed) params.set("processFollowed", f.processFollowed);
     if (f.startDate) params.set("startDate", f.startDate);
     if (f.endDate) params.set("endDate", f.endDate);
     if (f.setup) params.set("setup", f.setup);
@@ -691,29 +692,19 @@ export default function TradeJournalPage() {
             Applies to Performance Overview, Calendar, and Profitability Analysis. (The calendar uses month navigation, so it ignores the date range.)
           </p>
           <div className="flex flex-wrap items-end gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={filters.processFollowed}
-                onClick={() => updateFilters({ processFollowed: !filters.processFollowed })}
-                className="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
-                style={{
-                  borderColor: filters.processFollowed ? "var(--color-accent)" : "var(--color-border)",
-                  backgroundColor: filters.processFollowed ? "var(--color-accent)" : "var(--color-border)",
-                }}
+            <div>
+              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>Process</label>
+              <select
+                value={filters.processFollowed}
+                onChange={(e) => updateFilters({ processFollowed: e.target.value as "" | "yes" | "no" })}
+                className="rounded border py-1.5 px-2 text-xs focus:outline-none"
+                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)", color: "var(--color-text)" }}
               >
-                <span
-                  className="inline-block h-4 w-4 rounded-full transition-transform"
-                  style={{
-                    backgroundColor: "var(--color-bg)",
-                    transform: filters.processFollowed ? "translateX(16px)" : "translateX(1px)",
-                    marginTop: "1px",
-                  }}
-                />
-              </button>
-              <span className="text-xs font-medium">Process Followed</span>
-            </label>
+                <option value="">All</option>
+                <option value="yes">Followed</option>
+                <option value="no">Not Followed</option>
+              </select>
+            </div>
 
             <FilterDateInput label="Start Date" value={filters.startDate} onChange={(v) => updateFilters({ startDate: v })} />
             <FilterDateInput label="End Date" value={filters.endDate} onChange={(v) => updateFilters({ endDate: v })} />

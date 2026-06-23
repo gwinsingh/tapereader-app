@@ -1111,7 +1111,7 @@ export interface AggregateStats {
 }
 
 export interface StatsFilter {
-  processFollowed?: boolean;
+  processFollowed?: "yes" | "no";
   startDate?: string;
   endDate?: string;
   setup?: string;
@@ -1139,7 +1139,8 @@ function applyRowFilter(dataRows: string[][], colMap: ColMap, filter?: StatsFilt
 
   let out = dataRows;
   if (filter.processFollowed && processIdx >= 0) {
-    out = out.filter((r) => (r[processIdx] || "").trim() === "Yes");
+    const want = filter.processFollowed === "yes" ? "Yes" : "No";
+    out = out.filter((r) => (r[processIdx] || "").trim() === want);
   }
   if (filter.startDate && dateIdx >= 0) {
     out = out.filter((r) => (r[dateIdx] || "") >= filter.startDate!);
@@ -1179,7 +1180,9 @@ export function parseStatsFilter(
   opts?: { includeDates?: boolean }
 ): StatsFilter {
   const filter: StatsFilter = {};
-  if (searchParams.get("processFollowed") === "true") filter.processFollowed = true;
+  const pf = searchParams.get("processFollowed");
+  if (pf === "yes" || pf === "true") filter.processFollowed = "yes";
+  else if (pf === "no") filter.processFollowed = "no";
   if (opts?.includeDates !== false) {
     if (searchParams.get("startDate")) filter.startDate = searchParams.get("startDate")!;
     if (searchParams.get("endDate")) filter.endDate = searchParams.get("endDate")!;
@@ -1610,6 +1613,7 @@ export interface DailyTrade {
   standardR: number | null; // P&L ÷ Full R target for the date
   risk: number | null; // deployed $ risk
   conviction: string;
+  processFollowed: string; // "Yes" | "No" | "" — for drill-down badge
   hasNote: boolean;
 }
 
@@ -1657,6 +1661,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
   const sideIdx = cm(colMap, "Side");
   const entryTimeIdx = cm(colMap, "Entry Time");
   const convictionIdx = cm(colMap, "Conviction (1-3)");
+  const processIdx = cm(colMap, "Process Followed?");
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, ""));
 
   const hasFullRConfig = fullRForDate(schedule, tabName, "9999-12-31") !== null;
@@ -1670,7 +1675,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
     riskSum: number;
     riskCount: number;
     hasNote: boolean;
-    rawTrades: { pnl: number; realizedR: number | null; risk: number | null; symbol: string; setup: string; side: string; entryTime: string; conviction: string; hasNote: boolean }[];
+    rawTrades: { pnl: number; realizedR: number | null; risk: number | null; symbol: string; setup: string; side: string; entryTime: string; conviction: string; processFollowed: string; hasNote: boolean }[];
   }
   const byDate = new Map<string, Acc>();
 
@@ -1711,6 +1716,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
       side: sideIdx >= 0 ? (r[sideIdx] || "").trim() : "",
       entryTime: entryTimeIdx >= 0 ? (r[entryTimeIdx] || "").trim() : "",
       conviction: convictionIdx >= 0 ? (r[convictionIdx] || "").trim() : "",
+      processFollowed: processIdx >= 0 ? (r[processIdx] || "").trim() : "",
       hasNote: rowHasNote,
     });
   }
@@ -1742,6 +1748,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
             standardR: fullR ? Math.round((t.pnl / fullR) * 100) / 100 : null,
             risk: t.risk,
             conviction: t.conviction,
+            processFollowed: t.processFollowed,
             hasNote: t.hasNote,
           })),
       };
