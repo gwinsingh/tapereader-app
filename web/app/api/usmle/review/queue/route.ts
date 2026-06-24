@@ -14,6 +14,7 @@ interface QueueRow {
   tags: string;
   due: string;
   state: string;
+  bookmarked: number;
 }
 
 // Returns cards due for review now (FSRS due <= now, not suspended), plus a
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   const { results } = await db
     .prepare(
-      `SELECT c.id, c.deck_id, c.topic_id, c.type, c.front, c.back, c.extra, c.tags, s.due, s.state
+      `SELECT c.id, c.deck_id, c.topic_id, c.type, c.front, c.back, c.extra, c.tags, s.due, s.state, c.bookmarked
          FROM cards c JOIN card_srs s ON s.card_id = c.id
         WHERE ${where.join(" AND ")}
         ORDER BY s.due ASC
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
       extra: r.extra,
       tags: JSON.parse(r.tags || "[]") as string[],
       state: r.state,
+      bookmarked: !!r.bookmarked,
     };
   });
 

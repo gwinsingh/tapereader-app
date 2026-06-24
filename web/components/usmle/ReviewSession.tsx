@@ -12,7 +12,13 @@ interface QueueCard {
   extra: string | null;
   tags: string[];
   state: string;
+  bookmarked: boolean;
 }
+
+/** Where a session's cards come from: the global due queue, or a custom filter. */
+export type ReviewSource =
+  | { kind: "queue"; deckId?: string }
+  | { kind: "custom"; query: string; label?: string };
 
 const RATINGS = [
   { value: 1, label: "Again", key: "1", color: "var(--color-danger)" },
@@ -21,8 +27,20 @@ const RATINGS = [
   { value: 4, label: "Easy", key: "4", color: "var(--stat-green)" },
 ];
 
-export default function ReviewSession({ deckId }: { deckId?: string }) {
+function sourceUrl(source: ReviewSource): string {
+  if (source.kind === "custom") return `/api/usmle/review/custom?${source.query}`;
+  return `/api/usmle/review/queue${source.deckId ? `?deckId=${encodeURIComponent(source.deckId)}` : ""}`;
+}
+
+export default function ReviewSession({
+  source = { kind: "queue" },
+  onExit,
+}: {
+  source?: ReviewSource;
+  onExit?: () => void;
+}) {
   const { writeHeaders, ready } = useWriteKey();
+  const isCustom = source.kind === "custom";
   const [cards, setCards] = useState<QueueCard[] | null>(null);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -30,16 +48,16 @@ export default function ReviewSession({ deckId }: { deckId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState(() => Date.now());
 
+  const url = sourceUrl(source);
   const load = useCallback(() => {
-    const qs = deckId ? `?deckId=${encodeURIComponent(deckId)}` : "";
-    fetch(`/api/usmle/review/queue${qs}`)
+    fetch(url)
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || `HTTP ${r.status}`);
         return r.json();
       })
       .then((d) => { setCards(d.cards); setIdx(0); setFlipped(false); })
       .catch((e) => setError(String(e.message || e)));
-  }, [deckId]);
+  }, [url]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -67,16 +85,37 @@ export default function ReviewSession({ deckId }: { deckId?: string }) {
     [current, writeHeaders, startedAt]
   );
 
-  // Keyboard: space/enter to flip, 1-4 to rate once flipped.
+  const toggleBookmark = useCallback(async () => {
+    if (!current) return;
+    const next = !current.bookmarked;
+    setCards((cs) => (cs ? cs.map((c, i) => (i === idx ? { ...c, bookmarked: next } : c)) : cs));
+    try {
+      const r = await fetch(`/api/usmle/cards/${current.id}`, {
+        method: "PATCH",
+        headers: writeHeaders(),
+        body: JSON.stringify({ bookmarked: next }),
+      });
+      if (!r.ok) throw new Error();
+    } catch {
+      setCards((cs) => (cs ? cs.map((c, i) => (i === idx ? { ...c, bookmarked: !next } : c)) : cs));
+    }
+  }, [current, idx, writeHeaders]);
+
+  // Keyboard: space/enter to flip, 1-4 to rate once flipped, b to bookmark.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (!current) return;
+      if (e.key === "b" || e.key === "B") { e.preventDefault(); toggleBookmark(); return; }
       if (!flipped && (e.key === " " || e.key === "Enter")) { e.preventDefault(); setFlipped(true); return; }
       if (flipped && ["1", "2", "3", "4"].includes(e.key)) { e.preventDefault(); grade(Number(e.key)); }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, flipped, grade]);
+  }, [current, flipped, grade, toggleBookmark]);
+
+  const backBtn = onExit && (
+    <button onClick={onExit} className="text-xs underline" style={{ color: "var(--color-muted)" }}>← Back to browse</button>
+  );
 
   if (error)
     return (
@@ -85,28 +124,53 @@ export default function ReviewSession({ deckId }: { deckId?: string }) {
         <p className="mt-1" style={{ color: "var(--color-muted)" }}>
           A database error usually means the D1 binding isn’t available (e.g. running under <code>next dev</code> instead of <code>wrangler pages dev</code>, or not deployed yet).
         </p>
-        <button onClick={() => { setError(null); load(); }} className="mt-2 text-xs underline" style={{ color: "var(--color-accent)" }}>Retry</button>
+        <div className="mt-2 flex gap-3">
+          <button onClick={() => { setError(null); load(); }} className="text-xs underline" style={{ color: "var(--color-accent)" }}>Retry</button>
+          {backBtn}
+        </div>
       </div>
     );
 
   if (!ready || cards === null) return <p className="text-sm" style={{ color: "var(--color-muted)" }}>Loading…</p>;
 
   if (cards.length === 0)
-    return <p className="text-sm" style={{ color: "var(--color-muted)" }}>Nothing due right now. {reviewed > 0 && `Reviewed ${reviewed} this session. `}🎉</p>;
+    return (
+      <div className="space-y-2 text-sm" style={{ color: "var(--color-muted)" }}>
+        <p>{isCustom ? "No cards match this study filter." : "Nothing due right now."} {reviewed > 0 && `Reviewed ${reviewed} this session. `}🎉</p>
+        {backBtn}
+      </div>
+    );
 
   if (!current)
     return (
-      <div className="text-sm">
+      <div className="space-y-2 text-sm">
         <p style={{ color: "var(--color-accent)" }}>Session complete — reviewed {reviewed} card{reviewed === 1 ? "" : "s"}.</p>
-        <button onClick={load} className="mt-2 text-xs underline" style={{ color: "var(--color-accent)" }}>Load more due cards</button>
+        <div className="flex gap-3">
+          <button onClick={load} className="text-xs underline" style={{ color: "var(--color-accent)" }}>{isCustom ? "Restart" : "Load more due cards"}</button>
+          {backBtn}
+        </div>
       </div>
     );
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-xs" style={{ color: "var(--color-muted)" }}>
-        <span>{idx + 1} / {cards.length} due · reviewed {reviewed}</span>
-        <span>{current.state}</span>
+        <span>
+          {idx + 1} / {cards.length}{isCustom ? "" : " due"} · reviewed {reviewed}
+          {isCustom && source.label ? ` · ${source.label}` : ""}
+        </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleBookmark}
+            title="Bookmark (b)"
+            className="text-sm"
+            style={{ color: current.bookmarked ? "var(--color-warn)" : "var(--color-muted)" }}
+          >
+            {current.bookmarked ? "★ Bookmarked" : "☆ Bookmark"}
+          </button>
+          <span>{current.state}</span>
+          {backBtn}
+        </div>
       </div>
 
       <div
