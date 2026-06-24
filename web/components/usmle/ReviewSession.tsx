@@ -15,6 +15,16 @@ interface QueueCard {
   bookmarked: boolean;
 }
 
+interface Pacing {
+  newPerDay: number;
+  newDoneToday: number;
+  newServed: number;
+  newRemaining: number;
+  maxReviewsPerDay: number;
+  reviewsDoneToday: number;
+  reviewsServed: number;
+}
+
 /** Where a session's cards come from: the global due queue, or a custom filter. */
 export type ReviewSource =
   | { kind: "queue"; deckId?: string }
@@ -27,9 +37,18 @@ const RATINGS = [
   { value: 4, label: "Easy", key: "4", color: "var(--stat-green)" },
 ];
 
+function localDayStart(): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 function sourceUrl(source: ReviewSource): string {
   if (source.kind === "custom") return `/api/usmle/review/custom?${source.query}`;
-  return `/api/usmle/review/queue${source.deckId ? `?deckId=${encodeURIComponent(source.deckId)}` : ""}`;
+  const p = new URLSearchParams();
+  if (source.deckId) p.set("deckId", source.deckId);
+  p.set("dayStart", localDayStart());
+  return `/api/usmle/review/queue?${p.toString()}`;
 }
 
 export default function ReviewSession({
@@ -42,11 +61,13 @@ export default function ReviewSession({
   const { writeHeaders, ready } = useWriteKey();
   const isCustom = source.kind === "custom";
   const [cards, setCards] = useState<QueueCard[] | null>(null);
+  const [pacing, setPacing] = useState<Pacing | null>(null);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [reviewed, setReviewed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState(() => Date.now());
+  const [showLimits, setShowLimits] = useState(false);
 
   const url = sourceUrl(source);
   const load = useCallback(() => {
@@ -55,7 +76,7 @@ export default function ReviewSession({
         if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || `HTTP ${r.status}`);
         return r.json();
       })
-      .then((d) => { setCards(d.cards); setIdx(0); setFlipped(false); })
+      .then((d) => { setCards(d.cards); setPacing(d.pacing ?? null); setIdx(0); setFlipped(false); })
       .catch((e) => setError(String(e.message || e)));
   }, [url]);
 
@@ -117,6 +138,28 @@ export default function ReviewSession({
     <button onClick={onExit} className="text-xs underline" style={{ color: "var(--color-muted)" }}>← Back to browse</button>
   );
 
+  // Pacing header (queue sessions only): today's new-card progress + limits editor.
+  const pacingHeader = !isCustom && pacing && (
+    <div className="rounded-md border p-2 text-xs" style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>
+          New today: <strong style={{ color: "var(--color-text)" }}>{pacing.newDoneToday}/{pacing.newPerDay}</strong>
+          {pacing.newPerDay > 0 && pacing.newRemaining === 0 ? " ✓" : ""}
+          {" · queued now: "}{pacing.reviewsServed} review + {pacing.newServed} new
+        </span>
+        <button onClick={() => setShowLimits((s) => !s)} style={{ color: "var(--color-accent)" }}>⚙ limits</button>
+      </div>
+      {showLimits && (
+        <LimitsEditor
+          pacing={pacing}
+          writeHeaders={writeHeaders}
+          onSaved={() => { setShowLimits(false); load(); }}
+          onCancel={() => setShowLimits(false)}
+        />
+      )}
+    </div>
+  );
+
   if (error)
     return (
       <div className="rounded-md border p-4 text-sm" style={{ borderColor: "var(--color-border)" }}>
@@ -135,28 +178,42 @@ export default function ReviewSession({
 
   if (cards.length === 0)
     return (
-      <div className="space-y-2 text-sm" style={{ color: "var(--color-muted)" }}>
-        <p>{isCustom ? "No cards match this study filter." : "Nothing due right now."} {reviewed > 0 && `Reviewed ${reviewed} this session. `}🎉</p>
-        {backBtn}
+      <div className="space-y-3">
+        {pacingHeader}
+        <div className="space-y-2 text-sm" style={{ color: "var(--color-muted)" }}>
+          <p>
+            {isCustom
+              ? "No cards match this study filter."
+              : pacing && pacing.newRemaining === 0 && pacing.newPerDay > 0
+              ? `All caught up — you've hit today's new-card goal (${pacing.newPerDay}). Reviews will surface as they come due.`
+              : "Nothing due right now."}{" "}
+            {reviewed > 0 && `Reviewed ${reviewed} this session. `}🎉
+          </p>
+          {backBtn}
+        </div>
       </div>
     );
 
   if (!current)
     return (
-      <div className="space-y-2 text-sm">
-        <p style={{ color: "var(--color-accent)" }}>Session complete — reviewed {reviewed} card{reviewed === 1 ? "" : "s"}.</p>
-        <div className="flex gap-3">
-          <button onClick={load} className="text-xs underline" style={{ color: "var(--color-accent)" }}>{isCustom ? "Restart" : "Load more due cards"}</button>
-          {backBtn}
+      <div className="space-y-3">
+        {pacingHeader}
+        <div className="space-y-2 text-sm">
+          <p style={{ color: "var(--color-accent)" }}>Session complete — reviewed {reviewed} card{reviewed === 1 ? "" : "s"}.</p>
+          <div className="flex gap-3">
+            <button onClick={load} className="text-xs underline" style={{ color: "var(--color-accent)" }}>{isCustom ? "Restart" : "Load more"}</button>
+            {backBtn}
+          </div>
         </div>
       </div>
     );
 
   return (
     <div className="space-y-4">
+      {pacingHeader}
       <div className="flex items-center justify-between text-xs" style={{ color: "var(--color-muted)" }}>
         <span>
-          {idx + 1} / {cards.length}{isCustom ? "" : " due"} · reviewed {reviewed}
+          {idx + 1} / {cards.length}{isCustom ? "" : " queued"} · reviewed {reviewed}
           {isCustom && source.label ? ` · ${source.label}` : ""}
         </span>
         <div className="flex items-center gap-3">
@@ -234,6 +291,54 @@ export default function ReviewSession({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function LimitsEditor({
+  pacing,
+  writeHeaders,
+  onSaved,
+  onCancel,
+}: {
+  pacing: Pacing;
+  writeHeaders: () => HeadersInit;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [newPerDay, setNewPerDay] = useState(pacing.newPerDay);
+  const [maxReviews, setMaxReviews] = useState(pacing.maxReviewsPerDay);
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await fetch("/api/usmle/settings", {
+        method: "PATCH",
+        headers: writeHeaders(),
+        body: JSON.stringify({ newPerDay, maxReviewsPerDay: maxReviews }),
+      });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const fieldStyle = { backgroundColor: "var(--color-bg)", borderColor: "var(--color-border)", color: "var(--color-text)" } as const;
+  return (
+    <div className="mt-2 flex flex-wrap items-end gap-3 border-t pt-2" style={{ borderColor: "var(--color-border)" }}>
+      <label className="flex flex-col">
+        New cards / day
+        <input type="number" min={0} max={1000} value={newPerDay} onChange={(e) => setNewPerDay(Number(e.target.value))} className="mt-0.5 w-24 rounded border px-2 py-1" style={fieldStyle} />
+      </label>
+      <label className="flex flex-col">
+        Max reviews / day <span className="opacity-60">(0 = ∞)</span>
+        <input type="number" min={0} max={10000} value={maxReviews} onChange={(e) => setMaxReviews(Number(e.target.value))} className="mt-0.5 w-24 rounded border px-2 py-1" style={fieldStyle} />
+      </label>
+      <button onClick={save} disabled={saving} className="rounded px-3 py-1 font-medium disabled:opacity-50" style={{ backgroundColor: "var(--color-accent)", color: "var(--color-bg)" }}>
+        {saving ? "Saving…" : "Save"}
+      </button>
+      <button onClick={onCancel} className="rounded border px-3 py-1" style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}>Cancel</button>
     </div>
   );
 }

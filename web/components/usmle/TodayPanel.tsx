@@ -21,8 +21,9 @@ export default function TodayPanel() {
     let cancelled = false;
     async function load() {
       const get = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const dayStart = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); })();
       const [queue, cov, scores] = await Promise.all([
-        get("/api/usmle/review/queue"),
+        get(`/api/usmle/review/queue?dayStart=${encodeURIComponent(dayStart)}`),
         get("/api/usmle/stats/coverage"),
         get("/api/usmle/scores"),
       ]);
@@ -54,7 +55,7 @@ export default function TodayPanel() {
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <Link href="/usmle/cards" className="block">
             <div className="text-2xl font-bold" style={{ color: "var(--color-text)" }}>{t.due ?? "—"}</div>
-            <div className="text-xs" style={{ color: "var(--color-muted)" }}>cards due — review now →</div>
+            <div className="text-xs" style={{ color: "var(--color-muted)" }}>cards to review today →</div>
           </Link>
 
           <Link href="/usmle/topics" className="block">
