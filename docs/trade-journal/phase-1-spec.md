@@ -38,17 +38,22 @@ findings live in the conversation; the short version that drives this build:
 - **`Origin` column** appended to `TRPCT1541-GURI` (added via existing `migrateTabIfNeeded`
   on next upload). Manual-column styling (flipped header), dropdown
   `Watchlist / Callout / Intraday discovery` (strict: false), centered.
-- **`Daily Plan` tab**: `Date | Symbol | Conviction (1-3) | Thesis | Source`
-  (`Source` ∈ `Watchlist`/`Callout`). Created on demand.
+- **`Daily Plan` tab**: `Date | Symbol | Conviction (1-3) | Thesis | Catalyst`
+  (Catalyst = dropdown of `CATALYST_OPTIONS`). Created on demand.
+  - Origin is derived by *presence*, not stored in the plan: on the plan → `Watchlist`,
+    off-plan → `Intraday discovery`. `Callout` remains a manual override on the sheet.
+  - At upload, Conviction **and Catalyst** auto-fill from the plan when blank.
+  - (Catalyst option `Earnings` was renamed `Earnings/News`.)
 
 ### Backend (`lib/trade-journal/google-sheets.ts`)
 - `ORIGIN_OPTIONS` const; add `Origin` to `SHEET_HEADERS`, `manualHeaders`, colWidths,
   center-align, and a `setDataValidation` dropdown in `applyFormatting`.
 - `ensureDailyPlanTab`, `getDailyPlan(date)`, `getDailyPlanMap()` (all rows →
-  `Map<"date|symbol", {conviction, source}>`), `upsertDailyPlan(date, entries)`
+  `Map<"date|symbol", {conviction, catalyst}>`), `upsertDailyPlan(date, entries)`
   (replace-by-date).
 - In `appendTrades`: fetch plan map once; for each new row set `Origin`
-  (plan source, else `Intraday discovery`) and fill `Conviction` if blank.
+  (on plan → `Watchlist`, else `Intraday discovery`) and fill `Conviction` and
+  `Catalyst` if blank.
 
 ### API
 - **`/api/trade-journal/plan`** (edge): `GET ?date=` → entries; `POST {date, entries}`
@@ -56,7 +61,7 @@ findings live in the conversation; the short version that drives this build:
 
 ### UI
 - **`/pct-bootcamp/trade-journal/plan`** page: date picker (today default), editable rows
-  `{symbol, conviction, thesis, source}`, QQQ/SPY seeded, add/remove, save. Nav link
+  `{symbol, conviction, thesis, catalyst}`, QQQ/SPY seeded, add/remove, save. Nav link
   from the main journal header.
 - **`CaptureTracker`** component (collapsible card, shared filter bar) on the journal
   page. Reads existing `/api/trade-journal/analysis` (already returns pnl, risk, maxR).

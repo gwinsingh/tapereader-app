@@ -105,7 +105,7 @@ const EMPTY_FILTERS: Filters = {
 
 const SETUP_FILTER_OPTIONS = ["ORB", "ABCD", "BHOD", "BLOD", "VWAP Bounce", "Mean Reversion"];
 const CATALYST_FILTER_OPTIONS = [
-  "Earnings", "Upgrade/Downgrade", "FDA/Regulatory", "Sector Momentum",
+  "Earnings/News", "Upgrade/Downgrade", "FDA/Regulatory", "Sector Momentum",
   "Gap Only", "Key Daily Level", "Day 2", "Pullback to DEMA", "Other",
 ];
 const TAG_FILTER_OPTIONS = [

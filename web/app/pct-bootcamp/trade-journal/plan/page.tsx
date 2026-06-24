@@ -6,10 +6,23 @@ interface PlanRow {
   symbol: string;
   conviction: string;
   thesis: string;
-  source: string;
+  catalyst: string;
 }
 
 const SEED_SYMBOLS = ["QQQ", "SPY"];
+
+// Mirrors CATALYST_OPTIONS in lib/trade-journal/google-sheets.ts (kept in sync).
+const CATALYST_OPTIONS = [
+  "Earnings/News",
+  "Upgrade/Downgrade",
+  "FDA/Regulatory",
+  "Sector Momentum",
+  "Gap Only",
+  "Key Daily Level",
+  "Day 2",
+  "Pullback to DEMA",
+  "Other",
+];
 
 function todayStr(): string {
   const d = new Date();
@@ -17,8 +30,8 @@ function todayStr(): string {
   return local.toISOString().slice(0, 10);
 }
 
-function emptyRow(symbol = "", source = "Watchlist"): PlanRow {
-  return { symbol, conviction: "", thesis: "", source };
+function emptyRow(symbol = ""): PlanRow {
+  return { symbol, conviction: "", thesis: "", catalyst: "" };
 }
 
 function seededRows(): PlanRow[] {
@@ -123,8 +136,9 @@ export default function MorningPlanPage() {
         <div>
           <h1 className="text-2xl font-bold">Morning Plan</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>
-            Pre-qualify your names before the open. Conviction and origin set here auto-fill
-            onto matching trades at upload — so you never have to log conviction at the open.
+            Pre-qualify your names before the open. Conviction and catalyst set here auto-fill
+            onto matching trades at upload (and they&apos;re tagged <strong>Watchlist</strong>) —
+            so you never have to log them at the open.
           </p>
         </div>
         <a
@@ -174,7 +188,7 @@ export default function MorningPlanPage() {
           <span>Symbol</span>
           <span>Conviction</span>
           <span>Thesis</span>
-          <span>Origin</span>
+          <span>Catalyst</span>
           <span />
         </div>
 
@@ -212,13 +226,15 @@ export default function MorningPlanPage() {
               style={inputStyle}
             />
             <select
-              value={row.source}
-              onChange={(e) => updateRow(i, { source: e.target.value })}
+              value={row.catalyst}
+              onChange={(e) => updateRow(i, { catalyst: e.target.value })}
               className="rounded border py-1.5 px-2 text-sm focus:outline-none"
               style={inputStyle}
             >
-              <option value="Watchlist">Watchlist</option>
-              <option value="Callout">Callout</option>
+              <option value="">—</option>
+              {CATALYST_OPTIONS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
             <button
               type="button"

@@ -145,7 +145,7 @@ const SETUP_OPTIONS = [
 ];
 
 const CATALYST_OPTIONS = [
-  "Earnings",
+  "Earnings/News",
   "Upgrade/Downgrade",
   "FDA/Regulatory",
   "Sector Momentum",
@@ -1645,13 +1645,13 @@ function fullRForDate(schedule: FullRSchedule, tabName: string, date: string): n
 // --- Daily Plan (pre-market watchlist + conviction) ---
 
 const DAILY_PLAN_TAB = "Daily Plan";
-const PLAN_HEADERS = ["Date", "Symbol", "Conviction (1-3)", "Thesis", "Source"];
+const PLAN_HEADERS = ["Date", "Symbol", "Conviction (1-3)", "Thesis", "Catalyst"];
 
 export interface DailyPlanEntry {
   symbol: string;
   conviction: string; // "1" | "2" | "3" | ""
   thesis: string;
-  source: string; // "Watchlist" | "Callout"
+  catalyst: string; // one of CATALYST_OPTIONS (or comma-separated / free text)
 }
 
 async function ensureDailyPlanTab(token: string, spreadsheetId: string): Promise<void> {
@@ -1664,13 +1664,14 @@ async function ensureDailyPlanTab(token: string, spreadsheetId: string): Promise
   await sheetsValuesUpdate(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A1`, [PLAN_HEADERS]);
 }
 
-// All plan rows as a lookup: "date|SYMBOL" -> { conviction, source }. Returns {}
-// (empty map) when the tab is absent — auto-fill then just stamps Intraday discovery.
+// All plan rows as a lookup: "date|SYMBOL" -> { conviction, catalyst }. Returns {}
+// (empty map) when the tab is absent. Presence in the map => Origin "Watchlist";
+// absence => "Intraday discovery".
 async function getDailyPlanMap(
   token: string,
   spreadsheetId: string
-): Promise<Map<string, { conviction: string; source: string }>> {
-  const map = new Map<string, { conviction: string; source: string }>();
+): Promise<Map<string, { conviction: string; catalyst: string }>> {
+  const map = new Map<string, { conviction: string; catalyst: string }>();
   let rows: string[][];
   try {
     rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
@@ -1682,7 +1683,7 @@ async function getDailyPlanMap(
   const dIdx = cm(colMap, "Date");
   const sIdx = cm(colMap, "Symbol");
   const cIdx = cm(colMap, "Conviction (1-3)");
-  const srcIdx = cm(colMap, "Source");
+  const catIdx = cm(colMap, "Catalyst");
   if (dIdx < 0 || sIdx < 0) return map;
   for (const r of rows.slice(1)) {
     const date = (r[dIdx] || "").trim();
@@ -1690,7 +1691,7 @@ async function getDailyPlanMap(
     if (!date || !symbol) continue;
     map.set(`${date}|${symbol}`, {
       conviction: cIdx >= 0 ? (r[cIdx] || "").trim() : "",
-      source: srcIdx >= 0 ? (r[srcIdx] || "").trim() : "",
+      catalyst: catIdx >= 0 ? (r[catIdx] || "").trim() : "",
     });
   }
   return map;
@@ -1711,7 +1712,7 @@ export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
   const sIdx = cm(colMap, "Symbol");
   const cIdx = cm(colMap, "Conviction (1-3)");
   const tIdx = cm(colMap, "Thesis");
-  const srcIdx = cm(colMap, "Source");
+  const catIdx = cm(colMap, "Catalyst");
   return rows
     .slice(1)
     .filter((r) => (r[dIdx] || "").trim() === date && (r[sIdx] || "").trim())
@@ -1719,7 +1720,7 @@ export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
       symbol: (r[sIdx] || "").trim().toUpperCase(),
       conviction: cIdx >= 0 ? (r[cIdx] || "").trim() : "",
       thesis: tIdx >= 0 ? (r[tIdx] || "").trim() : "",
-      source: srcIdx >= 0 ? (r[srcIdx] || "").trim() : "",
+      catalyst: catIdx >= 0 ? (r[catIdx] || "").trim() : "",
     }));
 }
 
@@ -1743,11 +1744,11 @@ export async function upsertDailyPlan(date: string, entries: DailyPlanEntry[]): 
       symbol: sym,
       conviction: (e.conviction || "").trim(),
       thesis: (e.thesis || "").trim(),
-      source: (e.source || "Watchlist").trim() || "Watchlist",
+      catalyst: (e.catalyst || "").trim(),
     });
   }
 
-  const newRows = cleaned.map((e) => [date, e.symbol, e.conviction, e.thesis, e.source]);
+  const newRows = cleaned.map((e) => [date, e.symbol, e.conviction, e.thesis, e.catalyst]);
   const out: (string | number)[][] = [PLAN_HEADERS, ...otherDates, ...newRows];
 
   await sheetsValuesClear(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
@@ -1944,7 +1945,7 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Emotional State", "No — you fill this in (daily)", "How you're feeling before trading. Select from dropdown: Calm, Anxious, Excited, Frustrated, or Fatigued. Fill in once per day."],
     ["Market Bias", "No — you fill this in (daily)", "Your pre-market read on the overall market direction. Select from dropdown: Bullish, Bearish, or Neutral. Fill in once per day."],
     ["Conviction (1-3)", "No — you fill this in", "Your conviction level for this trade before/at entry: 1 (low), 2 (solid), 3 (A+ setup)."],
-    ["Catalyst", "No — you fill this in", "The catalyst driving the trade. Select one or type comma-separated: Earnings, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
+    ["Catalyst", "No — you fill this in", "The catalyst driving the trade. Select one or type comma-separated: Earnings/News, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
     ["Tags", "No — you fill this in", "Retrospective pattern tags applied during screenshot review. Comma-separated: clean entry, extended entry, chased, FOMO, added size, perfect process, revenge trade, oversize, strong momentum, gap>2xATR, gap<2xATR, or custom."],
     ["Max R Before Stop", "Yes (market data)", "Highest R-multiple the stock reached before the stop was hit (order-aware). If the stop was never hit, this is the max R by end of day. Requires R to be filled in. Used by 1R-6R columns."],
     ["Farthest Price", "Yes (market data)", "The actual stock price at the farthest favorable point before the stop was hit. Requires R to be filled in."],
@@ -1986,7 +1987,7 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Process Followed?", "Honestly assess whether you followed your trading plan. This is for your own development — be truthful."],
     ["Notes", "Write anything that will help you learn: your reasoning, emotions, what the chart looked like, what you'd do differently."],
     ["Conviction (1-3)", "Rate your conviction before entry: 1 = low (taking it but not ideal), 2 = solid setup, 3 = A+ setup. Over time, compare your P&L across conviction levels."],
-    ["Catalyst", "Select the catalyst from dropdown or type comma-separated values for multiple: Earnings, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
+    ["Catalyst", "Select the catalyst from dropdown or type comma-separated values for multiple: Earnings/News, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
     ["Tags", "Add tags during screenshot review to categorize patterns. Comma-separated. Use the web app's Screenshot Review page or type directly."],
     ["Sleep Score", "Rate your sleep quality 0–100. Fill in once on the first trade row of each day."],
     ["Readiness Score", "Rate your overall readiness to trade 0–100. Fill in once on the first trade row of each day."],
@@ -2147,7 +2148,7 @@ export async function appendTrades(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  // Pre-market plan lookup (date|SYMBOL -> conviction + source) for auto-fill.
+  // Pre-market plan lookup (date|SYMBOL -> conviction + catalyst) for auto-fill.
   const planMap = await getDailyPlanMap(token, spreadsheetId);
 
   const byAccount = new Map<string, { trade: GroupedTrade; enrichment?: MarketEnrichment }[]>();
@@ -2177,6 +2178,7 @@ export async function appendTrades(
 
     const originIdx = cm(tabColMap, "Origin");
     const convIdx = cm(tabColMap, "Conviction (1-3)");
+    const catalystIdx = cm(tabColMap, "Catalyst");
 
     for (const { trade, enrichment } of items) {
       const rowIndex = nextRowStart + newRows.length;
@@ -2184,13 +2186,17 @@ export async function appendTrades(
       const key = makeDedupeKey(row, tabColMap);
       if (existingKeys.has(key)) { skipped++; continue; }
 
-      // Auto-fill Origin + Conviction from the pre-market Daily Plan (by date|symbol).
+      // Auto-fill Origin + Conviction + Catalyst from the pre-market Daily Plan
+      // (by date|symbol). On the plan => Watchlist; off-plan => Intraday discovery.
       const plan = planMap.get(`${trade.date}|${(trade.symbol || "").toUpperCase()}`);
       if (originIdx >= 0) {
-        row[originIdx] = plan ? (plan.source || "Watchlist") : "Intraday discovery";
+        row[originIdx] = plan ? "Watchlist" : "Intraday discovery";
       }
       if (convIdx >= 0 && plan?.conviction && (row[convIdx] === "" || row[convIdx] == null)) {
         row[convIdx] = plan.conviction;
+      }
+      if (catalystIdx >= 0 && plan?.catalyst && (row[catalystIdx] === "" || row[catalystIdx] == null)) {
+        row[catalystIdx] = plan.catalyst;
       }
 
       newRows.push(row);
