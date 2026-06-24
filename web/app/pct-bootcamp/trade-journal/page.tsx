@@ -5,6 +5,7 @@ import TradePreview from "@/components/trade-journal/TradePreview";
 import AggregateStats from "@/components/trade-journal/AggregateStats";
 import HowToUse from "@/components/trade-journal/HowToUse";
 import ProfitabilityAnalysis from "@/components/trade-journal/ProfitabilityAnalysis";
+import CaptureTracker from "@/components/trade-journal/CaptureTracker";
 import TradingCalendar from "@/components/trade-journal/TradingCalendar";
 
 interface TradeRow {
@@ -468,6 +469,13 @@ export default function TradeJournalPage() {
         </div>
         <div className="flex items-center gap-2">
           <a
+            href="/pct-bootcamp/trade-journal/plan"
+            className="shrink-0 rounded border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+            style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
+          >
+            Morning Plan
+          </a>
+          <a
             href="/pct-bootcamp/trade-journal/screenshots"
             className="shrink-0 rounded border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
             style={{ borderColor: "var(--color-border)", color: "var(--color-text)" }}
@@ -751,6 +759,13 @@ export default function TradeJournalPage() {
           <h2 className="text-lg font-bold">Calendar</h2>
           <TradingCalendar tabName={getActiveTabName()!} filterParams={buildFilterParams()} />
         </div>
+      )}
+
+      {getActiveTabName() && (
+        <CaptureTracker
+          tabName={getActiveTabName()!}
+          filterParams={buildFilterParams()}
+        />
       )}
 
       {getActiveTabName() && (

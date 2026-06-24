@@ -88,6 +88,11 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 - **Image proxy**: `/api/trade-journal/screenshot-image?fileId=xxx` streams Drive file content through edge, avoids exposing auth tokens to client.
 - **Tags**: Retrospective pattern labels (comma-separated) editable from the Screenshot Review UI. Saved immediately to Google Sheets via `PATCH /api/trade-journal/tags`. Presets: clean entry, extended entry, chased, FOMO, added size, perfect process, revenge trade, oversize, strong momentum, gap>2xATR, gap<2xATR.
 
+### Morning Plan, Origin & Capture Tracker (Phase 1 — see `docs/trade-journal/phase-1-spec.md`)
+- **Daily Plan tab** (`Date | Symbol | Conviction (1-3) | Thesis | Source`): pre-market watchlist filled via the in-app Morning Plan form (`/pct-bootcamp/trade-journal/plan`). Solves logging conviction at the open — it's captured the night before / pre-market instead. QQQ/SPY seeded; upsert dedups by symbol.
+- **Origin column** (manual dropdown `Watchlist / Callout / Intraday discovery`): auto-filled at CSV upload by matching `date|symbol` against the Daily Plan (planned name → its Source; off-plan → `Intraday discovery`). Conviction also auto-fills from the plan when blank. **Origin is a separate axis from "Process Followed?"** — idea source must not contaminate the execution-discipline signal.
+- **Capture / Trail-Leak Tracker** (`CaptureTracker.tsx`): headline **Target Capture %** = among trades whose MFE (`Max R Before Stop`) ≥ target, `mean(min(realizedR, target))/target`. Isolates the trail leak (cutting runners short of a reachable target) from trades that fail early. Target configurable (default 2.5R, `localStorage`); reuses `/api/trade-journal/analysis`; driven by the shared filter bar.
+
 ### JSON serialization gotcha
 `Infinity` doesn't survive `JSON.stringify()` (becomes `null`). Use `9999` as sentinel, display as `∞` in UI.
 
@@ -133,6 +138,9 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 | `web/components/trade-journal/ScreenshotReview.tsx` | Screenshot review UI with filters, carousel, tags, lightbox |
 | `web/components/trade-journal/TradingCalendar.tsx` | Monthly calendar view (Standard R / Realized R / $ toggle) |
 | `web/app/api/trade-journal/calendar/route.ts` | GET endpoint for per-day calendar cells |
+| `web/components/trade-journal/CaptureTracker.tsx` | Trail-leak tracker: Target Capture %, R left on table, weekly trend (reads `/analysis`) |
+| `web/app/pct-bootcamp/trade-journal/plan/page.tsx` | Morning Plan form — pre-market watchlist + conviction |
+| `web/app/api/trade-journal/plan/route.ts` | GET/POST endpoint for the `Daily Plan` tab (upsert by date) |
 | `web/components/HeaderVisibility.tsx` | Hides main app header on `/pct-bootcamp` routes |
 | `apps/4-week-challenge/src/App.jsx` | 4-Week Challenge React app (single-file) |
 | `apps/4-week-challenge/vite.config.js` | Vite config, builds to `web/public/4-week-challenge/` |

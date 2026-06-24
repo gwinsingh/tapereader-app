@@ -56,6 +56,7 @@ const SHEET_HEADERS = [
   "PDC",
   "PDH",
   "PDL",
+  "Origin",
 ];
 
 const COL = {
@@ -167,6 +168,12 @@ const TAG_OPTIONS = [
   "strong momentum",
   "gap>2xATR",
   "gap<2xATR",
+];
+
+const ORIGIN_OPTIONS = [
+  "Watchlist",
+  "Callout",
+  "Intraday discovery",
 ];
 
 const EMOTIONAL_STATE_OPTIONS = [
@@ -334,6 +341,22 @@ async function sheetsValuesAppend(
   if (!res.ok) throw new Error(`Sheets values.append failed: ${await res.text()}`);
 }
 
+async function sheetsValuesClear(
+  token: string,
+  spreadsheetId: string,
+  range: string
+): Promise<void> {
+  const res = await fetch(
+    `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}:clear`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: "{}",
+    }
+  );
+  if (!res.ok) throw new Error(`Sheets values.clear failed: ${await res.text()}`);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function sheetsBatchUpdate(token: string, spreadsheetId: string, requests: any[]): Promise<void> {
   const res = await fetch(`${SHEETS_BASE}/${spreadsheetId}:batchUpdate`, {
@@ -373,7 +396,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
   const totalCols = colMap ? Math.max(...Object.values(colMap)) + 1 : TOTAL_COLS;
 
-  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags"];
+  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin"];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const colRange = (col: number) => ({ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 });
@@ -440,6 +463,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "Float": 100, "Avg $ Vol": 100,
     "SPY Dir": 70, "VIX": 60,
     "PDC": 80, "PDH": 80, "PDL": 80,
+    "Origin": 130,
   };
   for (const [header, width] of Object.entries(colWidths)) {
     const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
@@ -733,6 +757,21 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
+  // Data validation: Origin
+  const originCol = colMap ? (colMap["Origin"] ?? -1) : SHEET_HEADERS.indexOf("Origin");
+  if (originCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(originCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: ORIGIN_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: false,
+        },
+      },
+    });
+  }
+
   // Number format: Sleep & Readiness scores (whole numbers)
   for (const h of ["Sleep Score", "Readiness Score", "#1m", "#5m", "#1H"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
@@ -805,7 +844,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Text wrapping
-  for (const h of ["Setup", "Notes", "Catalyst", "Tags"]) {
+  for (const h of ["Setup", "Notes", "Catalyst", "Tags", "Origin"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1603,6 +1642,119 @@ function fullRForDate(schedule: FullRSchedule, tabName: string, date: string): n
   return applicable ?? entries[0].fullR;
 }
 
+// --- Daily Plan (pre-market watchlist + conviction) ---
+
+const DAILY_PLAN_TAB = "Daily Plan";
+const PLAN_HEADERS = ["Date", "Symbol", "Conviction (1-3)", "Thesis", "Source"];
+
+export interface DailyPlanEntry {
+  symbol: string;
+  conviction: string; // "1" | "2" | "3" | ""
+  thesis: string;
+  source: string; // "Watchlist" | "Callout"
+}
+
+async function ensureDailyPlanTab(token: string, spreadsheetId: string): Promise<void> {
+  const meta = await sheetsGet(token, spreadsheetId);
+  const exists = meta.sheets.some((s) => s.properties.title === DAILY_PLAN_TAB);
+  if (exists) return;
+  await sheetsBatchUpdate(token, spreadsheetId, [
+    { addSheet: { properties: { title: DAILY_PLAN_TAB } } },
+  ]);
+  await sheetsValuesUpdate(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A1`, [PLAN_HEADERS]);
+}
+
+// All plan rows as a lookup: "date|SYMBOL" -> { conviction, source }. Returns {}
+// (empty map) when the tab is absent — auto-fill then just stamps Intraday discovery.
+async function getDailyPlanMap(
+  token: string,
+  spreadsheetId: string
+): Promise<Map<string, { conviction: string; source: string }>> {
+  const map = new Map<string, { conviction: string; source: string }>();
+  let rows: string[][];
+  try {
+    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
+  } catch {
+    return map;
+  }
+  if (rows.length <= 1) return map;
+  const colMap = buildColMap(rows[0]);
+  const dIdx = cm(colMap, "Date");
+  const sIdx = cm(colMap, "Symbol");
+  const cIdx = cm(colMap, "Conviction (1-3)");
+  const srcIdx = cm(colMap, "Source");
+  if (dIdx < 0 || sIdx < 0) return map;
+  for (const r of rows.slice(1)) {
+    const date = (r[dIdx] || "").trim();
+    const symbol = (r[sIdx] || "").trim().toUpperCase();
+    if (!date || !symbol) continue;
+    map.set(`${date}|${symbol}`, {
+      conviction: cIdx >= 0 ? (r[cIdx] || "").trim() : "",
+      source: srcIdx >= 0 ? (r[srcIdx] || "").trim() : "",
+    });
+  }
+  return map;
+}
+
+export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  let rows: string[][];
+  try {
+    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
+  } catch {
+    return [];
+  }
+  if (rows.length <= 1) return [];
+  const colMap = buildColMap(rows[0]);
+  const dIdx = cm(colMap, "Date");
+  const sIdx = cm(colMap, "Symbol");
+  const cIdx = cm(colMap, "Conviction (1-3)");
+  const tIdx = cm(colMap, "Thesis");
+  const srcIdx = cm(colMap, "Source");
+  return rows
+    .slice(1)
+    .filter((r) => (r[dIdx] || "").trim() === date && (r[sIdx] || "").trim())
+    .map((r) => ({
+      symbol: (r[sIdx] || "").trim().toUpperCase(),
+      conviction: cIdx >= 0 ? (r[cIdx] || "").trim() : "",
+      thesis: tIdx >= 0 ? (r[tIdx] || "").trim() : "",
+      source: srcIdx >= 0 ? (r[srcIdx] || "").trim() : "",
+    }));
+}
+
+// Replace all rows for a given date with the supplied entries. Dedups entries by
+// symbol (uppercased) so manually re-typing seeded QQQ/SPY never doubles a row.
+export async function upsertDailyPlan(date: string, entries: DailyPlanEntry[]): Promise<number> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureDailyPlanTab(token, spreadsheetId);
+
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
+  const otherDates = rows.slice(1).filter((r) => (r[0] || "").trim() !== date && (r[0] || "").trim());
+
+  const seen = new Set<string>();
+  const cleaned: DailyPlanEntry[] = [];
+  for (const e of entries) {
+    const sym = (e.symbol || "").trim().toUpperCase();
+    if (!sym || seen.has(sym)) continue;
+    seen.add(sym);
+    cleaned.push({
+      symbol: sym,
+      conviction: (e.conviction || "").trim(),
+      thesis: (e.thesis || "").trim(),
+      source: (e.source || "Watchlist").trim() || "Watchlist",
+    });
+  }
+
+  const newRows = cleaned.map((e) => [date, e.symbol, e.conviction, e.thesis, e.source]);
+  const out: (string | number)[][] = [PLAN_HEADERS, ...otherDates, ...newRows];
+
+  await sheetsValuesClear(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
+  await sheetsValuesUpdate(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A1`, out);
+  return cleaned.length;
+}
+
 export interface DailyTrade {
   symbol: string;
   setup: string;
@@ -1995,6 +2147,9 @@ export async function appendTrades(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
+  // Pre-market plan lookup (date|SYMBOL -> conviction + source) for auto-fill.
+  const planMap = await getDailyPlanMap(token, spreadsheetId);
+
   const byAccount = new Map<string, { trade: GroupedTrade; enrichment?: MarketEnrichment }[]>();
   for (let i = 0; i < trades.length; i++) {
     const t = trades[i];
@@ -2020,11 +2175,25 @@ export async function appendTrades(
     const newRows: (string | number)[][] = [];
     let skipped = 0;
 
+    const originIdx = cm(tabColMap, "Origin");
+    const convIdx = cm(tabColMap, "Conviction (1-3)");
+
     for (const { trade, enrichment } of items) {
       const rowIndex = nextRowStart + newRows.length;
       const row = tradeToRow(trade, rowIndex, tabColMap, enrichment);
       const key = makeDedupeKey(row, tabColMap);
-      if (existingKeys.has(key)) { skipped++; } else { newRows.push(row); }
+      if (existingKeys.has(key)) { skipped++; continue; }
+
+      // Auto-fill Origin + Conviction from the pre-market Daily Plan (by date|symbol).
+      const plan = planMap.get(`${trade.date}|${(trade.symbol || "").toUpperCase()}`);
+      if (originIdx >= 0) {
+        row[originIdx] = plan ? (plan.source || "Watchlist") : "Intraday discovery";
+      }
+      if (convIdx >= 0 && plan?.conviction && (row[convIdx] === "" || row[convIdx] == null)) {
+        row[convIdx] = plan.conviction;
+      }
+
+      newRows.push(row);
     }
 
     if (newRows.length > 0) {
