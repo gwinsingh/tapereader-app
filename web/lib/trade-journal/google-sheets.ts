@@ -57,6 +57,7 @@ const SHEET_HEADERS = [
   "PDH",
   "PDL",
   "Origin",
+  "L2 Bias",
 ];
 
 const COL = {
@@ -396,7 +397,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
   const totalCols = colMap ? Math.max(...Object.values(colMap)) + 1 : TOTAL_COLS;
 
-  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin"];
+  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin", "L2 Bias"];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const colRange = (col: number) => ({ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 });
@@ -463,7 +464,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "Float": 100, "Avg $ Vol": 100,
     "SPY Dir": 70, "VIX": 60,
     "PDC": 80, "PDH": 80, "PDL": 80,
-    "Origin": 130,
+    "Origin": 130, "L2 Bias": 90,
   };
   for (const [header, width] of Object.entries(colWidths)) {
     const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
@@ -772,6 +773,21 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
+  // Data validation: L2 Bias (reuses the Market Bias options)
+  const l2BiasCol = colMap ? (colMap["L2 Bias"] ?? -1) : SHEET_HEADERS.indexOf("L2 Bias");
+  if (l2BiasCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(l2BiasCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: MARKET_BIAS_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: false,
+        },
+      },
+    });
+  }
+
   // Number format: Sleep & Readiness scores (whole numbers)
   for (const h of ["Sleep Score", "Readiness Score", "#1m", "#5m", "#1H"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
@@ -857,7 +873,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
+  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "L2 Bias", "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1645,13 +1661,14 @@ function fullRForDate(schedule: FullRSchedule, tabName: string, date: string): n
 // --- Daily Plan (pre-market watchlist + conviction) ---
 
 const DAILY_PLAN_TAB = "Daily Plan";
-const PLAN_HEADERS = ["Date", "Symbol", "Conviction (1-3)", "Thesis", "Catalyst"];
+const PLAN_HEADERS = ["Date", "Symbol", "Conviction (1-3)", "Thesis", "Catalyst", "L2 Bias"];
 
 export interface DailyPlanEntry {
   symbol: string;
   conviction: string; // "1" | "2" | "3" | ""
   thesis: string;
   catalyst: string; // one of CATALYST_OPTIONS (or comma-separated / free text)
+  l2Bias: string; // Bullish | Bearish | Neutral | ""
 }
 
 async function ensureDailyPlanTab(token: string, spreadsheetId: string): Promise<void> {
@@ -1664,17 +1681,17 @@ async function ensureDailyPlanTab(token: string, spreadsheetId: string): Promise
   await sheetsValuesUpdate(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A1`, [PLAN_HEADERS]);
 }
 
-// All plan rows as a lookup: "date|SYMBOL" -> { conviction, catalyst }. Returns {}
-// (empty map) when the tab is absent. Presence in the map => Origin "Watchlist";
-// absence => "Intraday discovery".
+// All plan rows as a lookup: "date|SYMBOL" -> { conviction, catalyst, l2Bias }.
+// Returns {} (empty map) when the tab is absent. Presence in the map => Origin
+// "Watchlist"; absence => "Intraday discovery".
 async function getDailyPlanMap(
   token: string,
   spreadsheetId: string
-): Promise<Map<string, { conviction: string; catalyst: string }>> {
-  const map = new Map<string, { conviction: string; catalyst: string }>();
+): Promise<Map<string, { conviction: string; catalyst: string; l2Bias: string }>> {
+  const map = new Map<string, { conviction: string; catalyst: string; l2Bias: string }>();
   let rows: string[][];
   try {
-    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
+    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:F`);
   } catch {
     return map;
   }
@@ -1684,6 +1701,7 @@ async function getDailyPlanMap(
   const sIdx = cm(colMap, "Symbol");
   const cIdx = cm(colMap, "Conviction (1-3)");
   const catIdx = cm(colMap, "Catalyst");
+  const l2Idx = cm(colMap, "L2 Bias");
   if (dIdx < 0 || sIdx < 0) return map;
   for (const r of rows.slice(1)) {
     const date = (r[dIdx] || "").trim();
@@ -1692,6 +1710,7 @@ async function getDailyPlanMap(
     map.set(`${date}|${symbol}`, {
       conviction: cIdx >= 0 ? (r[cIdx] || "").trim() : "",
       catalyst: catIdx >= 0 ? (r[catIdx] || "").trim() : "",
+      l2Bias: l2Idx >= 0 ? (r[l2Idx] || "").trim() : "",
     });
   }
   return map;
@@ -1702,7 +1721,7 @@ export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
   const spreadsheetId = getSpreadsheetId();
   let rows: string[][];
   try {
-    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
+    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:F`);
   } catch {
     return [];
   }
@@ -1713,6 +1732,7 @@ export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
   const cIdx = cm(colMap, "Conviction (1-3)");
   const tIdx = cm(colMap, "Thesis");
   const catIdx = cm(colMap, "Catalyst");
+  const l2Idx = cm(colMap, "L2 Bias");
   return rows
     .slice(1)
     .filter((r) => (r[dIdx] || "").trim() === date && (r[sIdx] || "").trim())
@@ -1721,6 +1741,7 @@ export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
       conviction: cIdx >= 0 ? (r[cIdx] || "").trim() : "",
       thesis: tIdx >= 0 ? (r[tIdx] || "").trim() : "",
       catalyst: catIdx >= 0 ? (r[catIdx] || "").trim() : "",
+      l2Bias: l2Idx >= 0 ? (r[l2Idx] || "").trim() : "",
     }));
 }
 
@@ -1731,7 +1752,7 @@ export async function upsertDailyPlan(date: string, entries: DailyPlanEntry[]): 
   const spreadsheetId = getSpreadsheetId();
   await ensureDailyPlanTab(token, spreadsheetId);
 
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:F`);
   const otherDates = rows.slice(1).filter((r) => (r[0] || "").trim() !== date && (r[0] || "").trim());
 
   const seen = new Set<string>();
@@ -1745,13 +1766,14 @@ export async function upsertDailyPlan(date: string, entries: DailyPlanEntry[]): 
       conviction: (e.conviction || "").trim(),
       thesis: (e.thesis || "").trim(),
       catalyst: (e.catalyst || "").trim(),
+      l2Bias: (e.l2Bias || "").trim(),
     });
   }
 
-  const newRows = cleaned.map((e) => [date, e.symbol, e.conviction, e.thesis, e.catalyst]);
+  const newRows = cleaned.map((e) => [date, e.symbol, e.conviction, e.thesis, e.catalyst, e.l2Bias]);
   const out: (string | number)[][] = [PLAN_HEADERS, ...otherDates, ...newRows];
 
-  await sheetsValuesClear(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:E`);
+  await sheetsValuesClear(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:F`);
   await sheetsValuesUpdate(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A1`, out);
   return cleaned.length;
 }
@@ -2148,7 +2170,7 @@ export async function appendTrades(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  // Pre-market plan lookup (date|SYMBOL -> conviction + catalyst) for auto-fill.
+  // Pre-market plan lookup (date|SYMBOL -> conviction + catalyst + L2 bias) for auto-fill.
   const planMap = await getDailyPlanMap(token, spreadsheetId);
 
   const byAccount = new Map<string, { trade: GroupedTrade; enrichment?: MarketEnrichment }[]>();
@@ -2179,6 +2201,7 @@ export async function appendTrades(
     const originIdx = cm(tabColMap, "Origin");
     const convIdx = cm(tabColMap, "Conviction (1-3)");
     const catalystIdx = cm(tabColMap, "Catalyst");
+    const l2BiasIdx = cm(tabColMap, "L2 Bias");
 
     for (const { trade, enrichment } of items) {
       const rowIndex = nextRowStart + newRows.length;
@@ -2186,8 +2209,8 @@ export async function appendTrades(
       const key = makeDedupeKey(row, tabColMap);
       if (existingKeys.has(key)) { skipped++; continue; }
 
-      // Auto-fill Origin + Conviction + Catalyst from the pre-market Daily Plan
-      // (by date|symbol). On the plan => Watchlist; off-plan => Intraday discovery.
+      // Auto-fill Origin + Conviction + Catalyst + L2 Bias from the pre-market Daily
+      // Plan (by date|symbol). On the plan => Watchlist; off-plan => Intraday discovery.
       const plan = planMap.get(`${trade.date}|${(trade.symbol || "").toUpperCase()}`);
       if (originIdx >= 0) {
         row[originIdx] = plan ? "Watchlist" : "Intraday discovery";
@@ -2197,6 +2220,9 @@ export async function appendTrades(
       }
       if (catalystIdx >= 0 && plan?.catalyst && (row[catalystIdx] === "" || row[catalystIdx] == null)) {
         row[catalystIdx] = plan.catalyst;
+      }
+      if (l2BiasIdx >= 0 && plan?.l2Bias && (row[l2BiasIdx] === "" || row[l2BiasIdx] == null)) {
+        row[l2BiasIdx] = plan.l2Bias;
       }
 
       newRows.push(row);

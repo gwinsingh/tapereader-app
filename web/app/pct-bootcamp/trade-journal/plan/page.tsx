@@ -7,6 +7,7 @@ interface PlanRow {
   conviction: string;
   thesis: string;
   catalyst: string;
+  l2Bias: string;
 }
 
 const SEED_SYMBOLS = ["QQQ", "SPY"];
@@ -24,6 +25,9 @@ const CATALYST_OPTIONS = [
   "Other",
 ];
 
+// Mirrors MARKET_BIAS_OPTIONS in lib/trade-journal/google-sheets.ts (kept in sync).
+const L2_BIAS_OPTIONS = ["Bullish", "Bearish", "Neutral"];
+
 function todayStr(): string {
   const d = new Date();
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
@@ -31,7 +35,7 @@ function todayStr(): string {
 }
 
 function emptyRow(symbol = ""): PlanRow {
-  return { symbol, conviction: "", thesis: "", catalyst: "" };
+  return { symbol, conviction: "", thesis: "", catalyst: "", l2Bias: "" };
 }
 
 function seededRows(): PlanRow[] {
@@ -136,9 +140,9 @@ export default function MorningPlanPage() {
         <div>
           <h1 className="text-2xl font-bold">Morning Plan</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>
-            Pre-qualify your names before the open. Conviction and catalyst set here auto-fill
-            onto matching trades at upload (and they&apos;re tagged <strong>Watchlist</strong>) —
-            so you never have to log them at the open.
+            Pre-qualify your names before the open. Conviction, catalyst and L2 bias set here
+            auto-fill onto matching trades at upload (and they&apos;re tagged <strong>Watchlist</strong>) —
+            so you never have to log them at the open, when emotions run high.
           </p>
         </div>
         <a
@@ -183,12 +187,13 @@ export default function MorningPlanPage() {
       >
         <div
           className="grid items-center gap-2 px-3 py-2 text-xs font-semibold"
-          style={{ gridTemplateColumns: "1.4fr 1fr 3fr 1.4fr 0.4fr", color: "var(--color-muted)", borderBottom: "1px solid var(--color-border)" }}
+          style={{ gridTemplateColumns: "1.2fr 0.9fr 2.4fr 1.3fr 1fr 0.4fr", color: "var(--color-muted)", borderBottom: "1px solid var(--color-border)" }}
         >
           <span>Symbol</span>
           <span>Conviction</span>
           <span>Thesis</span>
           <span>Catalyst</span>
+          <span>L2 Bias</span>
           <span />
         </div>
 
@@ -196,7 +201,7 @@ export default function MorningPlanPage() {
           <div
             key={i}
             className="grid items-center gap-2 px-3 py-2"
-            style={{ gridTemplateColumns: "1.4fr 1fr 3fr 1.4fr 0.4fr", borderBottom: "1px solid var(--color-border)" }}
+            style={{ gridTemplateColumns: "1.2fr 0.9fr 2.4fr 1.3fr 1fr 0.4fr", borderBottom: "1px solid var(--color-border)" }}
           >
             <input
               type="text"
@@ -234,6 +239,17 @@ export default function MorningPlanPage() {
               <option value="">—</option>
               {CATALYST_OPTIONS.map((c) => (
                 <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select
+              value={row.l2Bias}
+              onChange={(e) => updateRow(i, { l2Bias: e.target.value })}
+              className="rounded border py-1.5 px-2 text-sm focus:outline-none"
+              style={inputStyle}
+            >
+              <option value="">—</option>
+              {L2_BIAS_OPTIONS.map((b) => (
+                <option key={b} value={b}>{b}</option>
               ))}
             </select>
             <button

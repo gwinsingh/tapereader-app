@@ -44,6 +44,10 @@ findings live in the conversation; the short version that drives this build:
     off-plan → `Intraday discovery`. `Callout` remains a manual override on the sheet.
   - At upload, Conviction **and Catalyst** auto-fill from the plan when blank.
   - (Catalyst option `Earnings` was renamed `Earnings/News`.)
+- **`L2 Bias`** (later addition): per-symbol pre-market order-book read, added to the
+  plan (`Bullish`/`Bearish`/`Neutral`, reusing `MARKET_BIAS_OPTIONS`) **and** as a new
+  trade-sheet column, auto-filled at upload when blank. Distinct from the daily
+  `Market Bias` (overall-market read).
 
 ### Backend (`lib/trade-journal/google-sheets.ts`)
 - `ORIGIN_OPTIONS` const; add `Origin` to `SHEET_HEADERS`, `manualHeaders`, colWidths,
