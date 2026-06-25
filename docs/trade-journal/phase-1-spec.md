@@ -48,6 +48,12 @@ findings live in the conversation; the short version that drives this build:
   plan (`Bullish`/`Bearish`/`Neutral`, reusing `MARKET_BIAS_OPTIONS`) **and** as a new
   trade-sheet column, auto-filled at upload when blank. Distinct from the daily
   `Market Bias` (overall-market read).
+- **Multi-timeframe read** (later addition): per-symbol Daily / Hourly / 5min, each a
+  **direction** (`* Trend`, reuses bias options) + **strength** (`* Conv`, 1–3). 6 plan
+  columns + 6 matching trade-sheet columns, auto-filled at upload. 1min deliberately
+  excluded (too noisy pre-open). Auto-fill of all carry-over fields (conviction,
+  catalyst, L2 bias, MTF) is driven by a single `PLAN_FILL_COLS` key→header map; the
+  plan form renders each name as a card.
 
 ### Backend (`lib/trade-journal/google-sheets.ts`)
 - `ORIGIN_OPTIONS` const; add `Origin` to `SHEET_HEADERS`, `manualHeaders`, colWidths,

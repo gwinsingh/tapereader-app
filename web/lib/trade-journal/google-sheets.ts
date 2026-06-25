@@ -58,6 +58,12 @@ const SHEET_HEADERS = [
   "PDL",
   "Origin",
   "L2 Bias",
+  "Daily Trend",
+  "Daily Conv",
+  "1H Trend",
+  "1H Conv",
+  "5m Trend",
+  "5m Conv",
 ];
 
 const COL = {
@@ -190,6 +196,12 @@ const MARKET_BIAS_OPTIONS = [
   "Bearish",
   "Neutral",
 ];
+
+// Multi-timeframe pre-market read: a direction (Trend, reuses MARKET_BIAS_OPTIONS)
+// and a strength (Conv, 1-3) per timeframe. Captured in the Daily Plan, auto-filled
+// onto trades. Headers are identical on the plan tab and the trade sheet.
+const MTF_TREND_HEADERS = ["Daily Trend", "1H Trend", "5m Trend"];
+const MTF_CONV_HEADERS = ["Daily Conv", "1H Conv", "5m Conv"];
 
 const COLORS = {
   headerBg: { red: 0.15, green: 0.15, blue: 0.2 },
@@ -397,7 +409,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
   const totalCols = colMap ? Math.max(...Object.values(colMap)) + 1 : TOTAL_COLS;
 
-  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin", "L2 Bias"];
+  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const colRange = (col: number) => ({ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 });
@@ -465,6 +477,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "SPY Dir": 70, "VIX": 60,
     "PDC": 80, "PDH": 80, "PDL": 80,
     "Origin": 130, "L2 Bias": 90,
+    "Daily Trend": 95, "Daily Conv": 80, "1H Trend": 90, "1H Conv": 75, "5m Trend": 90, "5m Conv": 75,
   };
   for (const [header, width] of Object.entries(colWidths)) {
     const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
@@ -788,6 +801,36 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
+  // Data validation: MTF Trend columns (direction) + MTF Conv columns (1-3 strength)
+  for (const h of MTF_TREND_HEADERS) {
+    const col = colMap ? (colMap[h] ?? -1) : SHEET_HEADERS.indexOf(h);
+    if (col < 0) continue;
+    requests.push({
+      setDataValidation: {
+        range: colRange(col),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: MARKET_BIAS_OPTIONS.map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: false,
+        },
+      },
+    });
+  }
+  for (const h of MTF_CONV_HEADERS) {
+    const col = colMap ? (colMap[h] ?? -1) : SHEET_HEADERS.indexOf(h);
+    if (col < 0) continue;
+    requests.push({
+      setDataValidation: {
+        range: colRange(col),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "1" }, { userEnteredValue: "2" }, { userEnteredValue: "3" }] },
+          showCustomUi: true,
+          strict: true,
+        },
+      },
+    });
+  }
+
   // Number format: Sleep & Readiness scores (whole numbers)
   for (const h of ["Sleep Score", "Readiness Score", "#1m", "#5m", "#1H"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
@@ -873,7 +916,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "L2 Bias", "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
+  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS, "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1658,17 +1701,53 @@ function fullRForDate(schedule: FullRSchedule, tabName: string, date: string): n
   return applicable ?? entries[0].fullR;
 }
 
-// --- Daily Plan (pre-market watchlist + conviction) ---
+// --- Daily Plan (pre-market watchlist: conviction, catalyst, bias, MTF read) ---
 
 const DAILY_PLAN_TAB = "Daily Plan";
-const PLAN_HEADERS = ["Date", "Symbol", "Conviction (1-3)", "Thesis", "Catalyst", "L2 Bias"];
+const PLAN_HEADERS = [
+  "Date", "Symbol", "Conviction (1-3)", "Thesis", "Catalyst", "L2 Bias",
+  "Daily Trend", "Daily Conv", "1H Trend", "1H Conv", "5m Trend", "5m Conv",
+];
+// Plan range spans A..(last PLAN_HEADERS column).
+const PLAN_RANGE = `A:${colLetter(PLAN_HEADERS.length - 1)}`;
 
-export interface DailyPlanEntry {
+// Fields that carry from the plan onto a matching trade at upload (fill-if-blank).
+// The header string is identical on the plan tab and the trade sheet, so one map
+// drives both reading the plan and writing the trade row. (Origin is handled
+// separately — it's derived from plan *presence*, not a stored column.)
+type PlanFill = {
+  conviction: string;
+  catalyst: string;
+  l2Bias: string;
+  dailyTrend: string;
+  dailyConv: string;
+  hourlyTrend: string;
+  hourlyConv: string;
+  fiveMinTrend: string;
+  fiveMinConv: string;
+};
+const PLAN_FILL_COLS: { key: keyof PlanFill; header: string }[] = [
+  { key: "conviction", header: "Conviction (1-3)" },
+  { key: "catalyst", header: "Catalyst" },
+  { key: "l2Bias", header: "L2 Bias" },
+  { key: "dailyTrend", header: "Daily Trend" },
+  { key: "dailyConv", header: "Daily Conv" },
+  { key: "hourlyTrend", header: "1H Trend" },
+  { key: "hourlyConv", header: "1H Conv" },
+  { key: "fiveMinTrend", header: "5m Trend" },
+  { key: "fiveMinConv", header: "5m Conv" },
+];
+
+export interface DailyPlanEntry extends PlanFill {
   symbol: string;
-  conviction: string; // "1" | "2" | "3" | ""
   thesis: string;
-  catalyst: string; // one of CATALYST_OPTIONS (or comma-separated / free text)
-  l2Bias: string; // Bullish | Bearish | Neutral | ""
+}
+
+function emptyPlanFill(): PlanFill {
+  return {
+    conviction: "", catalyst: "", l2Bias: "",
+    dailyTrend: "", dailyConv: "", hourlyTrend: "", hourlyConv: "", fiveMinTrend: "", fiveMinConv: "",
+  };
 }
 
 async function ensureDailyPlanTab(token: string, spreadsheetId: string): Promise<void> {
@@ -1681,17 +1760,17 @@ async function ensureDailyPlanTab(token: string, spreadsheetId: string): Promise
   await sheetsValuesUpdate(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A1`, [PLAN_HEADERS]);
 }
 
-// All plan rows as a lookup: "date|SYMBOL" -> { conviction, catalyst, l2Bias }.
-// Returns {} (empty map) when the tab is absent. Presence in the map => Origin
-// "Watchlist"; absence => "Intraday discovery".
+// All plan rows as a lookup: "date|SYMBOL" -> PlanFill. Returns {} (empty map)
+// when the tab is absent. Presence in the map => Origin "Watchlist"; absence =>
+// "Intraday discovery".
 async function getDailyPlanMap(
   token: string,
   spreadsheetId: string
-): Promise<Map<string, { conviction: string; catalyst: string; l2Bias: string }>> {
-  const map = new Map<string, { conviction: string; catalyst: string; l2Bias: string }>();
+): Promise<Map<string, PlanFill>> {
+  const map = new Map<string, PlanFill>();
   let rows: string[][];
   try {
-    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:F`);
+    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!${PLAN_RANGE}`);
   } catch {
     return map;
   }
@@ -1699,19 +1778,17 @@ async function getDailyPlanMap(
   const colMap = buildColMap(rows[0]);
   const dIdx = cm(colMap, "Date");
   const sIdx = cm(colMap, "Symbol");
-  const cIdx = cm(colMap, "Conviction (1-3)");
-  const catIdx = cm(colMap, "Catalyst");
-  const l2Idx = cm(colMap, "L2 Bias");
   if (dIdx < 0 || sIdx < 0) return map;
   for (const r of rows.slice(1)) {
     const date = (r[dIdx] || "").trim();
     const symbol = (r[sIdx] || "").trim().toUpperCase();
     if (!date || !symbol) continue;
-    map.set(`${date}|${symbol}`, {
-      conviction: cIdx >= 0 ? (r[cIdx] || "").trim() : "",
-      catalyst: catIdx >= 0 ? (r[catIdx] || "").trim() : "",
-      l2Bias: l2Idx >= 0 ? (r[l2Idx] || "").trim() : "",
-    });
+    const fill = emptyPlanFill();
+    for (const { key, header } of PLAN_FILL_COLS) {
+      const idx = cm(colMap, header);
+      fill[key] = idx >= 0 ? (r[idx] || "").trim() : "";
+    }
+    map.set(`${date}|${symbol}`, fill);
   }
   return map;
 }
@@ -1721,7 +1798,7 @@ export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
   const spreadsheetId = getSpreadsheetId();
   let rows: string[][];
   try {
-    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:F`);
+    rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!${PLAN_RANGE}`);
   } catch {
     return [];
   }
@@ -1729,20 +1806,22 @@ export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
   const colMap = buildColMap(rows[0]);
   const dIdx = cm(colMap, "Date");
   const sIdx = cm(colMap, "Symbol");
-  const cIdx = cm(colMap, "Conviction (1-3)");
   const tIdx = cm(colMap, "Thesis");
-  const catIdx = cm(colMap, "Catalyst");
-  const l2Idx = cm(colMap, "L2 Bias");
   return rows
     .slice(1)
     .filter((r) => (r[dIdx] || "").trim() === date && (r[sIdx] || "").trim())
-    .map((r) => ({
-      symbol: (r[sIdx] || "").trim().toUpperCase(),
-      conviction: cIdx >= 0 ? (r[cIdx] || "").trim() : "",
-      thesis: tIdx >= 0 ? (r[tIdx] || "").trim() : "",
-      catalyst: catIdx >= 0 ? (r[catIdx] || "").trim() : "",
-      l2Bias: l2Idx >= 0 ? (r[l2Idx] || "").trim() : "",
-    }));
+    .map((r) => {
+      const fill = emptyPlanFill();
+      for (const { key, header } of PLAN_FILL_COLS) {
+        const idx = cm(colMap, header);
+        fill[key] = idx >= 0 ? (r[idx] || "").trim() : "";
+      }
+      return {
+        ...fill,
+        symbol: (r[sIdx] || "").trim().toUpperCase(),
+        thesis: tIdx >= 0 ? (r[tIdx] || "").trim() : "",
+      };
+    });
 }
 
 // Replace all rows for a given date with the supplied entries. Dedups entries by
@@ -1752,7 +1831,7 @@ export async function upsertDailyPlan(date: string, entries: DailyPlanEntry[]): 
   const spreadsheetId = getSpreadsheetId();
   await ensureDailyPlanTab(token, spreadsheetId);
 
-  const rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:F`);
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!${PLAN_RANGE}`);
   const otherDates = rows.slice(1).filter((r) => (r[0] || "").trim() !== date && (r[0] || "").trim());
 
   const seen = new Set<string>();
@@ -1761,19 +1840,24 @@ export async function upsertDailyPlan(date: string, entries: DailyPlanEntry[]): 
     const sym = (e.symbol || "").trim().toUpperCase();
     if (!sym || seen.has(sym)) continue;
     seen.add(sym);
-    cleaned.push({
-      symbol: sym,
-      conviction: (e.conviction || "").trim(),
-      thesis: (e.thesis || "").trim(),
-      catalyst: (e.catalyst || "").trim(),
-      l2Bias: (e.l2Bias || "").trim(),
-    });
+    const fill = emptyPlanFill();
+    for (const { key } of PLAN_FILL_COLS) fill[key] = (e[key] || "").trim();
+    cleaned.push({ ...fill, symbol: sym, thesis: (e.thesis || "").trim() });
   }
 
-  const newRows = cleaned.map((e) => [date, e.symbol, e.conviction, e.thesis, e.catalyst, e.l2Bias]);
+  // Build each row in PLAN_HEADERS order.
+  const rowFor = (e: DailyPlanEntry): string[] =>
+    PLAN_HEADERS.map((h) => {
+      if (h === "Date") return date;
+      if (h === "Symbol") return e.symbol;
+      if (h === "Thesis") return e.thesis;
+      const col = PLAN_FILL_COLS.find((c) => c.header === h);
+      return col ? e[col.key] : "";
+    });
+  const newRows = cleaned.map(rowFor);
   const out: (string | number)[][] = [PLAN_HEADERS, ...otherDates, ...newRows];
 
-  await sheetsValuesClear(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A:F`);
+  await sheetsValuesClear(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!${PLAN_RANGE}`);
   await sheetsValuesUpdate(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A1`, out);
   return cleaned.length;
 }
@@ -2170,7 +2254,7 @@ export async function appendTrades(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  // Pre-market plan lookup (date|SYMBOL -> conviction + catalyst + L2 bias) for auto-fill.
+  // Pre-market plan lookup (date|SYMBOL -> conviction/catalyst/L2 bias/MTF read) for auto-fill.
   const planMap = await getDailyPlanMap(token, spreadsheetId);
 
   const byAccount = new Map<string, { trade: GroupedTrade; enrichment?: MarketEnrichment }[]>();
@@ -2199,9 +2283,8 @@ export async function appendTrades(
     let skipped = 0;
 
     const originIdx = cm(tabColMap, "Origin");
-    const convIdx = cm(tabColMap, "Conviction (1-3)");
-    const catalystIdx = cm(tabColMap, "Catalyst");
-    const l2BiasIdx = cm(tabColMap, "L2 Bias");
+    // Resolve trade-sheet column index for each plan-fill field once.
+    const fillIdx = PLAN_FILL_COLS.map((c) => ({ key: c.key, idx: cm(tabColMap, c.header) }));
 
     for (const { trade, enrichment } of items) {
       const rowIndex = nextRowStart + newRows.length;
@@ -2209,20 +2292,20 @@ export async function appendTrades(
       const key = makeDedupeKey(row, tabColMap);
       if (existingKeys.has(key)) { skipped++; continue; }
 
-      // Auto-fill Origin + Conviction + Catalyst + L2 Bias from the pre-market Daily
-      // Plan (by date|symbol). On the plan => Watchlist; off-plan => Intraday discovery.
+      // Auto-fill from the pre-market Daily Plan (by date|symbol). Origin is derived
+      // from presence (on the plan => Watchlist; off-plan => Intraday discovery);
+      // conviction/catalyst/L2 bias/MTF read fill in only when the cell is blank.
       const plan = planMap.get(`${trade.date}|${(trade.symbol || "").toUpperCase()}`);
       if (originIdx >= 0) {
         row[originIdx] = plan ? "Watchlist" : "Intraday discovery";
       }
-      if (convIdx >= 0 && plan?.conviction && (row[convIdx] === "" || row[convIdx] == null)) {
-        row[convIdx] = plan.conviction;
-      }
-      if (catalystIdx >= 0 && plan?.catalyst && (row[catalystIdx] === "" || row[catalystIdx] == null)) {
-        row[catalystIdx] = plan.catalyst;
-      }
-      if (l2BiasIdx >= 0 && plan?.l2Bias && (row[l2BiasIdx] === "" || row[l2BiasIdx] == null)) {
-        row[l2BiasIdx] = plan.l2Bias;
+      if (plan) {
+        for (const { key, idx } of fillIdx) {
+          const val = plan[key];
+          if (idx >= 0 && val && (row[idx] === "" || row[idx] == null)) {
+            row[idx] = val;
+          }
+        }
       }
 
       newRows.push(row);

@@ -8,6 +8,12 @@ interface PlanRow {
   thesis: string;
   catalyst: string;
   l2Bias: string;
+  dailyTrend: string;
+  dailyConv: string;
+  hourlyTrend: string;
+  hourlyConv: string;
+  fiveMinTrend: string;
+  fiveMinConv: string;
 }
 
 const SEED_SYMBOLS = ["QQQ", "SPY"];
@@ -26,7 +32,14 @@ const CATALYST_OPTIONS = [
 ];
 
 // Mirrors MARKET_BIAS_OPTIONS in lib/trade-journal/google-sheets.ts (kept in sync).
-const L2_BIAS_OPTIONS = ["Bullish", "Bearish", "Neutral"];
+const BIAS_OPTIONS = ["Bullish", "Bearish", "Neutral"];
+
+// Per-timeframe read: direction (trend) + strength (conviction 1-3).
+const TF_ROWS: { label: string; trendKey: keyof PlanRow; convKey: keyof PlanRow }[] = [
+  { label: "Daily", trendKey: "dailyTrend", convKey: "dailyConv" },
+  { label: "Hourly", trendKey: "hourlyTrend", convKey: "hourlyConv" },
+  { label: "5min", trendKey: "fiveMinTrend", convKey: "fiveMinConv" },
+];
 
 function todayStr(): string {
   const d = new Date();
@@ -35,12 +48,21 @@ function todayStr(): string {
 }
 
 function emptyRow(symbol = ""): PlanRow {
-  return { symbol, conviction: "", thesis: "", catalyst: "", l2Bias: "" };
+  return {
+    symbol, conviction: "", thesis: "", catalyst: "", l2Bias: "",
+    dailyTrend: "", dailyConv: "", hourlyTrend: "", hourlyConv: "", fiveMinTrend: "", fiveMinConv: "",
+  };
 }
 
 function seededRows(): PlanRow[] {
   return SEED_SYMBOLS.map((s) => emptyRow(s));
 }
+
+const inputStyle = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-bg)",
+  color: "var(--color-text)",
+};
 
 export default function MorningPlanPage() {
   const [date, setDate] = useState(todayStr());
@@ -128,21 +150,15 @@ export default function MorningPlanPage() {
     }
   }
 
-  const inputStyle = {
-    borderColor: "var(--color-border)",
-    backgroundColor: "var(--color-bg)",
-    color: "var(--color-text)",
-  };
-
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold">Morning Plan</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--color-muted)" }}>
-            Pre-qualify your names before the open. Conviction, catalyst and L2 bias set here
-            auto-fill onto matching trades at upload (and they&apos;re tagged <strong>Watchlist</strong>) —
-            so you never have to log them at the open, when emotions run high.
+            Pre-qualify your names before the open. Conviction, catalyst, L2 bias and your
+            multi-timeframe read set here auto-fill onto matching trades at upload (tagged
+            <strong> Watchlist</strong>) — so you never log them at the open, when emotions run high.
           </p>
         </div>
         <a
@@ -181,94 +197,20 @@ export default function MorningPlanPage() {
         </div>
       )}
 
-      <div
-        className="rounded-lg border overflow-hidden"
-        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
-      >
-        <div
-          className="grid items-center gap-2 px-3 py-2 text-xs font-semibold"
-          style={{ gridTemplateColumns: "1.2fr 0.9fr 2.4fr 1.3fr 1fr 0.4fr", color: "var(--color-muted)", borderBottom: "1px solid var(--color-border)" }}
-        >
-          <span>Symbol</span>
-          <span>Conviction</span>
-          <span>Thesis</span>
-          <span>Catalyst</span>
-          <span>L2 Bias</span>
-          <span />
-        </div>
-
+      <div className="space-y-3">
         {rows.map((row, i) => (
-          <div
+          <PlanCard
             key={i}
-            className="grid items-center gap-2 px-3 py-2"
-            style={{ gridTemplateColumns: "1.2fr 0.9fr 2.4fr 1.3fr 1fr 0.4fr", borderBottom: "1px solid var(--color-border)" }}
-          >
-            <input
-              type="text"
-              value={row.symbol}
-              onChange={(e) => updateRow(i, { symbol: e.target.value.toUpperCase() })}
-              placeholder="TICKER"
-              className="rounded border py-1.5 px-2 text-sm uppercase focus:outline-none"
-              style={inputStyle}
-            />
-            <select
-              value={row.conviction}
-              onChange={(e) => updateRow(i, { conviction: e.target.value })}
-              className="rounded border py-1.5 px-2 text-sm focus:outline-none"
-              style={inputStyle}
-            >
-              <option value="">—</option>
-              <option value="1">1 (low)</option>
-              <option value="2">2 (med)</option>
-              <option value="3">3 (high)</option>
-            </select>
-            <input
-              type="text"
-              value={row.thesis}
-              onChange={(e) => updateRow(i, { thesis: e.target.value })}
-              placeholder="Why it's in play (fresh catalyst / 1H range near key daily level)…"
-              className="rounded border py-1.5 px-2 text-sm focus:outline-none"
-              style={inputStyle}
-            />
-            <select
-              value={row.catalyst}
-              onChange={(e) => updateRow(i, { catalyst: e.target.value })}
-              className="rounded border py-1.5 px-2 text-sm focus:outline-none"
-              style={inputStyle}
-            >
-              <option value="">—</option>
-              {CATALYST_OPTIONS.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <select
-              value={row.l2Bias}
-              onChange={(e) => updateRow(i, { l2Bias: e.target.value })}
-              className="rounded border py-1.5 px-2 text-sm focus:outline-none"
-              style={inputStyle}
-            >
-              <option value="">—</option>
-              {L2_BIAS_OPTIONS.map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => removeRow(i)}
-              className="text-sm transition-opacity hover:opacity-70"
-              style={{ color: "var(--color-muted)" }}
-              aria-label="Remove row"
-            >
-              ✕
-            </button>
-          </div>
+            row={row}
+            onChange={(patch) => updateRow(i, patch)}
+            onRemove={() => removeRow(i)}
+          />
         ))}
-
         <button
           type="button"
           onClick={addRow}
-          className="w-full py-2 text-sm font-medium transition-opacity hover:opacity-80"
-          style={{ color: "var(--color-accent)" }}
+          className="w-full rounded-lg border border-dashed py-2.5 text-sm font-medium transition-opacity hover:opacity-80"
+          style={{ borderColor: "var(--color-border)", color: "var(--color-accent)" }}
         >
           + Add name
         </button>
@@ -292,7 +234,141 @@ export default function MorningPlanPage() {
       <p className="text-xs" style={{ color: "var(--color-muted)" }}>
         QQQ and SPY are seeded by default. Names not on the plan are tagged
         <strong> Intraday discovery </strong> automatically when their trades are uploaded.
+        Trend = direction per chart (Bull/Bear/Neutral); Str = 1–3 conviction on that timeframe.
       </p>
     </div>
+  );
+}
+
+function PlanCard({ row, onChange, onRemove }: {
+  row: PlanRow;
+  onChange: (patch: Partial<PlanRow>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      className="rounded-lg border p-3 space-y-3"
+      style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
+    >
+      {/* Top line: symbol, overall conviction, L2 bias, remove */}
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="Symbol">
+          <input
+            type="text"
+            value={row.symbol}
+            onChange={(e) => onChange({ symbol: e.target.value.toUpperCase() })}
+            placeholder="TICKER"
+            className="w-28 rounded border py-1.5 px-2 text-sm uppercase font-semibold focus:outline-none"
+            style={inputStyle}
+          />
+        </Field>
+        <Field label="Conviction">
+          <ConvSelect value={row.conviction} onChange={(v) => onChange({ conviction: v })} />
+        </Field>
+        <Field label="L2 Bias">
+          <BiasSelect value={row.l2Bias} onChange={(v) => onChange({ l2Bias: v })} />
+        </Field>
+        <div className="ml-auto">
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-sm transition-opacity hover:opacity-70"
+            style={{ color: "var(--color-muted)" }}
+            aria-label="Remove name"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {/* Multi-timeframe read */}
+      <div
+        className="rounded-md border p-2"
+        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)" }}
+      >
+        <p className="mb-1.5 text-[11px] font-semibold" style={{ color: "var(--color-muted)" }}>
+          Multi-timeframe read
+        </p>
+        <div className="space-y-1.5">
+          {TF_ROWS.map((tf) => (
+            <div key={tf.label} className="flex items-center gap-2">
+              <span className="w-14 text-xs" style={{ color: "var(--color-muted)" }}>{tf.label}</span>
+              <BiasSelect value={row[tf.trendKey]} onChange={(v) => onChange({ [tf.trendKey]: v })} />
+              <ConvSelect value={row[tf.convKey]} onChange={(v) => onChange({ [tf.convKey]: v })} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Thesis + catalyst */}
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="Thesis" className="min-w-[16rem] flex-1">
+          <input
+            type="text"
+            value={row.thesis}
+            onChange={(e) => onChange({ thesis: e.target.value })}
+            placeholder="Why it's in play (fresh catalyst / 1H range near key daily level)…"
+            className="w-full rounded border py-1.5 px-2 text-sm focus:outline-none"
+            style={inputStyle}
+          />
+        </Field>
+        <Field label="Catalyst">
+          <select
+            value={row.catalyst}
+            onChange={(e) => onChange({ catalyst: e.target.value })}
+            className="rounded border py-1.5 px-2 text-sm focus:outline-none"
+            style={inputStyle}
+          >
+            <option value="">—</option>
+            {CATALYST_OPTIONS.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <label className="mb-1 block text-[11px] font-medium" style={{ color: "var(--color-muted)" }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function BiasSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded border py-1.5 px-2 text-sm focus:outline-none"
+      style={inputStyle}
+      title="Trend / direction"
+    >
+      <option value="">—</option>
+      {BIAS_OPTIONS.map((b) => (
+        <option key={b} value={b}>{b}</option>
+      ))}
+    </select>
+  );
+}
+
+function ConvSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded border py-1.5 px-2 text-sm focus:outline-none"
+      style={inputStyle}
+      title="Conviction / strength"
+    >
+      <option value="">—</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+    </select>
   );
 }
