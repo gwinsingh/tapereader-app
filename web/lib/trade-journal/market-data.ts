@@ -273,14 +273,26 @@ const etFmt = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
+// Memoized: Intl.formatToParts is expensive and the same bar timestamps are
+// converted millions of times (each bar is re-processed across every trade of a
+// symbol). Without the cache, wide-range symbols (QQQ/SPY, dozens of trades over
+// months) blew the Cloudflare edge isolate's CPU limit → HTTP 503 during backfill.
+// Bar timestamps are a small, bounded set per run, so the cache stays modest.
+const etCache = new Map<number, { date: string; h: number; m: number }>();
+const ET_CACHE_MAX = 250_000; // ~months of 1-min bars for several symbols; bounded so a reused isolate can't grow without limit
 function timestampToET(ts: number): { date: string; h: number; m: number } {
+  const cached = etCache.get(ts);
+  if (cached) return cached;
   const parts = etFmt.formatToParts(new Date(ts * 1000));
   const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
-  return {
+  const result = {
     date: `${get("year")}-${get("month")}-${get("day")}`,
     h: parseInt(get("hour")),
     m: parseInt(get("minute")),
   };
+  if (etCache.size >= ET_CACHE_MAX) etCache.clear();
+  etCache.set(ts, result);
+  return result;
 }
 
 function etMinutes(h: number, m: number): number {
