@@ -1,6 +1,6 @@
 export const runtime = "edge";
 
-import { getDailyPlan, upsertDailyPlan, DailyPlanEntry } from "@/lib/trade-journal/google-sheets";
+import { getDailyPlan, upsertDailyPlan, DailyPlanEntry, DailyPsych } from "@/lib/trade-journal/google-sheets";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,8 +9,8 @@ export async function GET(request: Request) {
     return Response.json({ error: "Missing ?date= parameter." }, { status: 400 });
   }
   try {
-    const entries = await getDailyPlan(date);
-    return Response.json({ entries });
+    const { entries, daily } = await getDailyPlan(date);
+    return Response.json({ entries, daily });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return Response.json({ error: msg }, { status: 500 });
@@ -18,14 +18,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  let body: { date?: string; entries?: DailyPlanEntry[] };
+  let body: { date?: string; entries?: DailyPlanEntry[]; daily?: DailyPsych };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { date, entries } = body;
+  const { date, entries, daily } = body;
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return Response.json({ error: "A valid date (YYYY-MM-DD) is required." }, { status: 400 });
   }
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const count = await upsertDailyPlan(date, entries);
+    const count = await upsertDailyPlan(date, entries, daily);
     return Response.json({ ok: true, count });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

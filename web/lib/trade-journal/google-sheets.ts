@@ -1,5 +1,5 @@
 import { GroupedTrade } from "./trade-grouper";
-import { MarketEnrichment } from "./market-data";
+import { MarketEnrichment, fetchVixMap } from "./market-data";
 
 const SHEET_HEADERS = [
   "Date",
@@ -64,6 +64,12 @@ const SHEET_HEADERS = [
   "1H Conv",
   "5m Trend",
   "5m Conv",
+  // Appended at the end (matching how migration extends existing tabs) so the
+  // positional COL map above stays valid — do not insert new headers mid-list.
+  "MAE (R)",
+  "Energy (1-5)",
+  "Tension (1-5)",
+  "Urge to Trade Fast?",
 ];
 
 const COL = {
@@ -202,6 +208,12 @@ const MARKET_BIAS_OPTIONS = [
 // onto trades. Headers are identical on the plan tab and the trade sheet.
 const MTF_TREND_HEADERS = ["Daily Trend", "1H Trend", "5m Trend"];
 const MTF_CONV_HEADERS = ["Daily Conv", "1H Conv", "5m Conv"];
+
+// Day-level psych check-in (replaces "Emotional State" as the primary input —
+// that column stays for history but is no longer the main capture). Logged in
+// the Morning Plan, auto-filled onto every trade row of that date.
+const PSYCH_SCALE_HEADERS = ["Energy (1-5)", "Tension (1-5)"];
+const URGE_HEADER = "Urge to Trade Fast?";
 
 const COLORS = {
   headerBg: { red: 0.15, green: 0.15, blue: 0.2 },
@@ -409,7 +421,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
   const totalCols = colMap ? Math.max(...Object.values(colMap)) + 1 : TOTAL_COLS;
 
-  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS];
+  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS, ...PSYCH_SCALE_HEADERS, URGE_HEADER];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const colRange = (col: number) => ({ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 });
@@ -478,6 +490,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "PDC": 80, "PDH": 80, "PDL": 80,
     "Origin": 130, "L2 Bias": 90,
     "Daily Trend": 95, "Daily Conv": 80, "1H Trend": 90, "1H Conv": 75, "5m Trend": 90, "5m Conv": 75,
+    "MAE (R)": 80, "Energy (1-5)": 95, "Tension (1-5)": 95, "Urge to Trade Fast?": 130,
   };
   for (const [header, width] of Object.entries(colWidths)) {
     const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
@@ -831,6 +844,37 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
+  // Data validation: psych scales (1-5) and Urge to Trade Fast? (Yes/No)
+  for (const h of PSYCH_SCALE_HEADERS) {
+    const col = colMap ? (colMap[h] ?? -1) : SHEET_HEADERS.indexOf(h);
+    if (col < 0) continue;
+    requests.push({
+      setDataValidation: {
+        range: colRange(col),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: ["1", "2", "3", "4", "5"].map((v) => ({ userEnteredValue: v })) },
+          showCustomUi: true,
+          strict: true,
+        },
+      },
+    });
+  }
+  {
+    const col = colMap ? (colMap[URGE_HEADER] ?? -1) : SHEET_HEADERS.indexOf(URGE_HEADER);
+    if (col >= 0) {
+      requests.push({
+        setDataValidation: {
+          range: colRange(col),
+          rule: {
+            condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "Yes" }, { userEnteredValue: "No" }] },
+            showCustomUi: true,
+            strict: true,
+          },
+        },
+      });
+    }
+  }
+
   // Number format: Sleep & Readiness scores (whole numbers)
   for (const h of ["Sleep Score", "Readiness Score", "#1m", "#5m", "#1H"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
@@ -868,7 +912,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
-  for (const h of ["RVOL", "Breakout Vol Ratio", "VIX"]) {
+  for (const h of ["RVOL", "Breakout Vol Ratio", "VIX", "MAE (R)"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -916,7 +960,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS, "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
+  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS, ...PSYCH_SCALE_HEADERS, URGE_HEADER, "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -929,7 +973,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Right-align
-  for (const h of ["Avg Entry", "Avg Exit", "Stop", "Max R Before Stop", "Farthest Price", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low", "PDC", "PDH", "PDL"]) {
+  for (const h of ["Avg Entry", "Avg Exit", "Stop", "Max R Before Stop", "Farthest Price", "MAE (R)", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low", "PDC", "PDH", "PDL"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1140,6 +1184,7 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
     set("OR Low", e.orLow ?? "");
     set("Max R Before Stop", e.maxRBeforeStop ?? "");
     set("Farthest Price", e.farthestPrice ?? "");
+    set("MAE (R)", e.maeR ?? "");
     set("Breakout Vol Ratio", e.breakoutVolRatio ?? "");
     set("Prior Close Loc", e.priorCloseLoc ?? "");
     set("Dist 20 SMA (%)", e.dist20Sma ?? "");
@@ -1492,8 +1537,15 @@ export interface TradeForAnalysis {
   pnl: number;
   risk: number;
   maxRBeforeStop: number;
+  maeR: number | null; // negative R (heat taken); null when not enriched or N/A
   setup: string;
   entryTime: string;
+}
+
+// "N/A" (insufficient history) and blank both parse to null.
+function parseNullableNum(v: string | undefined): number | null {
+  const n = parseFloat(String(v ?? "").replace(/[$,]/g, ""));
+  return isNaN(n) ? null : n;
 }
 
 export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter): TradeForAnalysis[] {
@@ -1509,6 +1561,7 @@ export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter)
   const exitIdx = cm(colMap, "Avg Exit");
   const riskIdx = cm(colMap, "R (Risk)");
   const maxRIdx = cm(colMap, "Max R Before Stop");
+  const maeIdx = cm(colMap, "MAE (R)");
   const setupIdx = cm(colMap, "Setup");
   const entryTimeIdx = cm(colMap, "Entry Time");
 
@@ -1529,6 +1582,7 @@ export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter)
       pnl: parseNum(r[pnlIdx]),
       risk: riskIdx >= 0 ? parseNum(r[riskIdx]) : 0,
       maxRBeforeStop: maxRIdx >= 0 ? parseNum(r[maxRIdx]) : 0,
+      maeR: maeIdx >= 0 ? parseNullableNum(r[maeIdx]) : null,
       setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
       entryTime: entryTimeIdx >= 0 ? r[entryTimeIdx] || "" : "",
     }))
@@ -1587,8 +1641,10 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
   const riskIdx = cm(colMap, "R (Risk)");
   const orSizeIdx = cm(colMap, "OR Size ($)");
   const maxRIdx = cm(colMap, "Max R Before Stop");
+  const maeIdx = cm(colMap, "MAE (R)");
 
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, "")) || 0;
+  const hasValue = (idx: number, row: string[]) => idx >= 0 && row[idx] !== undefined && row[idx] !== "";
 
   const trades: BackfillTrade[] = [];
   for (let r = 1; r < rows.length; r++) {
@@ -1598,13 +1654,18 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
     const sym = String(row[symIdx]).trim();
     if (!sym || !isNaN(Number(sym)) || !/[A-Za-z]/.test(sym)) continue;
 
-    const hasBasicEnrichment = orSizeIdx >= 0 && row[orSizeIdx] !== undefined && row[orSizeIdx] !== "";
-    const hasMaxR = maxRIdx >= 0 && row[maxRIdx] !== undefined && row[maxRIdx] !== "";
+    const hasBasicEnrichment = hasValue(orSizeIdx, row);
+    const hasMaxR = hasValue(maxRIdx, row);
+    const hasMae = hasValue(maeIdx, row);
     const riskVal = riskIdx >= 0 ? parseNum(row[riskIdx]) : 0;
     const sharesVal = sharesIdx >= 0 ? parseNum(row[sharesIdx]) : 0;
     const hasRisk = riskVal > 0 && sharesVal > 0;
 
-    if (hasBasicEnrichment && (hasMaxR || !hasRisk)) continue;
+    // A row needs enrichment if it lacks the basic market data, or has R filled
+    // but is missing an R-dependent field (Max R Before Stop, MAE). VIX is
+    // handled separately by the per-date backfillVixForTab pass.
+    const needsWork = !hasBasicEnrichment || (hasRisk && (!hasMaxR || !hasMae));
+    if (!needsWork) continue;
 
     const riskPerShare = hasRisk ? riskVal / sharesVal : undefined;
 
@@ -1707,6 +1768,9 @@ const DAILY_PLAN_TAB = "Daily Plan";
 const PLAN_HEADERS = [
   "Date", "Symbol", "Conviction (1-3)", "Thesis", "Catalyst", "L2 Bias",
   "Daily Trend", "Daily Conv", "1H Trend", "1H Conv", "5m Trend", "5m Conv",
+  // Day-level psych check-in — one value per day, replicated onto each plan
+  // row for the date (appended at the end so older plan rows still align).
+  ...PSYCH_SCALE_HEADERS, URGE_HEADER,
 ];
 // Plan range spans A..(last PLAN_HEADERS column).
 const PLAN_RANGE = `A:${colLetter(PLAN_HEADERS.length - 1)}`;
@@ -1738,6 +1802,25 @@ const PLAN_FILL_COLS: { key: keyof PlanFill; header: string }[] = [
   { key: "fiveMinConv", header: "5m Conv" },
 ];
 
+// Day-level psych fields: one value per date (not per symbol), so they flow
+// onto EVERY trade row of the date — including off-plan symbols — keyed by
+// date alone. Same convention as PLAN_FILL_COLS: the header string is
+// identical on the plan tab and the trade sheet.
+export interface DailyPsych {
+  energy: string;
+  tension: string;
+  urgeFast: string;
+}
+const DAY_FILL_COLS: { key: keyof DailyPsych; header: string }[] = [
+  { key: "energy", header: "Energy (1-5)" },
+  { key: "tension", header: "Tension (1-5)" },
+  { key: "urgeFast", header: URGE_HEADER },
+];
+
+export function emptyDailyPsych(): DailyPsych {
+  return { energy: "", tension: "", urgeFast: "" };
+}
+
 export interface DailyPlanEntry extends PlanFill {
   symbol: string;
   thesis: string;
@@ -1760,25 +1843,27 @@ async function ensureDailyPlanTab(token: string, spreadsheetId: string): Promise
   await sheetsValuesUpdate(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!A1`, [PLAN_HEADERS]);
 }
 
-// All plan rows as a lookup: "date|SYMBOL" -> PlanFill. Returns {} (empty map)
-// when the tab is absent. Presence in the map => Origin "Watchlist"; absence =>
-// "Intraday discovery".
+// All plan rows as lookups: "date|SYMBOL" -> PlanFill (per-symbol fields) and
+// date -> DailyPsych (day-level fields, first non-empty value per date wins).
+// Returns empty maps when the tab is absent. Presence in bySymbol => Origin
+// "Watchlist"; absence => "Intraday discovery".
 async function getDailyPlanMap(
   token: string,
   spreadsheetId: string
-): Promise<Map<string, PlanFill>> {
-  const map = new Map<string, PlanFill>();
+): Promise<{ bySymbol: Map<string, PlanFill>; psychByDate: Map<string, DailyPsych> }> {
+  const bySymbol = new Map<string, PlanFill>();
+  const psychByDate = new Map<string, DailyPsych>();
   let rows: string[][];
   try {
     rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!${PLAN_RANGE}`);
   } catch {
-    return map;
+    return { bySymbol, psychByDate };
   }
-  if (rows.length <= 1) return map;
+  if (rows.length <= 1) return { bySymbol, psychByDate };
   const colMap = buildColMap(rows[0]);
   const dIdx = cm(colMap, "Date");
   const sIdx = cm(colMap, "Symbol");
-  if (dIdx < 0 || sIdx < 0) return map;
+  if (dIdx < 0 || sIdx < 0) return { bySymbol, psychByDate };
   for (const r of rows.slice(1)) {
     const date = (r[dIdx] || "").trim();
     const symbol = (r[sIdx] || "").trim().toUpperCase();
@@ -1788,26 +1873,36 @@ async function getDailyPlanMap(
       const idx = cm(colMap, header);
       fill[key] = idx >= 0 ? (r[idx] || "").trim() : "";
     }
-    map.set(`${date}|${symbol}`, fill);
+    bySymbol.set(`${date}|${symbol}`, fill);
+
+    const psych = psychByDate.get(date) ?? emptyDailyPsych();
+    for (const { key, header } of DAY_FILL_COLS) {
+      const idx = cm(colMap, header);
+      if (!psych[key] && idx >= 0) psych[key] = (r[idx] || "").trim();
+    }
+    psychByDate.set(date, psych);
   }
-  return map;
+  return { bySymbol, psychByDate };
 }
 
-export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
+export async function getDailyPlan(
+  date: string
+): Promise<{ entries: DailyPlanEntry[]; daily: DailyPsych }> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
+  const daily = emptyDailyPsych();
   let rows: string[][];
   try {
     rows = await sheetsValuesGet(token, spreadsheetId, `'${DAILY_PLAN_TAB}'!${PLAN_RANGE}`);
   } catch {
-    return [];
+    return { entries: [], daily };
   }
-  if (rows.length <= 1) return [];
+  if (rows.length <= 1) return { entries: [], daily };
   const colMap = buildColMap(rows[0]);
   const dIdx = cm(colMap, "Date");
   const sIdx = cm(colMap, "Symbol");
   const tIdx = cm(colMap, "Thesis");
-  return rows
+  const entries = rows
     .slice(1)
     .filter((r) => (r[dIdx] || "").trim() === date && (r[sIdx] || "").trim())
     .map((r) => {
@@ -1816,17 +1911,28 @@ export async function getDailyPlan(date: string): Promise<DailyPlanEntry[]> {
         const idx = cm(colMap, header);
         fill[key] = idx >= 0 ? (r[idx] || "").trim() : "";
       }
+      // Day-level psych: first non-empty value across the date's rows wins.
+      for (const { key, header } of DAY_FILL_COLS) {
+        const idx = cm(colMap, header);
+        if (!daily[key] && idx >= 0) daily[key] = (r[idx] || "").trim();
+      }
       return {
         ...fill,
         symbol: (r[sIdx] || "").trim().toUpperCase(),
         thesis: tIdx >= 0 ? (r[tIdx] || "").trim() : "",
       };
     });
+  return { entries, daily };
 }
 
 // Replace all rows for a given date with the supplied entries. Dedups entries by
 // symbol (uppercased) so manually re-typing seeded QQQ/SPY never doubles a row.
-export async function upsertDailyPlan(date: string, entries: DailyPlanEntry[]): Promise<number> {
+// The day-level psych check-in is replicated onto each row of the date.
+export async function upsertDailyPlan(
+  date: string,
+  entries: DailyPlanEntry[],
+  daily?: DailyPsych
+): Promise<number> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
   await ensureDailyPlanTab(token, spreadsheetId);
@@ -1845,12 +1951,17 @@ export async function upsertDailyPlan(date: string, entries: DailyPlanEntry[]): 
     cleaned.push({ ...fill, symbol: sym, thesis: (e.thesis || "").trim() });
   }
 
+  const psych = emptyDailyPsych();
+  for (const { key } of DAY_FILL_COLS) psych[key] = (daily?.[key] || "").trim();
+
   // Build each row in PLAN_HEADERS order.
   const rowFor = (e: DailyPlanEntry): string[] =>
     PLAN_HEADERS.map((h) => {
       if (h === "Date") return date;
       if (h === "Symbol") return e.symbol;
       if (h === "Thesis") return e.thesis;
+      const dayCol = DAY_FILL_COLS.find((c) => c.header === h);
+      if (dayCol) return psych[dayCol.key];
       const col = PLAN_FILL_COLS.find((c) => c.header === h);
       return col ? e[col.key] : "";
     });
@@ -2048,13 +2159,17 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Notes", "No — you fill this in", "Free-form notes: what you were thinking, what went right or wrong, lessons for next time."],
     ["Sleep Score", "No — you fill this in (daily)", "Your sleep quality score (0–100). Fill in once on the first trade of each day."],
     ["Readiness Score", "No — you fill this in (daily)", "Your overall readiness to trade (0–100). Fill in once on the first trade of each day."],
-    ["Emotional State", "No — you fill this in (daily)", "How you're feeling before trading. Select from dropdown: Calm, Anxious, Excited, Frustrated, or Fatigued. Fill in once per day."],
+    ["Emotional State", "No — you fill this in (daily)", "Legacy daily field, kept for history — the Energy / Tension / Urge to Trade Fast? columns are the primary psych capture now (logged in the Morning Plan). Dropdown: Calm, Anxious, Excited, Frustrated, or Fatigued."],
+    ["Energy (1-5)", "Auto-filled from Morning Plan", "Daily energy level logged pre-market in the Morning Plan: 1 = drained, 5 = fully charged. Auto-fills onto every trade of the day."],
+    ["Tension (1-5)", "Auto-filled from Morning Plan", "Daily tension level logged pre-market in the Morning Plan: 1 = settled, 5 = wired/racing. Auto-fills onto every trade of the day."],
+    ["Urge to Trade Fast?", "Auto-filled from Morning Plan", "Yes/No — did you arrive with an urge to jump in fast? Logged pre-market in the Morning Plan; auto-fills onto every trade of the day."],
     ["Market Bias", "No — you fill this in (daily)", "Your pre-market read on the overall market direction. Select from dropdown: Bullish, Bearish, or Neutral. Fill in once per day."],
     ["Conviction (1-3)", "No — you fill this in", "Your conviction level for this trade before/at entry: 1 (low), 2 (solid), 3 (A+ setup)."],
     ["Catalyst", "No — you fill this in", "The catalyst driving the trade. Select one or type comma-separated: Earnings/News, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
     ["Tags", "No — you fill this in", "Retrospective pattern tags applied during screenshot review. Comma-separated: clean entry, extended entry, chased, FOMO, added size, perfect process, revenge trade, oversize, strong momentum, gap>2xATR, gap<2xATR, or custom."],
     ["Max R Before Stop", "Yes (market data)", "Highest R-multiple the stock reached before the stop was hit (order-aware). If the stop was never hit, this is the max R by end of day. Requires R to be filled in. Used by 1R-6R columns."],
     ["Farthest Price", "Yes (market data)", "The actual stock price at the farthest favorable point before the stop was hit. Requires R to be filled in."],
+    ["MAE (R)", "Yes (market data)", "Max Adverse Excursion: the worst the trade went against entry during the actual holding window (entry to exit), in R-multiples. Negative (e.g. -0.62); 0 = never went against entry. Requires R to be filled in."],
     ["1R", "Formula", "Y/N — did Max R Before Stop reach at least 1x? Green = Y, Red = N."],
     ["2R", "Formula", "Y/N — did the favorable move reach at least 2x your per-share risk?"],
     ["3R", "Formula", "Y/N — did the favorable move reach at least 3x your per-share risk?"],
@@ -2097,8 +2212,11 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Tags", "Add tags during screenshot review to categorize patterns. Comma-separated. Use the web app's Screenshot Review page or type directly."],
     ["Sleep Score", "Rate your sleep quality 0–100. Fill in once on the first trade row of each day."],
     ["Readiness Score", "Rate your overall readiness to trade 0–100. Fill in once on the first trade row of each day."],
-    ["Emotional State", "Select from dropdown. Fill in once per day. Track this to find correlations between your state and your P&L."],
+    ["Emotional State", "Legacy — kept for history. Log Energy / Tension / Urge to Trade Fast? in the Morning Plan instead; they auto-fill onto the day's trades."],
     ["Market Bias", "Select from dropdown. Fill in once per day. Over time, see if having a strong bias helps or hurts your trading."],
+    ["Energy (1-5)", "Log in the Morning Plan before the open: 1 = drained, 5 = fully charged. Auto-fills onto every trade of the day; edit here only to correct."],
+    ["Tension (1-5)", "Log in the Morning Plan before the open: 1 = settled, 5 = wired/racing. Auto-fills onto every trade of the day; edit here only to correct."],
+    ["Urge to Trade Fast?", "Log in the Morning Plan before the open: Yes/No. A leading indicator for FOMO/revenge patterns — compare P&L on Yes days vs No days."],
   ];
 
   const rows: (string | number)[][] = [
@@ -2121,6 +2239,7 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["• Columns with a different header color in your trade sheet are the ones you need to fill in manually."],
     ["• Your P&L (R) column auto-calculates once you enter your R value."],
     ["• Review your stats on the web app after uploading to spot patterns in your trading."],
+    ["• N/A in a market-data column means the ticker is too recently listed to compute that field (not enough daily history). A blank cell means the row hasn't been enriched yet."],
   ];
 
   await sheetsValuesUpdate(token, spreadsheetId, `'${tabName}'!A1`, rows);
@@ -2254,8 +2373,10 @@ export async function appendTrades(
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
-  // Pre-market plan lookup (date|SYMBOL -> conviction/catalyst/L2 bias/MTF read) for auto-fill.
-  const planMap = await getDailyPlanMap(token, spreadsheetId);
+  // Pre-market plan lookup for auto-fill: per-symbol fields (date|SYMBOL ->
+  // conviction/catalyst/L2 bias/MTF read) and day-level psych (date -> Energy/
+  // Tension/Urge, applied to every trade of the date, on- or off-plan).
+  const { bySymbol: planMap, psychByDate } = await getDailyPlanMap(token, spreadsheetId);
 
   const byAccount = new Map<string, { trade: GroupedTrade; enrichment?: MarketEnrichment }[]>();
   for (let i = 0; i < trades.length; i++) {
@@ -2285,6 +2406,7 @@ export async function appendTrades(
     const originIdx = cm(tabColMap, "Origin");
     // Resolve trade-sheet column index for each plan-fill field once.
     const fillIdx = PLAN_FILL_COLS.map((c) => ({ key: c.key, idx: cm(tabColMap, c.header) }));
+    const dayFillIdx = DAY_FILL_COLS.map((c) => ({ key: c.key, idx: cm(tabColMap, c.header) }));
 
     for (const { trade, enrichment } of items) {
       const rowIndex = nextRowStart + newRows.length;
@@ -2302,6 +2424,18 @@ export async function appendTrades(
       if (plan) {
         for (const { key, idx } of fillIdx) {
           const val = plan[key];
+          if (idx >= 0 && val && (row[idx] === "" || row[idx] == null)) {
+            row[idx] = val;
+          }
+        }
+      }
+
+      // Day-level psych check-in applies to every trade of the date,
+      // regardless of whether the symbol was on the plan.
+      const psych = psychByDate.get(trade.date);
+      if (psych) {
+        for (const { key, idx } of dayFillIdx) {
+          const val = psych[key];
           if (idx >= 0 && val && (row[idx] === "" || row[idx] == null)) {
             row[idx] = val;
           }
@@ -2359,6 +2493,7 @@ export async function updateEnrichment(
     ["OR Low", (d) => d.orLow],
     ["Max R Before Stop", (d) => d.maxRBeforeStop],
     ["Farthest Price", (d) => d.farthestPrice],
+    ["MAE (R)", (d) => d.maeR],
     ["Breakout Vol Ratio", (d) => d.breakoutVolRatio],
     ["Prior Close Loc", (d) => d.priorCloseLoc],
     ["Dist 20 SMA (%)", (d) => d.dist20Sma],
@@ -2392,9 +2527,14 @@ export async function updateEnrichment(
         for (const [header, getter] of enrichFieldMap) {
           const colIdx = cm(colMap, header);
           if (colIdx < 0) continue;
+          // null = not computable this run — keep whatever the cell already
+          // holds (blank means "not enriched yet"; a re-run must never wipe a
+          // previously computed value). "N/A" is written through as a value.
+          const value = getter(e.data);
+          if (value === null || value === undefined) continue;
           valueRanges.push({
             range: `'${tabName}'!${colLetter(colIdx)}${rowNum}`,
-            values: [[getter(e.data) ?? ""]],
+            values: [[value]],
           });
         }
         break;
@@ -2420,6 +2560,70 @@ export async function updateEnrichment(
   return { updated: valueRanges.length };
 }
 
+// Fills every blank VIX cell in the tab from per-date index data (Polygon
+// I:VIX when the plan allows, else CBOE's free daily history). VIX is per-date,
+// not per-symbol, so this runs as one fast pass — no per-symbol Polygon calls,
+// and it works even for rows whose symbol enrichment fails (e.g. delisted
+// tickers). Existing VIX values are never overwritten.
+export async function backfillVixForTab(
+  tabName: string
+): Promise<{ updated: number; missingDates: string[] }> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+
+  const rows = await sheetsValuesGet(token, spreadsheetId, `'${tabName}'!A:${READ_RANGE_END}`);
+  if (rows.length <= 1) return { updated: 0, missingDates: [] };
+
+  const colMap = buildColMap(rows[0]);
+  const dateIdx = cm(colMap, "Date");
+  const symIdx = cm(colMap, "Symbol");
+  const vixIdx = cm(colMap, "VIX");
+  if (dateIdx < 0 || vixIdx < 0) {
+    throw new Error("VIX backfill: Date or VIX column not found in sheet.");
+  }
+
+  const targets: { rowNum: number; date: string }[] = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const date = (row[dateIdx] || "").trim();
+    const sym = symIdx >= 0 ? String(row[symIdx] || "").trim() : "";
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    if (!sym || !/[A-Za-z]/.test(sym)) continue;
+    if (row[vixIdx] !== undefined && row[vixIdx] !== "") continue;
+    targets.push({ rowNum: r + 1, date });
+  }
+  if (targets.length === 0) return { updated: 0, missingDates: [] };
+
+  const dates = targets.map((t) => t.date).sort();
+  const vixByDate = await fetchVixMap(dates[0], dates[dates.length - 1]);
+
+  const missing = new Set<string>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const valueRanges: any[] = [];
+  for (const t of targets) {
+    const vix = vixByDate.get(t.date);
+    if (vix === undefined) {
+      missing.add(t.date);
+      continue;
+    }
+    valueRanges.push({
+      range: `'${tabName}'!${colLetter(vixIdx)}${t.rowNum}`,
+      values: [[vix]],
+    });
+  }
+
+  if (valueRanges.length > 0) {
+    const res = await fetch(`${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ valueInputOption: "RAW", data: valueRanges }),
+    });
+    if (!res.ok) throw new Error(`VIX backfill batchUpdate failed: ${await res.text()}`);
+  }
+
+  return { updated: valueRanges.length, missingDates: [...missing].sort() };
+}
+
 export interface TradeRowForReview {
   date: string;
   symbol: string;
@@ -2438,6 +2642,7 @@ export interface TradeRowForReview {
   notes: string;
   rowIndex: number; // 1-based sheet row number
   maxRBeforeStop: number | null;
+  maeR: number | null; // negative R (heat taken); null when not enriched
   duration: number; // minutes
 }
 
@@ -2468,10 +2673,8 @@ export async function getTradesForReview(tabName: string): Promise<TradeRowForRe
       avgExit: parseNum(r[cm(colMap, "Avg Exit")]),
       notes: (r[cm(colMap, "Notes")] || "").trim(),
       rowIndex: i + 2, // 1-based, header is row 1
-      maxRBeforeStop: (() => {
-        const v = parseFloat(String(r[cm(colMap, "Max R Before Stop")] || "").replace(/[$,]/g, ""));
-        return isNaN(v) ? null : v;
-      })(),
+      maxRBeforeStop: parseNullableNum(r[cm(colMap, "Max R Before Stop")]),
+      maeR: parseNullableNum(r[cm(colMap, "MAE (R)")]),
       duration: parseNum(r[cm(colMap, "Duration (mins)")]),
     }))
     .filter((t) => t.date && t.symbol);

@@ -16,6 +16,16 @@ interface PlanRow {
   fiveMinConv: string;
 }
 
+// Day-level psych check-in (one value per day, not per symbol). Mirrors the
+// DailyPsych shape in lib/trade-journal/google-sheets.ts (kept in sync).
+interface DailyPsych {
+  energy: string;   // 1-5, drained -> fully charged
+  tension: string;  // 1-5, settled -> wired/racing
+  urgeFast: string; // Yes/No
+}
+
+const EMPTY_PSYCH: DailyPsych = { energy: "", tension: "", urgeFast: "" };
+
 const SEED_SYMBOLS = ["QQQ", "SPY"];
 
 // Mirrors CATALYST_OPTIONS in lib/trade-journal/google-sheets.ts (kept in sync).
@@ -67,6 +77,7 @@ const inputStyle = {
 export default function MorningPlanPage() {
   const [date, setDate] = useState(todayStr());
   const [rows, setRows] = useState<PlanRow[]>(seededRows());
+  const [daily, setDaily] = useState<DailyPsych>(EMPTY_PSYCH);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -86,6 +97,7 @@ export default function MorningPlanPage() {
           return;
         }
         const entries: PlanRow[] = data.entries || [];
+        setDaily({ ...EMPTY_PSYCH, ...(data.daily || {}) });
         if (entries.length > 0) {
           // Ensure QQQ/SPY are present even if a saved plan omitted them.
           const have = new Set(entries.map((e) => e.symbol.toUpperCase()));
@@ -138,7 +150,7 @@ export default function MorningPlanPage() {
       const res = await fetch("/api/trade-journal/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, entries }),
+        body: JSON.stringify({ date, entries, daily }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed.");
@@ -196,6 +208,38 @@ export default function MorningPlanPage() {
           {error}
         </div>
       )}
+
+      {/* Day-level psych check-in — one value per day, auto-fills onto every
+          trade of the date (on- or off-plan). ~10 seconds. */}
+      <div
+        className="rounded-lg border p-3 space-y-2.5"
+        style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
+      >
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>
+          Check-in — how are you arriving today?
+        </p>
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <Field label="Energy (drained → fully charged)">
+            <ScaleButtons
+              value={daily.energy}
+              onChange={(v) => { setDaily((d) => ({ ...d, energy: v })); setStatus(null); }}
+            />
+          </Field>
+          <Field label="Tension (settled → wired/racing)">
+            <ScaleButtons
+              value={daily.tension}
+              onChange={(v) => { setDaily((d) => ({ ...d, tension: v })); setStatus(null); }}
+            />
+          </Field>
+          <Field label="Urge to trade fast?">
+            <ToggleButtons
+              options={["Yes", "No"]}
+              value={daily.urgeFast}
+              onChange={(v) => { setDaily((d) => ({ ...d, urgeFast: v })); setStatus(null); }}
+            />
+          </Field>
+        </div>
+      </div>
 
       <div className="space-y-3">
         {rows.map((row, i) => (
@@ -337,6 +381,41 @@ function Field({ label, children, className = "" }: { label: string; children: R
       {children}
     </div>
   );
+}
+
+// Tap-to-set button group — faster than a dropdown for the 10-second check-in.
+// Tapping the selected value again clears it.
+function ToggleButtons({ options, value, onChange }: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex gap-1">
+      {options.map((o) => {
+        const active = value === o;
+        return (
+          <button
+            key={o}
+            type="button"
+            onClick={() => onChange(active ? "" : o)}
+            className="rounded border px-2.5 py-1.5 text-sm font-medium transition-opacity hover:opacity-80"
+            style={{
+              borderColor: active ? "var(--color-accent)" : "var(--color-border)",
+              backgroundColor: active ? "var(--color-accent)" : "var(--color-bg)",
+              color: active ? "var(--color-bg)" : "var(--color-text)",
+            }}
+          >
+            {o}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScaleButtons({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return <ToggleButtons options={["1", "2", "3", "4", "5"]} value={value} onChange={onChange} />;
 }
 
 function BiasSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {

@@ -35,6 +35,7 @@ interface TradeForReview {
   rowIndex: number;
   notes: string;
   maxRBeforeStop: number | null;
+  maeR: number | null;
   duration: number;
 }
 
@@ -602,6 +603,15 @@ function TradeCard({
                 title="Max R Before Stop — best the trade could have done"
               >
                 MFE {trade.maxRBeforeStop.toFixed(1)}R
+              </span>
+            )}
+            {trade.maeR != null && (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: "rgba(245,101,101,0.12)", color: "#f56565" }}
+                title="Max Adverse Excursion — worst heat taken between entry and exit"
+              >
+                MAE {trade.maeR.toFixed(1)}R
               </span>
             )}
             <span className="text-xs" style={{ color: "var(--color-muted)" }}>

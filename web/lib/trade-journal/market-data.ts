@@ -1,30 +1,35 @@
 import { GroupedTrade } from "./trade-grouper";
 
+// Daily-history fields can be "N/A" — the literal string written to the sheet
+// when a recently listed ticker doesn't have enough daily bars to compute the
+// value. null = not computable this run (leave the cell alone); "N/A" = will
+// never be computable, so blank reliably means "not enriched yet".
 export interface MarketEnrichment {
   consec1m: number | null;
   consec5m: number | null;
   consec1h: number | null;
-  gapPct: number | null;
-  atrPct: number | null;
+  gapPct: number | string | null;
+  atrPct: number | string | null;
   rvol: number | null;
   vwapPct: number | null;
   orSize: number | null;
-  orAtrPct: number | null;
+  orAtrPct: number | string | null;
   orHigh: number | null;
   orLow: number | null;
   maxRBeforeStop: number | null;
   farthestPrice: number | null;
+  maeR: number | null;
   breakoutVolRatio: number | null;
-  priorCloseLoc: number | null;
-  dist20Sma: number | null;
-  dist50Sma: number | null;
+  priorCloseLoc: number | string | null;
+  dist20Sma: number | string | null;
+  dist50Sma: number | string | null;
   floatShares: number | null;
-  avgDollarVol: number | null;
+  avgDollarVol: number | string | null;
   spyDir: string | null;
   vix: number | null;
-  pdc: number | null;
-  pdh: number | null;
-  pdl: number | null;
+  pdc: number | string | null;
+  pdh: number | string | null;
+  pdl: number | string | null;
 }
 
 interface Bar {
@@ -59,6 +64,7 @@ const EMPTY: MarketEnrichment = {
   orLow: null,
   maxRBeforeStop: null,
   farthestPrice: null,
+  maeR: null,
   breakoutVolRatio: null,
   priorCloseLoc: null,
   dist20Sma: null,
@@ -150,6 +156,65 @@ async function fetchPolygon(
     close: r.c,
     volume: r.v,
   }));
+}
+
+// --- VIX (per-date, index data) ---
+//
+// Preferred source is Polygon's I:VIX daily aggregates, but index data needs a
+// Polygon Indices plan — a stocks-only key gets NOT_AUTHORIZED (verified on the
+// current plan). Fallback: CBOE's free public daily VIX history CSV, which needs
+// no auth and covers 1990 → yesterday. The entitlement result and the parsed
+// CBOE history are memoized per isolate so a multi-symbol run fetches each
+// source at most once.
+
+const CBOE_VIX_URL = "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv";
+
+let polygonVixEntitled: boolean | null = null;
+let cboeVixCache: Map<string, number> | null = null;
+
+async function fetchCboeVixHistory(): Promise<Map<string, number>> {
+  if (cboeVixCache) return cboeVixCache;
+  const res = await fetch(CBOE_VIX_URL);
+  if (!res.ok) throw new Error(`CBOE VIX history HTTP ${res.status}`);
+  const text = await res.text();
+  const map = new Map<string, number>();
+  // Format: DATE,OPEN,HIGH,LOW,CLOSE with DATE as MM/DD/YYYY
+  for (const line of text.split("\n").slice(1)) {
+    const parts = line.trim().split(",");
+    if (parts.length < 5) continue;
+    const [mm, dd, yyyy] = parts[0].split("/");
+    if (!yyyy) continue;
+    const close = parseFloat(parts[4]);
+    if (isNaN(close)) continue;
+    map.set(`${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`, Math.round(close * 100) / 100);
+  }
+  if (map.size === 0) throw new Error("CBOE VIX history: no rows parsed");
+  cboeVixCache = map;
+  return map;
+}
+
+// Date (YYYY-MM-DD) -> VIX close for [earliest, latest]. Never throws — VIX is
+// supplementary; an empty map just leaves the cells blank for a later retry.
+export async function fetchVixMap(earliest: string, latest: string): Promise<Map<string, number>> {
+  if (polygonVixEntitled !== false) {
+    try {
+      const bars = await fetchPolygon("I:VIX", 1, "day", earliest, latest);
+      polygonVixEntitled = true;
+      const map = new Map<string, number>();
+      for (const b of bars) {
+        map.set(timestampToET(b.ts).date, Math.round(b.close * 100) / 100);
+      }
+      if (map.size > 0) return map;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/not entitled|not_authorized/i.test(msg)) polygonVixEntitled = false;
+    }
+  }
+  try {
+    return await fetchCboeVixHistory();
+  } catch {
+    return new Map();
+  }
 }
 
 async function fetchTickerDetails(symbol: string): Promise<number | null> {
@@ -416,6 +481,39 @@ function computeMaxRBeforeStop(
   };
 }
 
+// --- MAE (Max Adverse Excursion) over the actual holding window ---
+
+// Walks 1-min bars from entry to exit and returns the worst adverse R-multiple
+// as a negative number (e.g. -0.62), or 0 if the trade never went against
+// entry. Skips the adverse check on the entry bar (intra-bar order unknown),
+// consistent with computeMaxRBeforeStop. Unlike Max R this does NOT stop at the
+// stop-loss level — it measures the heat actually taken while in the trade.
+function computeMAE(
+  dayBars: Bar[],
+  entryMinute: number,
+  exitMinute: number,
+  entryPrice: number,
+  riskPerShare: number,
+  isLong: boolean
+): number | null {
+  if (riskPerShare <= 0 || exitMinute < entryMinute) return null;
+  const barsInWindow = dayBars.filter((b) => {
+    const et = timestampToET(b.ts);
+    const min = etMinutes(et.h, et.m);
+    return min >= entryMinute && min <= exitMinute;
+  });
+  if (barsInWindow.length === 0) return null;
+
+  let maxAdverse = 0;
+  for (let i = 1; i < barsInWindow.length; i++) {
+    const b = barsInWindow[i];
+    const adverse = isLong ? entryPrice - b.low : b.high - entryPrice;
+    if (adverse > maxAdverse) maxAdverse = adverse;
+  }
+
+  return maxAdverse === 0 ? 0 : -Math.round((maxAdverse / riskPerShare) * 100) / 100;
+}
+
 // --- Breakout volume ratio ---
 
 function computeBreakoutVolRatio(
@@ -509,13 +607,26 @@ function computeEnrichment(
   floatShares: number | null,
   spyBarsForDate: Bar[],
   vixLevel: number | null,
-  riskPerShare?: number
+  riskPerShare?: number,
+  youngListing?: boolean
 ): MarketEnrichment {
   const entryMinute = parseEntryMinutes(trade.entryTime);
   const dayBars = barsForDate(intradayBars, trade.date);
   if (dayBars.length === 0) return { ...EMPTY };
 
   const isLong = trade.side === "Long";
+
+  // Position of the trade date in the fetched daily history. Used both for
+  // prior-day fields and to decide N/A: if the listing is young (daily bars
+  // begin at the IPO, well after our requested fetch start) and the trade date
+  // sits closer to the first bar than a field's required lookback, that field
+  // is impossible to compute — write "N/A" so blank means "not enriched yet".
+  const dayIdx = dailyBars.findIndex((b) => b.date === trade.date);
+  const naIfYoung = (value: number | null, requiredDays: number): number | string | null => {
+    if (value !== null) return value;
+    if (youngListing && dayIdx >= 0 && dayIdx < requiredDays) return "N/A";
+    return null;
+  };
 
   // Consecutive candles at 1m, 5m, 1H
   const idx1m = findEntryBarIndex(dayBars, entryMinute);
@@ -562,6 +673,11 @@ function computeEnrichment(
     ? computeMaxRBeforeStop(dayBars, entryMinute, trade.avgEntry, riskPerShare, isLong)
     : null;
 
+  // MAE over the actual holding window (entry -> exit); requires R, like Max R
+  const maeR = riskPerShare && riskPerShare > 0 && trade.exitTime
+    ? computeMAE(dayBars, entryMinute, parseEntryMinutes(trade.exitTime), trade.avgEntry, riskPerShare, isLong)
+    : null;
+
   // Breakout volume ratio
   const breakoutVolRatio = or
     ? computeBreakoutVolRatio(dayBars, or.orHigh, or.orLow, isLong)
@@ -587,34 +703,34 @@ function computeEnrichment(
   const spyDir = computeSpyDir(spyBarsForDate, entryMinute);
 
   // Prior day OHLC
-  const dayIdx = dailyBars.findIndex((b) => b.date === trade.date);
   const prevDay = dayIdx >= 1 ? dailyBars[dayIdx - 1] : null;
 
   return {
     consec1m,
     consec5m,
     consec1h,
-    gapPct: gapPct !== null ? Math.round(gapPct * 100) / 100 : null,
-    atrPct: atrPct !== null ? Math.round(atrPct * 10) / 10 : null,
+    gapPct: naIfYoung(gapPct !== null ? Math.round(gapPct * 100) / 100 : null, 1),
+    atrPct: naIfYoung(atrPct !== null ? Math.round(atrPct * 10) / 10 : null, 15),
     rvol,
     vwapPct: vwapPct !== null ? Math.round(vwapPct * 100) / 100 : null,
     orSize,
-    orAtrPct,
+    orAtrPct: naIfYoung(orAtrPct, 15),
     orHigh: or ? Math.round(or.orHigh * 100) / 100 : null,
     orLow: or ? Math.round(or.orLow * 100) / 100 : null,
     maxRBeforeStop: maxRResult?.maxR ?? null,
     farthestPrice: maxRResult?.farthestPrice ?? null,
+    maeR,
     breakoutVolRatio,
-    priorCloseLoc,
-    dist20Sma,
-    dist50Sma,
+    priorCloseLoc: naIfYoung(priorCloseLoc, 1),
+    dist20Sma: naIfYoung(dist20Sma, 20),
+    dist50Sma: naIfYoung(dist50Sma, 50),
     floatShares,
-    avgDollarVol,
+    avgDollarVol: naIfYoung(avgDollarVol, 20),
     spyDir,
     vix: vixLevel,
-    pdc: prevDay ? Math.round(prevDay.close * 100) / 100 : null,
-    pdh: prevDay ? Math.round(prevDay.high * 100) / 100 : null,
-    pdl: prevDay ? Math.round(prevDay.low * 100) / 100 : null,
+    pdc: naIfYoung(prevDay ? Math.round(prevDay.close * 100) / 100 : null, 1),
+    pdh: naIfYoung(prevDay ? Math.round(prevDay.high * 100) / 100 : null, 1),
+    pdl: naIfYoung(prevDay ? Math.round(prevDay.low * 100) / 100 : null, 1),
   };
 }
 
@@ -656,9 +772,12 @@ export async function enrichSymbol(
   intradayFromDate.setUTCDate(intradayFromDate.getUTCDate() - 7);
   const intradayFrom = fmtDate(intradayFromDate);
 
-  // Extended to 75 days for 50-day SMA
+  // 250 calendar days back: enough margin for the 50-day SMA even on sparsely
+  // traded tickers (e.g. SPACs like SPCX trade well under half of sessions, so
+  // Polygon returns far fewer bars than calendar days). Still one request.
+  // Also anchors the young-listing check below.
   const dailyFrom = new Date(earliest);
-  dailyFrom.setUTCDate(dailyFrom.getUTCDate() - 75);
+  dailyFrom.setUTCDate(dailyFrom.getUTCDate() - 250);
 
   // Stagger requests to stay within Polygon free-tier rate limits (5 req/min).
   // Batch 1: symbol's own bars (essential — 2 requests)
@@ -677,9 +796,9 @@ export async function enrichSymbol(
   const spyRaw = intradayFrom <= intradayTo
     ? await fetchPolygon("SPY", 1, "minute", intradayFrom, intradayTo).catch(() => [] as Bar[])
     : [];
-  const vixRaw = await fetchPolygon("I:VIX", 1, "day", earliest, latest)
-    .catch(() => fetchPolygon("VIX", 1, "day", earliest, latest))
-    .catch(() => [] as Bar[]);
+  // Per-date VIX close: Polygon I:VIX when the plan allows it, else CBOE's
+  // free daily history CSV (memoized per isolate — one fetch covers all dates).
+  const vixByDate = await fetchVixMap(earliest, latest);
 
   const dailyBars: DailyBar[] = rawDaily.map((b) => ({
     date: timestampToET(b.ts).date,
@@ -690,12 +809,17 @@ export async function enrichSymbol(
     volume: b.volume,
   }));
 
-  const spyByDate = barsByDate(spyRaw);
+  // Young listing: Polygon only returns bars since the IPO, so if the first
+  // daily bar starts well after the window we asked for, the ticker simply
+  // doesn't have the history — ATR/SMA-family fields get "N/A", not blank.
+  // 21-day slack tolerates sparse tickers whose first fetched bar lags the
+  // window start by a gap in trading rather than a recent listing (harmless
+  // either way: N/A is only written when the bar count is also insufficient).
+  const dailyFromSlack = new Date(dailyFrom);
+  dailyFromSlack.setUTCDate(dailyFromSlack.getUTCDate() + 21);
+  const youngListing = dailyBars.length > 0 && dailyBars[0].date > fmtDate(dailyFromSlack);
 
-  const vixByDate = new Map<string, number>();
-  for (const b of vixRaw) {
-    vixByDate.set(timestampToET(b.ts).date, b.close);
-  }
+  const spyByDate = barsByDate(spyRaw);
 
   const enrichments = trades.map((t) => {
     const fake: GroupedTrade & { exitTime: string } = {
@@ -721,7 +845,8 @@ export async function enrichSymbol(
         floatShares,
         spyByDate.get(t.date) || [],
         vixByDate.get(t.date) ?? null,
-        t.riskPerShare
+        t.riskPerShare,
+        youngListing
       ),
     };
   });

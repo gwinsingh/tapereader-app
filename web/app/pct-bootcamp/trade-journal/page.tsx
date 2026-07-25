@@ -168,6 +168,7 @@ export default function TradeJournalPage() {
   }));
 
   const [backfillEnrichment, setBackfillEnrichment] = useState<EnrichmentProgress | null>(null);
+  const [vixBackfillStatus, setVixBackfillStatus] = useState<string | null>(null);
 
   const runEnrichment = useCallback(async (trades: TradeRow[], accounts: string[]) => {
     const bySymbol = groupTradesBySymbol(trades);
@@ -384,9 +385,27 @@ export default function TradeJournalPage() {
     if (!tabName) return;
 
     setBackfillEnrichment(null);
+    setVixBackfillStatus(null);
     setError(null);
 
     try {
+      // Fast per-date pass first: fills every blank VIX cell in one server
+      // call (no per-symbol Polygon requests). Fails soft — the per-symbol
+      // enrichment below still runs.
+      setVixBackfillStatus("Backfilling VIX (per-date pass)…");
+      try {
+        const vixRes = await fetch(`/api/trade-journal/backfill-vix?tab=${encodeURIComponent(tabName)}`, { method: "POST" });
+        const vixData = await vixRes.json();
+        if (!vixRes.ok) throw new Error(vixData.error || `HTTP ${vixRes.status}`);
+        const missing = (vixData.missingDates || []) as string[];
+        setVixBackfillStatus(
+          `VIX: filled ${vixData.updated} row${vixData.updated === 1 ? "" : "s"}` +
+          (missing.length > 0 ? ` — no VIX data for ${missing.join(", ")}` : "")
+        );
+      } catch (vixErr) {
+        setVixBackfillStatus(`VIX backfill failed: ${vixErr instanceof Error ? vixErr.message : String(vixErr)}`);
+      }
+
       const res = await fetch(`/api/trade-journal/backfill?tab=${encodeURIComponent(tabName)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch trades for backfill.");
@@ -673,6 +692,23 @@ export default function TradeJournalPage() {
 
       {enrichment && (
         <EnrichmentStatus progress={enrichment} />
+      )}
+
+      {vixBackfillStatus && (
+        <div
+          className="rounded border px-4 py-3 text-sm"
+          style={{
+            borderColor: vixBackfillStatus.startsWith("VIX backfill failed")
+              ? "var(--color-danger)"
+              : "var(--color-border)",
+            backgroundColor: "var(--color-panel)",
+            color: vixBackfillStatus.startsWith("VIX backfill failed")
+              ? "var(--color-danger)"
+              : "var(--color-text)",
+          }}
+        >
+          {vixBackfillStatus}
+        </div>
       )}
 
       {backfillEnrichment && (
