@@ -385,24 +385,43 @@ function computeATR14(dailyBars: DailyBar[], tradeDate: string): number | null {
 // enrichSymbol). Returns null if fewer than 14 prior sessions are available.
 const OPEN30_START_MIN = 570; // 9:30 ET
 const OPEN30_END_MIN = 600;   // 10:00 ET
-function compute30mATR(intradayBars: Bar[], tradeDate: string): number | null {
+
+interface OpenRangeDay {
+  date: string;
+  range: number;
+}
+
+// Precompute each session's 9:30-10:00 range ONCE per symbol. Doing this inside
+// compute30mATR (per trade) rebuilt a by-date map over the whole multi-month
+// 1-min series on every trade, which for wide-range symbols (e.g. QQQ/SPY with
+// dozens of trades across months) spiked the Cloudflare edge isolate past its
+// resource limit (503). This runs a single O(bars) pass; compute30mATR is then
+// an O(distinct-dates) slice.
+function buildOpenRangeByDate(intradayBars: Bar[]): OpenRangeDay[] {
   const grouped = barsByDate(intradayBars);
-  const priorDates = [...grouped.keys()].filter((d) => d < tradeDate).sort();
-  const ranges: number[] = [];
-  for (const d of priorDates) {
-    const openBars = grouped.get(d)!.filter((b) => {
+  const out: OpenRangeDay[] = [];
+  for (const [date, bars] of grouped) {
+    let high = -Infinity;
+    let low = Infinity;
+    for (const b of bars) {
       const et = timestampToET(b.ts);
       const min = etMinutes(et.h, et.m);
-      return min >= OPEN30_START_MIN && min < OPEN30_END_MIN;
-    });
-    if (openBars.length === 0) continue;
-    const high = Math.max(...openBars.map((b) => b.high));
-    const low = Math.min(...openBars.map((b) => b.low));
-    ranges.push(high - low);
+      if (min < OPEN30_START_MIN || min >= OPEN30_END_MIN) continue;
+      if (b.high > high) high = b.high;
+      if (b.low < low) low = b.low;
+    }
+    if (high === -Infinity) continue;
+    out.push({ date, range: high - low });
   }
-  if (ranges.length < 14) return null;
-  const last14 = ranges.slice(-14);
-  return Math.round((last14.reduce((s, v) => s + v, 0) / 14) * 100) / 100;
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return out;
+}
+
+function compute30mATR(openRangeByDate: OpenRangeDay[], tradeDate: string): number | null {
+  const prior = openRangeByDate.filter((d) => d.date < tradeDate);
+  if (prior.length < 14) return null;
+  const last14 = prior.slice(-14);
+  return Math.round((last14.reduce((s, d) => s + d.range, 0) / 14) * 100) / 100;
 }
 
 function computeAtrPct(dayBars: Bar[], entryIdx: number, atr: number): number {
@@ -654,6 +673,7 @@ function computeEnrichment(
   floatShares: number | null,
   spyBarsForDate: Bar[],
   vixLevel: number | null,
+  openRangeByDate: OpenRangeDay[],
   riskPerShare?: number,
   youngListing?: boolean
 ): MarketEnrichment {
@@ -754,7 +774,7 @@ function computeEnrichment(
 
   // Trade-date daily candle (raw OHLCV) + 30-minute ATR (pre-open snapshot).
   const dayCandle = dayIdx >= 0 ? dailyBars[dayIdx] : null;
-  const atr30m = compute30mATR(intradayBars, trade.date);
+  const atr30m = compute30mATR(openRangeByDate, trade.date);
 
   return {
     consec1m,
@@ -882,6 +902,9 @@ export async function enrichSymbol(
   const youngListing = dailyBars.length > 0 && dailyBars[0].date > fmtDate(dailyFromSlack);
 
   const spyByDate = barsByDate(spyRaw);
+  // Precompute the per-session opening range ONCE (not per trade) — see
+  // buildOpenRangeByDate for why this matters on wide-range symbols.
+  const openRangeByDate = buildOpenRangeByDate(raw1m);
 
   const enrichments = trades.map((t) => {
     const fake: GroupedTrade & { exitTime: string } = {
@@ -907,6 +930,7 @@ export async function enrichSymbol(
         floatShares,
         spyByDate.get(t.date) || [],
         vixByDate.get(t.date) ?? null,
+        openRangeByDate,
         t.riskPerShare,
         youngListing
       ),
