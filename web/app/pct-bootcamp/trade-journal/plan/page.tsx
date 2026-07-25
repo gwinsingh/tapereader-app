@@ -26,6 +26,9 @@ interface DailyPsych {
 
 const EMPTY_PSYCH: DailyPsych = { energy: "", tension: "", urgeFast: "" };
 
+// Always-on-radar symbols: seeded on every plan, and their trades get Origin
+// "Watchlist" even when no plan was saved (keep in sync with
+// ALWAYS_WATCHLIST_SYMBOLS in lib/trade-journal/google-sheets.ts).
 const SEED_SYMBOLS = ["QQQ", "SPY"];
 
 // Mirrors CATALYST_OPTIONS in lib/trade-journal/google-sheets.ts (kept in sync).
@@ -219,25 +222,34 @@ export default function MorningPlanPage() {
           Check-in — how are you arriving today?
         </p>
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-          <Field label="Energy (drained → fully charged)">
+          <HintField
+            label="Energy"
+            hint={ENERGY_HINT}
+          >
             <ScaleButtons
               value={daily.energy}
               onChange={(v) => { setDaily((d) => ({ ...d, energy: v })); setStatus(null); }}
             />
-          </Field>
-          <Field label="Tension (settled → wired/racing)">
+          </HintField>
+          <HintField
+            label="Tension"
+            hint={TENSION_HINT}
+          >
             <ScaleButtons
               value={daily.tension}
               onChange={(v) => { setDaily((d) => ({ ...d, tension: v })); setStatus(null); }}
             />
-          </Field>
-          <Field label="Urge to trade fast?">
+          </HintField>
+          <HintField
+            label="Urge to trade fast?"
+            hint={URGE_HINT}
+          >
             <ToggleButtons
               options={["Yes", "No"]}
               value={daily.urgeFast}
               onChange={(v) => { setDaily((d) => ({ ...d, urgeFast: v })); setStatus(null); }}
             />
-          </Field>
+          </HintField>
         </div>
       </div>
 
@@ -276,8 +288,10 @@ export default function MorningPlanPage() {
       </div>
 
       <p className="text-xs" style={{ color: "var(--color-muted)" }}>
-        QQQ and SPY are seeded by default. Names not on the plan are tagged
-        <strong> Intraday discovery </strong> automatically when their trades are uploaded.
+        QQQ and SPY are seeded by default and always count as
+        <strong> Watchlist </strong> — even on days you skip the plan. Other names not on the
+        plan are tagged <strong> Intraday discovery </strong> automatically when their trades
+        are uploaded.
         Trend = direction per chart (Bull/Bear/Neutral); Str = 1–3 conviction on that timeframe.
       </p>
     </div>
@@ -374,6 +388,45 @@ function PlanCard({ row, onChange, onRemove }: {
   );
 }
 
+// Label + tap-to-toggle "?" hint (native title tooltips don't work on touch).
+// The first hint line is the summary; the rest are the rating anchors.
+function HintField({ label, hint, children }: { label: string; hint: string[]; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-1.5">
+        <label className="block text-[11px] font-medium" style={{ color: "var(--color-muted)" }}>{label}</label>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={`What does ${label} mean?`}
+          aria-expanded={open}
+          className="flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-semibold leading-none transition-opacity hover:opacity-80"
+          style={{
+            borderColor: open ? "var(--color-accent)" : "var(--color-border)",
+            color: open ? "var(--color-accent)" : "var(--color-muted)",
+            backgroundColor: open ? "color-mix(in srgb, var(--color-accent) 10%, transparent)" : "transparent",
+          }}
+        >
+          ?
+        </button>
+      </div>
+      {children}
+      {open && (
+        <div
+          className="mt-1.5 max-w-[17rem] rounded-md border px-2.5 py-2 text-[11px] leading-relaxed"
+          style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)", color: "var(--color-muted)" }}
+        >
+          <p className="mb-1 font-medium" style={{ color: "var(--color-text)" }}>{hint[0]}</p>
+          {hint.slice(1).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
@@ -382,6 +435,30 @@ function Field({ label, children, className = "" }: { label: string; children: R
     </div>
   );
 }
+
+// Rating anchors for the check-in "?" hints. Gut answer, don't overthink —
+// the point is a consistent scale day to day.
+const ENERGY_HINT: string[] = [
+  "How much fuel is in the tank right now — gut answer.",
+  "1 · Running on empty — exhausted, foggy, forcing it",
+  "2 · Low — dragging, under-slept",
+  "3 · OK — functional, nothing special",
+  "4 · Good — rested and focused",
+  "5 · Fully charged — sharp, clear, ready",
+];
+const TENSION_HINT: string[] = [
+  "How activated your body feels — not mood, but wiring.",
+  "1 · Settled — breathing easy, patient",
+  "2 · Mildly keyed up — a little anticipation",
+  "3 · Alert but composed",
+  "4 · Tight — restless, hard to sit still",
+  "5 · Wired/racing — heart pounding, itchy trigger finger",
+];
+const URGE_HINT: string[] = [
+  "Do you feel pulled to jump into the first move at the open?",
+  "Yes · FOMO wiring is active today — expect chase risk, slow down, wait for your setup",
+  "No · Happy to sit on hands until the plan triggers",
+];
 
 // Tap-to-set button group — faster than a dropdown for the 10-second check-in.
 // Tapping the selected value again clears it.

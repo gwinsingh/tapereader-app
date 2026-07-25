@@ -189,6 +189,11 @@ const ORIGIN_OPTIONS = [
   "Intraday discovery",
 ];
 
+// Symbols that are always on the radar (seeded in the Morning Plan form —
+// keep in sync with SEED_SYMBOLS in app/pct-bootcamp/trade-journal/plan/page.tsx).
+// Their trades get Origin "Watchlist" even when no plan was saved that day.
+const ALWAYS_WATCHLIST_SYMBOLS = new Set(["QQQ", "SPY"]);
+
 const EMOTIONAL_STATE_OPTIONS = [
   "Calm",
   "Anxious",
@@ -1982,6 +1987,7 @@ export interface DailyTrade {
   realizedR: number | null; // P&L vs its own risk
   standardR: number | null; // P&L ÷ Full R target for the date
   risk: number | null; // deployed $ risk
+  maxRBeforeStop: number | null; // MFE — used for the weekly bracket counterfactual
   conviction: string;
   processFollowed: string; // "Yes" | "No" | "" — for drill-down badge
   hasNote: boolean;
@@ -2032,6 +2038,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
   const entryTimeIdx = cm(colMap, "Entry Time");
   const convictionIdx = cm(colMap, "Conviction (1-3)");
   const processIdx = cm(colMap, "Process Followed?");
+  const maxRIdx = cm(colMap, "Max R Before Stop");
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, ""));
 
   const hasFullRConfig = fullRForDate(schedule, tabName, "9999-12-31") !== null;
@@ -2045,7 +2052,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
     riskSum: number;
     riskCount: number;
     hasNote: boolean;
-    rawTrades: { pnl: number; realizedR: number | null; risk: number | null; symbol: string; setup: string; side: string; entryTime: string; conviction: string; processFollowed: string; hasNote: boolean }[];
+    rawTrades: { pnl: number; realizedR: number | null; risk: number | null; maxRBeforeStop: number | null; symbol: string; setup: string; side: string; entryTime: string; conviction: string; processFollowed: string; hasNote: boolean }[];
   }
   const byDate = new Map<string, Acc>();
 
@@ -2081,6 +2088,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
       pnl: Math.round(pnl * 100) / 100,
       realizedR: !isNaN(pnlR) ? pnlR : (!isNaN(risk) && risk > 0 ? Math.round((pnl / risk) * 100) / 100 : null),
       risk: !isNaN(risk) && risk > 0 ? risk : null,
+      maxRBeforeStop: maxRIdx >= 0 ? parseNullableNum(r[maxRIdx]) : null,
       symbol: symbolIdx >= 0 ? (r[symbolIdx] || "").trim() : "",
       setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
       side: sideIdx >= 0 ? (r[sideIdx] || "").trim() : "",
@@ -2117,6 +2125,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
             realizedR: t.realizedR,
             standardR: fullR ? Math.round((t.pnl / fullR) * 100) / 100 : null,
             risk: t.risk,
+            maxRBeforeStop: t.maxRBeforeStop,
             conviction: t.conviction,
             processFollowed: t.processFollowed,
             hasNote: t.hasNote,
@@ -2417,9 +2426,14 @@ export async function appendTrades(
       // Auto-fill from the pre-market Daily Plan (by date|symbol). Origin is derived
       // from presence (on the plan => Watchlist; off-plan => Intraday discovery);
       // conviction/catalyst/L2 bias/MTF read fill in only when the cell is blank.
-      const plan = planMap.get(`${trade.date}|${(trade.symbol || "").toUpperCase()}`);
+      // QQQ/SPY are always-watchlist (seeded on every plan) even if no plan was
+      // saved that day.
+      const upperSym = (trade.symbol || "").toUpperCase();
+      const plan = planMap.get(`${trade.date}|${upperSym}`);
       if (originIdx >= 0) {
-        row[originIdx] = plan ? "Watchlist" : "Intraday discovery";
+        row[originIdx] = plan || ALWAYS_WATCHLIST_SYMBOLS.has(upperSym)
+          ? "Watchlist"
+          : "Intraday discovery";
       }
       if (plan) {
         for (const { key, idx } of fillIdx) {

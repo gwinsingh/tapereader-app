@@ -13,6 +13,7 @@ interface DailyTrade {
   realizedR: number | null;
   standardR: number | null;
   risk: number | null;
+  maxRBeforeStop: number | null;
   conviction: string;
   processFollowed: string; // "Yes" | "No" | ""
   hasNote: boolean;
@@ -64,6 +65,59 @@ type SortDir = "asc" | "desc";
 const GREEN = "#48bb78";
 const RED = "#f56565";
 
+// Shared with CaptureTracker — the bracket counterfactual uses the same target.
+const TARGET_KEY = "pct-capture-target";
+const DEFAULT_TARGET = 2.5;
+
+// "No-management" bracket counterfactual for a set of trades: entry with a
+// fixed stop (−1R) and a fixed target, untouched after entry. MFE (Max R
+// Before Stop) is order-aware — it stops accruing once the stop is hit — so
+// MFE ≥ target means the target genuinely printed before the stop. Trades
+// that reach neither by EOD are counted as −1R (pessimistic; same assumption
+// as Profitability Analysis). Only trades with R + MFE data participate, and
+// the actual side is summed over those same trades so the gap is
+// apples-to-apples.
+interface BracketAgg {
+  covered: number; // trades with R + MFE data
+  total: number;   // all trades seen
+  bracketR: number;
+  bracketDollar: number;
+  bracketStd: number;
+  bracketHasStd: boolean;
+  actualR: number;
+  actualDollar: number;
+  actualStd: number;
+}
+
+function emptyBracketAgg(): BracketAgg {
+  return { covered: 0, total: 0, bracketR: 0, bracketDollar: 0, bracketStd: 0, bracketHasStd: false, actualR: 0, actualDollar: 0, actualStd: 0 };
+}
+
+function accumulateBracket(agg: BracketAgg, cell: DailyCalendarCell, target: number) {
+  for (const t of cell.tradeList) {
+    agg.total += 1;
+    if (t.risk === null || t.risk <= 0 || t.maxRBeforeStop === null || t.realizedR === null) continue;
+    const bR = t.maxRBeforeStop >= target ? target : -1;
+    agg.covered += 1;
+    agg.bracketR += bR;
+    agg.bracketDollar += bR * t.risk;
+    agg.actualR += t.realizedR;
+    agg.actualDollar += t.pnl;
+    if (cell.fullR) {
+      agg.bracketStd += (bR * t.risk) / cell.fullR;
+      agg.actualStd += t.pnl / cell.fullR;
+      agg.bracketHasStd = true;
+    }
+  }
+}
+
+function bracketValues(agg: BracketAgg, unit: Unit): { bracket: number; actual: number } | null {
+  if (agg.covered === 0) return null;
+  if (unit === "dollar") return { bracket: agg.bracketDollar, actual: agg.actualDollar };
+  if (unit === "realizedR") return { bracket: agg.bracketR, actual: agg.actualR };
+  return agg.bracketHasStd ? { bracket: agg.bracketStd, actual: agg.actualStd } : null;
+}
+
 const UNIT_LABELS: Record<Unit, string> = {
   standardR: "R (Standard)",
   realizedR: "Realized R",
@@ -114,6 +168,17 @@ export default function TradingCalendar({ tabName, filterParams = "" }: { tabNam
   const [unit, setUnit] = useState<Unit>("standardR");
   const [monthCursor, setMonthCursor] = useState<{ y: number; m: number } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [bracketTarget, setBracketTarget] = useState<number>(DEFAULT_TARGET);
+
+  // Same stored target as the Capture Tracker (read after mount to avoid a
+  // hydration mismatch).
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem(TARGET_KEY) : null;
+    if (stored) {
+      const n = parseFloat(stored);
+      if (!isNaN(n) && n > 0) setBracketTarget(n);
+    }
+  }, []);
 
   // Screenshots — lazily fetched once on first drill-down open, then cached
   const [ssIndex, setSsIndex] = useState<ScreenshotIndex | null>(null);
@@ -240,10 +305,12 @@ export default function TradingCalendar({ tabName, filterParams = "" }: { tabNam
   const monthSummary = useMemo(() => {
     let pnl = 0, realizedR = 0, standardR = 0, hasStd = false, wins = 0, losses = 0, days = 0;
     let best: DailyCalendarCell | null = null, worst: DailyCalendarCell | null = null;
+    const bracket = emptyBracketAgg();
     for (const c of monthCells) {
       pnl += c.pnl; realizedR += c.realizedR;
       if (c.standardR !== null) { standardR += c.standardR; hasStd = true; }
       wins += c.wins; losses += c.losses; days += 1;
+      accumulateBracket(bracket, c, bracketTarget);
       const v = valueFor(c, unit);
       if (v !== null) {
         if (best === null || v > (valueFor(best, unit) ?? -Infinity)) best = c;
@@ -252,8 +319,10 @@ export default function TradingCalendar({ tabName, filterParams = "" }: { tabNam
     }
     const total = unit === "dollar" ? pnl : unit === "realizedR" ? realizedR : (hasStd ? standardR : null);
     const wr = wins + losses > 0 ? (wins / (wins + losses)) * 100 : null;
-    return { total, days, wr, best, worst, pnl };
-  }, [monthCells, unit]);
+    const bv = bracketValues(bracket, unit);
+    const execGap = bv ? bv.actual - bv.bracket : null;
+    return { total, days, wr, best, worst, pnl, execGap, bracketCovered: bracket.covered, bracketTotal: bracket.total };
+  }, [monthCells, unit, bracketTarget]);
 
   const selectedCell = selectedDate ? byDate.get(selectedDate) ?? null : null;
 
@@ -323,6 +392,14 @@ export default function TradingCalendar({ tabName, filterParams = "" }: { tabNam
         <SummaryStat label="Win Rate" value={monthSummary.wr === null ? "—" : `${monthSummary.wr.toFixed(1)}%`} />
         <SummaryStat label="Best Day" value={monthSummary.best ? fmtValue(valueFor(monthSummary.best, unit), unit) : "—"} color={GREEN} />
         <SummaryStat label="Worst Day" value={monthSummary.worst ? fmtValue(valueFor(monthSummary.worst, unit), unit) : "—"} color={RED} />
+        {monthSummary.execGap !== null && (
+          <SummaryStat
+            label={`Exec Gap vs ${bracketTarget}R bracket`}
+            value={`Δ${fmtValue(monthSummary.execGap, unit)}`}
+            color={colorFor(monthSummary.execGap)}
+            title={`Actual minus a set-and-forget bracket (fixed −1R stop, fixed ${bracketTarget}R target, no management) over the month's ${monthSummary.bracketCovered}${monthSummary.bracketCovered < monthSummary.bracketTotal ? ` of ${monthSummary.bracketTotal}` : ""} trades with R + Max R data. Positive = your management beat the bracket.`}
+          />
+        )}
       </div>
 
       {/* Grid header */}
@@ -340,11 +417,13 @@ export default function TradingCalendar({ tabName, filterParams = "" }: { tabNam
         {weeks.map((week, wi) => {
           // weekly aggregate
           let wPnl = 0, wReal = 0, wStd = 0, wHasStd = false, wWins = 0, wLoss = 0, wDays = 0;
+          const wBracket = emptyBracketAgg();
           for (const c of week) {
             if (!c) continue;
             wPnl += c.pnl; wReal += c.realizedR;
             if (c.standardR !== null) { wStd += c.standardR; wHasStd = true; }
             wWins += c.wins; wLoss += c.losses; wDays += 1;
+            accumulateBracket(wBracket, c, bracketTarget);
           }
           const wTotal = unit === "dollar" ? wPnl : unit === "realizedR" ? wReal : (wHasStd ? wStd : null);
 
@@ -356,6 +435,8 @@ export default function TradingCalendar({ tabName, filterParams = "" }: { tabNam
               maxAbs={maxAbs}
               weekTotal={wTotal}
               weekDays={wDays}
+              bracket={wBracket}
+              bracketTarget={bracketTarget}
               selectedDate={selectedDate}
               onSelect={(d) => setSelectedDate((cur) => (cur === d ? null : d))}
             />
@@ -390,14 +471,15 @@ export default function TradingCalendar({ tabName, filterParams = "" }: { tabNam
         {unit === "realizedR" && "Realized R = each trade scored against its own risk. Reveals when position sizing rescued or sank a day. "}
         {unit === "dollar" && "Raw dollar P&L per day. "}
         Click a day to see its trades — sort by any column header, and click the <span style={{ color: "#63b3ed" }}>shots</span> icon to view Entry/EOD screenshots. A <span style={{ color: "var(--color-accent)" }}>●</span> dot marks days with a note or EOD screenshot; the size pill (e.g. <span className="font-mono">50%</span>) shows avg risk vs full R.
+        {" "}In the Week column, <span className="font-mono">B</span> = what a set-and-forget bracket (fixed −1R stop, fixed {bracketTarget}R target, no management) would have made, and <span className="font-mono">Δ</span> = actual − bracket over the same trades: <span style={{ color: GREEN }}>green</span> means your management beat the bracket, <span style={{ color: RED }}>red</span> means it left R on the table. Target follows the Capture Tracker setting; hover B/Δ for details.
       </p>
     </div>
   );
 }
 
-function SummaryStat({ label, value, color }: { label: string; value: string; color?: string }) {
+function SummaryStat({ label, value, color, title }: { label: string; value: string; color?: string; title?: string }) {
   return (
-    <div className="flex flex-col">
+    <div className={`flex flex-col${title ? " cursor-help" : ""}`} title={title}>
       <span className="text-xs" style={{ color: "var(--color-muted)" }}>{label}</span>
       <span className="text-sm font-semibold font-mono" style={{ color: color || "var(--color-text)" }}>{value}</span>
     </div>
@@ -405,31 +487,53 @@ function SummaryStat({ label, value, color }: { label: string; value: string; co
 }
 
 function WeekRow({
-  week, unit, maxAbs, weekTotal, weekDays, selectedDate, onSelect,
+  week, unit, maxAbs, weekTotal, weekDays, bracket, bracketTarget, selectedDate, onSelect,
 }: {
   week: (DailyCalendarCell | null | undefined)[];
   unit: Unit;
   maxAbs: number;
   weekTotal: number | null;
   weekDays: number;
+  bracket: BracketAgg;
+  bracketTarget: number;
   selectedDate: string | null;
   onSelect: (date: string) => void;
 }) {
+  const bv = bracketValues(bracket, unit);
+  // Execution gap = actual − bracket over the covered trades. Positive =
+  // management beat the set-and-forget bracket; negative = it cost R.
+  const gap = bv ? bv.actual - bv.bracket : null;
+  const gapTitle = bv
+    ? `Set-and-forget bracket @${bracketTarget}R: fixed stop (−1R) + fixed ${bracketTarget}R target, no management after entry — would have made ${fmtValue(bv.bracket, unit)} on this week's ${bracket.covered}${bracket.covered < bracket.total ? ` of ${bracket.total}` : ""} trades with R + Max R data (trades reaching neither level by EOD counted as −1R). Δ = actual − bracket over those same trades: positive = your management beat the bracket, negative = it left R on the table.`
+    : undefined;
+
   return (
     <>
       {week.slice(0, 5).map((cell, di) => (
         <DayCell key={di} cell={cell} unit={unit} maxAbs={maxAbs} selectedDate={selectedDate} onSelect={onSelect} />
       ))}
       <div
-        className="rounded-lg border px-2 py-2 flex flex-col justify-center"
+        className="rounded-lg border px-2 py-2 flex flex-col justify-center gap-0.5"
         style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)" }}
       >
         {weekDays > 0 ? (
           <>
-            <span className="text-sm font-semibold font-mono leading-tight" style={{ color: colorFor(weekTotal) }}>
-              {fmtValue(weekTotal, unit)}
-            </span>
-            <span className="text-xs" style={{ color: "var(--color-muted)" }}>{weekDays}d</span>
+            <div className="flex items-baseline justify-between gap-1">
+              <span className="text-sm font-semibold font-mono leading-tight" style={{ color: colorFor(weekTotal) }}>
+                {fmtValue(weekTotal, unit)}
+              </span>
+              <span className="text-xs" style={{ color: "var(--color-muted)" }}>{weekDays}d</span>
+            </div>
+            {bv && (
+              <div className="flex items-baseline justify-between gap-1 cursor-help" title={gapTitle}>
+                <span className="text-[10px] font-mono leading-tight" style={{ color: "var(--color-muted)" }}>
+                  B {fmtValue(bv.bracket, unit)}
+                </span>
+                <span className="text-[10px] font-mono font-semibold leading-tight" style={{ color: colorFor(gap) }}>
+                  Δ{fmtValue(gap, unit)}
+                </span>
+              </div>
+            )}
           </>
         ) : (
           <span className="text-xs" style={{ color: "var(--color-border)" }}>—</span>
