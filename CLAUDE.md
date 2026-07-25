@@ -44,6 +44,17 @@ npx @cloudflare/next-on-pages@1   # Cloudflare Pages build (run locally to verif
 
 Deploy: push to `main` on GitHub. Cloudflare auto-deploys.
 
+**Verifying a deploy actually landed** (recommended): after pushing, don't guess at timing — poll a production endpoint for something only the new build serves. Pick a signal unique to the change (a newly-added response field, a new route, changed output), then background-poll `https://tapereader.us` until it appears, e.g.:
+
+```bash
+for i in $(seq 1 40); do
+  curl -s "https://tapereader.us/api/trade-journal/stats?tab=SOME_TAB" | grep -q '"newField"' && { echo "deployed"; break; }
+  sleep 20
+done
+```
+
+~20s interval with a ~10-13 min cap comfortably covers Cloudflare's build+propagate time. This confirms the change is genuinely serving, not just pushed.
+
 ## Key architectural decisions
 
 ### Cloudflare edge runtime
