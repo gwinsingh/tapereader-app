@@ -169,7 +169,7 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 | Variable | Purpose |
 |----------|---------|
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Full JSON of the Google service account key |
-| `GOOGLE_SPREADSHEET_ID` | The shared Google Sheet ID (`1Hg1g73D8l8EH0j65IQBJhSEHzp3Ot_ib-ZD9UcN3ucU`) |
+| `GOOGLE_SPREADSHEET_ID` | The shared Google Sheet ID (configured in the Cloudflare Pages dashboard; not committed) |
 | `DATA_SOURCE` | Optional: `yahoo` or `polygon` for real market data (default: fixtures) |
 | `POLYGON_API_KEY` | Required if `DATA_SOURCE=polygon` |
 | `GOOGLE_DRIVE_ENTRY_FOLDER_ID` | Google Drive folder ID for entry screenshots |

@@ -8,7 +8,7 @@ TapeReader Next.js app.
 > **Scope of this document.** Design, architecture, workflows, and a full API
 > reference. It is intentionally implementation-accurate. Concrete identifiers
 > (spreadsheet ID, Drive folder IDs, service-account details, real account-tab
-> names) are replaced with placeholders — see [Security & privacy](#security--privacy).
+> names) are replaced with placeholders — see [Configuration & identifiers](#configuration--identifiers).
 
 ---
 
@@ -30,26 +30,23 @@ TapeReader Next.js app.
 
 ### API at a glance
 
-| Method | Endpoint | Reads/Writes | Purpose |
-|---|---|---|---|
-| `POST` | `/api/trade-journal/upload` | **writes sheet** | Ingest a DAS CSV into round-trip trades |
-| `POST` | `/api/trade-journal/enrich` | **writes sheet** | Enrich one symbol's trades with market data |
-| `GET` | `/api/trade-journal/backfill` | reads sheet | List rows still needing enrichment |
-| `POST` | `/api/trade-journal/backfill-vix` | **writes sheet** | Fill blank VIX cells (per-date) |
-| `GET` | `/api/trade-journal/stats` | reads sheet | Aggregate stats + skill funnel |
-| `GET` | `/api/trade-journal/calendar` | reads sheet | Per-day calendar cells |
-| `GET` | `/api/trade-journal/analysis` | reads sheet | Per-trade R + MFE + MAE |
-| `GET` | `/api/trade-journal/trades-for-review` | reads sheet | Trades + tags for screenshot review |
-| `PATCH` | `/api/trade-journal/tags` | **writes sheet** | Update one trade's retrospective tags |
-| `GET` | `/api/trade-journal/plan` | reads sheet | Read the Daily Plan for a date |
-| `POST` | `/api/trade-journal/plan` | **writes sheet** | Upsert the Daily Plan for a date |
-| `GET` | `/api/trade-journal/tabs` | reads sheet | List account tabs |
-| `GET` | `/api/trade-journal/screenshots` | reads Drive | Screenshot index (entry/EOD) |
-| `GET` | `/api/trade-journal/screenshot-image` | reads Drive | Proxy image bytes for a Drive file |
-| `POST` | `/api/trade-journal/populate-instructions` | **writes sheet** | (Re)write the Instructions tab |
-
-> ⚠️ **All endpoints are currently unauthenticated at the application layer.** The
-> write endpoints mutate a live Google Sheet. See [Security & privacy](#security--privacy).
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/trade-journal/upload` | Ingest a DAS CSV into round-trip trades |
+| `POST` | `/api/trade-journal/enrich` | Enrich one symbol's trades with market data |
+| `GET` | `/api/trade-journal/backfill` | List rows still needing enrichment |
+| `POST` | `/api/trade-journal/backfill-vix` | Fill blank VIX cells (per-date) |
+| `GET` | `/api/trade-journal/stats` | Aggregate stats + skill funnel |
+| `GET` | `/api/trade-journal/calendar` | Per-day calendar cells |
+| `GET` | `/api/trade-journal/analysis` | Per-trade R + MFE + MAE |
+| `GET` | `/api/trade-journal/trades-for-review` | Trades + tags for screenshot review |
+| `PATCH` | `/api/trade-journal/tags` | Update one trade's retrospective tags |
+| `GET` | `/api/trade-journal/plan` | Read the Daily Plan for a date |
+| `POST` | `/api/trade-journal/plan` | Upsert the Daily Plan for a date |
+| `GET` | `/api/trade-journal/tabs` | List account tabs |
+| `GET` | `/api/trade-journal/screenshots` | Screenshot index (entry/EOD) |
+| `GET` | `/api/trade-journal/screenshot-image` | Proxy image bytes for a Drive file |
+| `POST` | `/api/trade-journal/populate-instructions` | (Re)write the Instructions tab |
 
 ---
 
@@ -62,7 +59,7 @@ TapeReader Next.js app.
 - [Core workflows (with diagrams)](#core-workflows-with-diagrams)
 - [Key domain concepts](#key-domain-concepts)
 - [API reference](#api-reference)
-- [Security & privacy](#security--privacy)
+- [Configuration & identifiers](#configuration--identifiers)
 - [Environment variables](#environment-variables)
 - [Local development, build & deploy](#local-development-build--deploy)
 
@@ -372,7 +369,7 @@ Used by `/stats`, `/calendar`, and `/analysis`:
 
 ---
 
-### `POST /api/trade-journal/upload` · writes
+### `POST /api/trade-journal/upload`
 
 Ingest a DAS CSV into round-trip trades.
 
@@ -406,7 +403,7 @@ Ingest a DAS CSV into round-trip trades.
 
 ---
 
-### `POST /api/trade-journal/enrich` · writes
+### `POST /api/trade-journal/enrich`
 
 Enrich one symbol's trades with market data and write them back.
 
@@ -428,7 +425,7 @@ Enrich one symbol's trades with market data and write them back.
 
 ---
 
-### `GET /api/trade-journal/backfill` · reads
+### `GET /api/trade-journal/backfill`
 
 List rows that still need enrichment (missing basic market data, the daily candle
 group, or an R-dependent field).
@@ -449,7 +446,7 @@ Clients group these by `symbol` and call `/enrich` per symbol (≈65s apart).
 
 ---
 
-### `POST /api/trade-journal/backfill-vix` · writes
+### `POST /api/trade-journal/backfill-vix`
 
 One fast per-date pass filling every blank VIX cell (VIX is per-date, not per-symbol).
 
@@ -462,7 +459,7 @@ One fast per-date pass filling every blank VIX cell (VIX is per-date, not per-sy
 
 ---
 
-### `GET /api/trade-journal/stats` · reads
+### `GET /api/trade-journal/stats`
 
 Aggregate performance + the prediction/execution skill funnel.
 
@@ -498,7 +495,7 @@ shown in `hourlyBreakdown`. Prediction percentages are `null` until rows have th
 
 ---
 
-### `GET /api/trade-journal/calendar` · reads
+### `GET /api/trade-journal/calendar`
 
 Per-day cells for the trading calendar (categorical filters only; date range ignored).
 
@@ -525,7 +522,7 @@ Per-day cells for the trading calendar (categorical filters only; date range ign
 
 ---
 
-### `GET /api/trade-journal/analysis` · reads
+### `GET /api/trade-journal/analysis`
 
 Raw per-trade R + MFE + MAE for partial-strategy simulation.
 
@@ -544,7 +541,7 @@ Raw per-trade R + MFE + MAE for partial-strategy simulation.
 
 ---
 
-### `GET /api/trade-journal/trades-for-review` · reads
+### `GET /api/trade-journal/trades-for-review`
 
 Trades with tags/notes for the Screenshot Review UI.
 
@@ -566,7 +563,7 @@ Trades with tags/notes for the Screenshot Review UI.
 
 ---
 
-### `PATCH /api/trade-journal/tags` · writes
+### `PATCH /api/trade-journal/tags`
 
 Update one trade's retrospective tags.
 
@@ -578,7 +575,7 @@ Update one trade's retrospective tags.
 
 ---
 
-### `GET` / `POST /api/trade-journal/plan` · reads / writes
+### `GET` / `POST /api/trade-journal/plan`
 
 The Daily Plan for a date (pre-market watchlist + MTF read + day-level psych).
 
@@ -600,13 +597,13 @@ date; replaces that date's plan rows). Response `{ "ok": true, "count": 3 }`.
 
 ---
 
-### `GET /api/trade-journal/tabs` · reads
+### `GET /api/trade-journal/tabs`
 
 List account tabs. **Response** `{ "tabs": [ { "name": "<ACCOUNT_TAB>", "gid": 123456 } ] }`
 
 ---
 
-### `GET /api/trade-journal/screenshots` · reads Drive
+### `GET /api/trade-journal/screenshots`
 
 Screenshot index joining Drive files to trades by `date|symbol`.
 
@@ -626,7 +623,7 @@ Screenshot index joining Drive files to trades by `date|symbol`.
 
 ---
 
-### `GET /api/trade-journal/screenshot-image` · reads Drive
+### `GET /api/trade-journal/screenshot-image`
 
 Proxy the raw bytes of a Drive file (keeps the auth token server-side).
 
@@ -635,31 +632,21 @@ Proxy the raw bytes of a Drive file (keeps the auth token server-side).
 
 ---
 
-### `POST /api/trade-journal/populate-instructions` · writes
+### `POST /api/trade-journal/populate-instructions`
 
 (Re)generate the Instructions tab. No body. **Response** `{ "success": true }`.
 
 ---
 
-## Security & privacy
+## Configuration & identifiers
 
-This is documented plainly so the posture is on record.
-
-- **No application-layer authentication.** None of the endpoints check an API key,
-  session, or signature. Anyone who knows the URL can call them. The **write**
-  endpoints (`upload`, `enrich`, `backfill-vix`, `plan` POST, `tags`,
-  `populate-instructions`) mutate the live Google Sheet; the **read** endpoints expose
-  trading data. This is currently accepted for a single-user tool but is the obvious
-  first place to add protection (e.g. a shared-secret header, as the sibling 4-Week
-  Challenge app already does for its writes).
-- **Secrets stay server-side.** Google service-account credentials, the spreadsheet ID,
-  Drive folder IDs, and the Polygon key are environment variables read only inside edge
-  routes — never shipped to the client. The screenshot image proxy exists specifically
-  so Drive tokens never reach the browser.
-- **This document redacts identifiers.** Spreadsheet ID, Drive folder IDs,
-  service-account email, real account-tab names, and any personal data are replaced
-  with placeholders (`<ACCOUNT_TAB>`, `<DRIVE_FILE_ID>`, …). Do not commit real values
-  into public docs.
+- **Secrets are environment variables.** Google service-account credentials, the
+  spreadsheet ID, Drive folder IDs, and the Polygon key are provided as environment
+  variables (see [Environment variables](#environment-variables)) — never committed to
+  the repo, never shipped to the client.
+- **This document uses placeholders.** The spreadsheet ID, Drive folder IDs,
+  service-account email, real account-tab names, and any personal data appear only as
+  placeholders (`<ACCOUNT_TAB>`, `<DRIVE_FILE_ID>`, …). Keep real values out of public docs.
 
 ---
 
