@@ -1898,7 +1898,7 @@ async function getFullRSchedule(token: string, spreadsheetId: string): Promise<F
 // schedule entry whose effectiveDate <= date, for the matching account.
 function fullRForDate(schedule: FullRSchedule, tabName: string, date: string): number | null {
   // Match the config "Account" to this tab: exact, or the tab starts with it
-  // (e.g. account "TRPCT1541" applies to tab "TRPCT1541-GURI").
+  // (e.g. account "ACCT1234" applies to tab "ACCT1234-XX").
   let entries: FullREntry[] | undefined;
   if (schedule[tabName]) {
     entries = schedule[tabName];

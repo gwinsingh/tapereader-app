@@ -72,7 +72,7 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 
 ### Google Sheets integration
 - **Auth**: Service account JSON in `GOOGLE_SERVICE_ACCOUNT_JSON` env var. JWT signed with Web Crypto.
-- **Sheet structure**: One tab per trading account (matched by account prefix, e.g. `TRPCT1541-GS`).
+- **Sheet structure**: One tab per trading account (matched by account prefix, e.g. `ACCT1234-XX`).
 - **73 columns**: Auto-filled trade data, formula columns (Stop after Avg Exit), manual per-trade + daily, enrichment + formula analysis columns (Max R Before Stop, Farthest Price, MAE (R), 1R-6R), market data enrichment, psych check-in columns, and the trade-date daily candle (O/H/L/C/V) + volatility references (ATR, 30mATR). (The live test sheet also has two hand-added manual columns the code does not manage — `RightTheory?` and `EOD Screenshot`; the code reads/writes strictly by header name, so unmanaged columns are ignored.)
 - **Auto-filled columns**: Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L.
 - **Formula columns**: Stop (Entry ± R/Shares), P&L (R) (P&L/R), 1R-6R (Y/N whether Max R Before Stop reached each R-multiple).

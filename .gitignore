@@ -12,3 +12,10 @@ dist/
 *.log
 auto-trade-journal*.json
 apps/4-week-challenge/.env
+
+# Personal trade-journal CSV exports (real account data — never commit)
+/PCT Bootcamp*.csv
+*Master Trade Journal*.csv
+
+# Stray source copies of help screenshots (the served copies live in web/public/images/help/)
+data/images/

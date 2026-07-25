@@ -557,7 +557,7 @@ export default function TradeJournalPage() {
               style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)", color: "var(--color-text)" }}
             />
             <p className="mt-0.5 text-xs" style={{ color: "var(--color-muted)", opacity: 0.6 }}>
-              Only used when creating a new sheet tab (e.g. TRPCT1541-yourname)
+              Only used when creating a new sheet tab (e.g. ACCT1234-yourname)
             </p>
           </div>
         </div>

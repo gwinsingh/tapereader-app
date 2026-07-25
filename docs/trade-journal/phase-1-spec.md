@@ -1,6 +1,6 @@
 # Trade Journal — Phase 1 Spec (Watchlist/Conviction + Capture Tracker)
 
-Status: **in progress** · Created 2026-06-23 · Sheet tab: `TRPCT1541-GURI`
+Status: **in progress** · Created 2026-06-23 · Sheet tab: `<ACCOUNT_TAB>`
 
 This phase came out of a mentor-grade review of ~124 trades (May 6 → Jun 23). Full
 findings live in the conversation; the short version that drives this build:
@@ -35,7 +35,7 @@ findings live in the conversation; the short version that drives this build:
 ## Scope — Phase 1
 
 ### Data model (Google Sheet)
-- **`Origin` column** appended to `TRPCT1541-GURI` (added via existing `migrateTabIfNeeded`
+- **`Origin` column** appended to `<ACCOUNT_TAB>` (added via existing `migrateTabIfNeeded`
   on next upload). Manual-column styling (flipped header), dropdown
   `Watchlist / Callout / Intraday discovery` (strict: false), centered.
 - **`Daily Plan` tab**: `Date | Symbol | Conviction (1-3) | Thesis | Catalyst`
