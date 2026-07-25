@@ -30,6 +30,18 @@ export interface MarketEnrichment {
   pdc: number | string | null;
   pdh: number | string | null;
   pdl: number | string | null;
+  // Trade-date daily candle (O/H/L/C/V) + volatility references. OHLCV is raw
+  // generic data (future-proof: new questions won't need a re-backfill). atr14
+  // is the daily ATR ($) and atr30m is the mean 9:30-10:00 ET range over the
+  // prior 14 sessions — both pre-open snapshots (no lookahead). N/A-able when
+  // the listing is too young to have the required prior history.
+  dayOpen: number | string | null;
+  dayHigh: number | string | null;
+  dayLow: number | string | null;
+  dayClose: number | string | null;
+  dayVolume: number | string | null;
+  atr14: number | string | null;
+  atr30m: number | string | null;
 }
 
 interface Bar {
@@ -76,6 +88,13 @@ const EMPTY: MarketEnrichment = {
   pdc: null,
   pdh: null,
   pdl: null,
+  dayOpen: null,
+  dayHigh: null,
+  dayLow: null,
+  dayClose: null,
+  dayVolume: null,
+  atr14: null,
+  atr30m: null,
 };
 
 // --- Polygon.io fetchers ---
@@ -356,6 +375,34 @@ function computeATR14(dailyBars: DailyBar[], tradeDate: string): number | null {
     sum += tr;
   }
   return sum / 14;
+}
+
+// 30-minute ATR: mean of the 9:30-10:00 ET opening range (high-low) over the
+// 14 sessions BEFORE the trade date. A pre-open snapshot (no lookahead) that
+// captures the "typical opening-bell move" — the unit that matters most when
+// entering at the open. Built from intraday 1-min bars, so the intraday fetch
+// window must extend >=14 trading days before the earliest trade (see
+// enrichSymbol). Returns null if fewer than 14 prior sessions are available.
+const OPEN30_START_MIN = 570; // 9:30 ET
+const OPEN30_END_MIN = 600;   // 10:00 ET
+function compute30mATR(intradayBars: Bar[], tradeDate: string): number | null {
+  const grouped = barsByDate(intradayBars);
+  const priorDates = [...grouped.keys()].filter((d) => d < tradeDate).sort();
+  const ranges: number[] = [];
+  for (const d of priorDates) {
+    const openBars = grouped.get(d)!.filter((b) => {
+      const et = timestampToET(b.ts);
+      const min = etMinutes(et.h, et.m);
+      return min >= OPEN30_START_MIN && min < OPEN30_END_MIN;
+    });
+    if (openBars.length === 0) continue;
+    const high = Math.max(...openBars.map((b) => b.high));
+    const low = Math.min(...openBars.map((b) => b.low));
+    ranges.push(high - low);
+  }
+  if (ranges.length < 14) return null;
+  const last14 = ranges.slice(-14);
+  return Math.round((last14.reduce((s, v) => s + v, 0) / 14) * 100) / 100;
 }
 
 function computeAtrPct(dayBars: Bar[], entryIdx: number, atr: number): number {
@@ -705,6 +752,10 @@ function computeEnrichment(
   // Prior day OHLC
   const prevDay = dayIdx >= 1 ? dailyBars[dayIdx - 1] : null;
 
+  // Trade-date daily candle (raw OHLCV) + 30-minute ATR (pre-open snapshot).
+  const dayCandle = dayIdx >= 0 ? dailyBars[dayIdx] : null;
+  const atr30m = compute30mATR(intradayBars, trade.date);
+
   return {
     consec1m,
     consec5m,
@@ -731,6 +782,13 @@ function computeEnrichment(
     pdc: naIfYoung(prevDay ? Math.round(prevDay.close * 100) / 100 : null, 1),
     pdh: naIfYoung(prevDay ? Math.round(prevDay.high * 100) / 100 : null, 1),
     pdl: naIfYoung(prevDay ? Math.round(prevDay.low * 100) / 100 : null, 1),
+    dayOpen: dayCandle ? Math.round(dayCandle.open * 100) / 100 : null,
+    dayHigh: dayCandle ? Math.round(dayCandle.high * 100) / 100 : null,
+    dayLow: dayCandle ? Math.round(dayCandle.low * 100) / 100 : null,
+    dayClose: dayCandle ? Math.round(dayCandle.close * 100) / 100 : null,
+    dayVolume: dayCandle ? dayCandle.volume : null,
+    atr14: naIfYoung(atr !== null ? Math.round(atr * 100) / 100 : null, 15),
+    atr30m: naIfYoung(atr30m, 14),
   };
 }
 
@@ -767,9 +825,13 @@ export async function enrichSymbol(
   const yesterdayDate = new Date(Date.UTC(yesterdayParts[0], yesterdayParts[1] - 1, yesterdayParts[2] - 1));
   const yesterdayET = fmtDate(yesterdayDate);
   const intradayTo = latest < todayET ? latest : yesterdayET;
-  // Fetch ~7 extra calendar days of intraday data for RVOL baseline
+  // Fetch 28 extra calendar days of intraday data before the earliest trade.
+  // ~7 would cover the RVOL baseline, but the 30-minute ATR needs the 9:30-10:00
+  // range over the 14 sessions BEFORE the trade date, so the earliest trade in a
+  // batch must have >=14 prior trading days of 1-min bars in the window
+  // (28 calendar days ~= 18-19 trading days, comfortable margin over 14).
   const intradayFromDate = new Date(earliest);
-  intradayFromDate.setUTCDate(intradayFromDate.getUTCDate() - 7);
+  intradayFromDate.setUTCDate(intradayFromDate.getUTCDate() - 28);
   const intradayFrom = fmtDate(intradayFromDate);
 
   // 250 calendar days back: enough margin for the 50-day SMA even on sparsely

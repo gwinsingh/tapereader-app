@@ -10,6 +10,17 @@ interface SegmentStats {
   profitFactor: number;
 }
 
+interface SkillMetrics {
+  intradayReadPct: number | null;
+  intradayReadN: number;
+  dailyReadPct: number | null;
+  dailyReadStrongPct: number | null;
+  dailyReadN: number;
+  executionPct: number | null;
+  executionN: number;
+  captureTarget: number;
+}
+
 interface Stats {
   totalPnl: number;
   avgDailyPnl: number;
@@ -30,6 +41,7 @@ interface Stats {
   setupBreakdown: SegmentStats[];
   convictionBreakdown?: SegmentStats[];
   catalystBreakdown?: SegmentStats[];
+  skill?: SkillMetrics;
 }
 
 interface Props {
@@ -64,6 +76,38 @@ function pnlColor(v: number): "green" | "red" | "neutral" {
   if (v > 0) return "green";
   if (v < 0) return "red";
   return "neutral";
+}
+
+function SkillCard({
+  label,
+  pct,
+  sub,
+  title,
+}: {
+  label: string;
+  pct: number | null;
+  sub: string;
+  title: string;
+}) {
+  return (
+    <div
+      className="rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-3"
+      title={title}
+    >
+      <p className="flex items-center gap-1 text-xs text-[var(--color-muted)]">
+        {label}
+        <span className="cursor-help text-[10px] opacity-60" aria-hidden="true">ⓘ</span>
+      </p>
+      <p
+        className={`mt-0.5 font-mono text-2xl font-semibold ${
+          pct === null ? "text-[var(--color-muted)]" : "text-[var(--color-text)]"
+        }`}
+      >
+        {pct === null ? "—" : `${pct}%`}
+      </p>
+      <p className="mt-0.5 text-[11px] leading-tight text-[var(--color-muted)]">{sub}</p>
+    </div>
+  );
 }
 
 function BreakdownTable({ title, segments }: { title: string; segments: SegmentStats[] }) {
@@ -186,6 +230,41 @@ export default function AggregateStats({ stats }: Props) {
           color="neutral"
         />
       </div>
+
+      {stats.skill && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+            Prediction &amp; Execution Skill
+          </h3>
+          <p className="text-xs text-[var(--color-muted)]">
+            A funnel: read direction (intra-day) → read magnitude (daily) → convert to P&L (execution).
+            Prediction measures whether price moved your way <em>beyond the open</em> (long: High−Open, short: Open−Low);
+            execution measures whether you captured a move that was there. Reflects the filters above.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <SkillCard
+              label="Intra-Day Prediction"
+              pct={stats.skill.intradayReadPct}
+              sub={`moved ≥ 1× 30mATR beyond open · n = ${stats.skill.intradayReadN}`}
+              title="Share of trades where price moved at least one 30-minute ATR beyond the open in your trade direction. The 30mATR is the mean 9:30–10:00 ET range over the prior 14 sessions (pre-open snapshot). The permissive 'did the day lean my way at all' bar."
+            />
+            <SkillCard
+              label="Daily Prediction"
+              pct={stats.skill.dailyReadPct}
+              sub={`≥ 0.8× ATR · strong (1.0×): ${
+                stats.skill.dailyReadStrongPct === null ? "—" : `${stats.skill.dailyReadStrongPct}%`
+              } · n = ${stats.skill.dailyReadN}`}
+              title="Share of trades where price moved at least 0.8× the daily ATR beyond the open in your direction (headline); 'strong' = the full 1.0× ATR. Daily ATR is the mean true range of the prior 14 sessions (pre-open snapshot, no lookahead)."
+            />
+            <SkillCard
+              label="Execution Skill"
+              pct={stats.skill.executionPct}
+              sub={`Target Capture @ ${stats.skill.captureTarget}R · n = ${stats.skill.executionN}`}
+              title="Target Capture %: among trades whose peak (Max R Before Stop) reached the target, the mean of min(realized R, target) ÷ target. Isolates the trail leak — cutting reachable runners short. Target follows the Capture Tracker setting."
+            />
+          </div>
+        </div>
+      )}
 
       <BreakdownTable title="Performance by Time Block" segments={stats.hourlyBreakdown} />
       <BreakdownTable title="Performance by Time Block (Granular)" segments={stats.granularHourlyBreakdown} />

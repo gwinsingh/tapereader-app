@@ -331,7 +331,13 @@ export default function TradeJournalPage() {
     setStatsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/trade-journal/stats?tab=${encodeURIComponent(tabName)}${buildFilterParams(f)}`);
+      // Execution Skill % uses the same capture target as the Capture Tracker.
+      let targetParam = "";
+      if (typeof window !== "undefined") {
+        const t = window.localStorage.getItem("pct-capture-target");
+        if (t && !isNaN(parseFloat(t))) targetParam = `&target=${encodeURIComponent(t)}`;
+      }
+      const res = await fetch(`/api/trade-journal/stats?tab=${encodeURIComponent(tabName)}${buildFilterParams(f)}${targetParam}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load stats.");
       setSheetStats({ stats: data.stats, tabName });

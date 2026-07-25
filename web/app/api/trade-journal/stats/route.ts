@@ -10,9 +10,11 @@ export async function GET(request: Request) {
   }
 
   const filter = parseStatsFilter(searchParams);
+  const targetRaw = searchParams.get("target");
+  const target = targetRaw !== null && !isNaN(parseFloat(targetRaw)) ? parseFloat(targetRaw) : undefined;
 
   try {
-    const stats = await getStatsForTab(tab, filter);
+    const stats = await getStatsForTab(tab, filter, target);
     return Response.json({ stats });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
