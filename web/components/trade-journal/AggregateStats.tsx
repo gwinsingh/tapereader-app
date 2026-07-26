@@ -42,6 +42,8 @@ interface Stats {
   convictionBreakdown?: SegmentStats[];
   catalystBreakdown?: SegmentStats[];
   skill?: SkillMetrics;
+  disciplinePct?: number | null;
+  disciplineN?: number;
 }
 
 interface Props {
@@ -230,6 +232,17 @@ export default function AggregateStats({ stats }: Props) {
           color="neutral"
         />
       </div>
+
+      {stats.disciplineN !== undefined && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <SkillCard
+            label="Discipline"
+            pct={stats.disciplinePct ?? null}
+            sub={`Process Followed = Yes · n = ${stats.disciplineN}`}
+            title="Share of trades you marked Process Followed? = Yes, among trades labeled Yes or No (blank/unlabeled trades excluded). Reflects the filters above."
+          />
+        </div>
+      )}
 
       {stats.skill && (
         <div className="space-y-2">

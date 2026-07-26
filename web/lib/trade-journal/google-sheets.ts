@@ -81,6 +81,11 @@ const SHEET_HEADERS = [
   "V",
   "ATR",
   "30mATR",
+  // Sleep duration (hours slept) — a NEW day-level column, appended at the end
+  // like everything above so the positional COL map stays valid. Sleep Score /
+  // Readiness Score already exist near the top of this list and are NOT
+  // re-added. Auto-filled from the Morning Plan check-in (see DAY_FILL_COLS).
+  "Sleep (hrs)",
 ];
 
 const COL = {
@@ -230,6 +235,12 @@ const MTF_CONV_HEADERS = ["Daily Conv", "1H Conv", "5m Conv"];
 // the Morning Plan, auto-filled onto every trade row of that date.
 const PSYCH_SCALE_HEADERS = ["Energy (1-5)", "Tension (1-5)"];
 const URGE_HEADER = "Urge to Trade Fast?";
+
+// Day-level sleep/readiness inputs — captured in the Morning Plan check-in and
+// auto-filled onto every trade of the date (same convention as the psych scales
+// above). "Sleep Score" and "Readiness Score" already exist on the trade sheet;
+// "Sleep (hrs)" is the newly-appended column.
+const SLEEP_HEADERS = ["Sleep Score", "Readiness Score", "Sleep (hrs)"];
 
 const COLORS = {
   headerBg: { red: 0.15, green: 0.15, blue: 0.2 },
@@ -437,7 +448,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 
   const totalCols = colMap ? Math.max(...Object.values(colMap)) + 1 : TOTAL_COLS;
 
-  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS, ...PSYCH_SCALE_HEADERS, URGE_HEADER];
+  const manualHeaders = ["R (Risk)", "Setup", "Process Followed?", "Notes", "Sleep Score", "Readiness Score", "Sleep (hrs)", "Emotional State", "Market Bias", "Conviction (1-3)", "Catalyst", "Tags", "Origin", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS, ...PSYCH_SCALE_HEADERS, URGE_HEADER];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const colRange = (col: number) => ({ sheetId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: col, endColumnIndex: col + 1 });
@@ -493,7 +504,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "Shares": 70, "Avg Entry": 95, "Avg Exit": 95, "Stop": 95,
     "# Partials": 85, "P&L": 95, "R (Risk)": 95,
     "P&L (R)": 85, "Setup": 140, "Process Followed?": 130, "Notes": 200,
-    "Sleep Score": 100, "Readiness Score": 120, "Emotional State": 120, "Market Bias": 100,
+    "Sleep Score": 100, "Readiness Score": 120, "Sleep (hrs)": 90, "Emotional State": 120, "Market Bias": 100,
     "Conviction (1-3)": 100, "Catalyst": 160, "Tags": 200,
     "Max R Before Stop": 120, "Farthest Price": 105, "1R": 45, "2R": 45, "3R": 45, "4R": 45, "5R": 45, "6R": 45,
     "#1m": 55, "#5m": 55, "#1H": 55,
@@ -542,7 +553,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
-  for (const h of ["Duration (mins)", "P&L (R)"]) {
+  for (const h of ["Duration (mins)", "P&L (R)", "Sleep (hrs)"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -991,7 +1002,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Center-align
-  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Emotional State", "Market Bias", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS, ...PSYCH_SCALE_HEADERS, URGE_HEADER, "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
+  for (const h of ["Side", "Shares", "# Partials", "Duration (mins)", "Process Followed?", "Sleep Score", "Readiness Score", "Sleep (hrs)", "Emotional State", "Market Bias", "L2 Bias", ...MTF_TREND_HEADERS, ...MTF_CONV_HEADERS, ...PSYCH_SCALE_HEADERS, URGE_HEADER, "Conviction (1-3)", "1R", "2R", "3R", "4R", "5R", "6R", "#1m", "#5m", "#1H", "%Gap", "%ATR", "RVOL", "%VWAP", "OR %ATR", "Breakout Vol Ratio", "Prior Close Loc", "Dist 20 SMA (%)", "Dist 50 SMA (%)", "Float", "Avg $ Vol", "SPY Dir", "VIX"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1304,6 +1315,10 @@ export interface AggregateStats {
   convictionBreakdown: SegmentStats[];
   catalystBreakdown: SegmentStats[];
   skill: SkillMetrics;
+  // Discipline % = share of trades marked Process Followed? = Yes, among trades
+  // labeled Yes or No (blanks excluded). null when no trade is labeled.
+  disciplinePct: number | null;
+  disciplineN: number;
 }
 
 export interface StatsFilter {
@@ -1550,6 +1565,7 @@ export function computeStats(rows: string[][], filter?: StatsFilter, captureTarg
       hourlyBreakdown: [], granularHourlyBreakdown: [], setupBreakdown: [],
       convictionBreakdown: [], catalystBreakdown: [],
       skill: emptySkill(captureTarget),
+      disciplinePct: null, disciplineN: 0,
     };
   }
 
@@ -1584,11 +1600,27 @@ export function computeStats(rows: string[][], filter?: StatsFilter, captureTarg
     hourlyBreakdown: [], granularHourlyBreakdown: [], setupBreakdown: [],
     convictionBreakdown: [], catalystBreakdown: [],
     skill: emptySkill(captureTarget),
+    disciplinePct: null, disciplineN: 0,
   };
 
   if (pnls.length === 0) return emptyStats;
 
   const skill = computeSkillMetrics(dataRows, colMap, captureTarget);
+
+  // Discipline %: share of trades marked Process Followed? = Yes, among trades
+  // labeled Yes or No (blanks excluded). Computed on the already-filtered
+  // dataRows, so it respects the shared filter bar automatically.
+  const processIdx = cm(colMap, "Process Followed?");
+  let disciplineYes = 0;
+  let disciplineN = 0;
+  if (processIdx >= 0) {
+    for (const r of dataRows) {
+      const v = String(r[processIdx] || "").trim();
+      if (v === "Yes") { disciplineYes++; disciplineN++; }
+      else if (v === "No") { disciplineN++; }
+    }
+  }
+  const disciplinePct = disciplineN > 0 ? Math.round((disciplineYes / disciplineN) * 1000) / 10 : null;
 
   const totalPnl = pnls.reduce((s, v) => s + v, 0);
   const uniqueDays = new Set(dateIdx >= 0 ? dataRows.map((r) => r[dateIdx]) : []).size || 1;
@@ -1675,6 +1707,8 @@ export function computeStats(rows: string[][], filter?: StatsFilter, captureTarg
     convictionBreakdown,
     catalystBreakdown,
     skill,
+    disciplinePct,
+    disciplineN,
   };
 }
 
@@ -1928,6 +1962,8 @@ const PLAN_HEADERS = [
   // Day-level psych check-in — one value per day, replicated onto each plan
   // row for the date (appended at the end so older plan rows still align).
   ...PSYCH_SCALE_HEADERS, URGE_HEADER,
+  // Day-level sleep/readiness inputs, same replicated-per-date convention.
+  ...SLEEP_HEADERS,
 ];
 // Plan range spans A..(last PLAN_HEADERS column).
 const PLAN_RANGE = `A:${colLetter(PLAN_HEADERS.length - 1)}`;
@@ -1967,15 +2003,21 @@ export interface DailyPsych {
   energy: string;
   tension: string;
   urgeFast: string;
+  sleepScore: string;      // 0-100
+  readinessScore: string;  // 0-100
+  sleepDuration: string;   // hours slept (decimals allowed, e.g. 7.5)
 }
 const DAY_FILL_COLS: { key: keyof DailyPsych; header: string }[] = [
   { key: "energy", header: "Energy (1-5)" },
   { key: "tension", header: "Tension (1-5)" },
   { key: "urgeFast", header: URGE_HEADER },
+  { key: "sleepScore", header: "Sleep Score" },
+  { key: "readinessScore", header: "Readiness Score" },
+  { key: "sleepDuration", header: "Sleep (hrs)" },
 ];
 
 export function emptyDailyPsych(): DailyPsych {
-  return { energy: "", tension: "", urgeFast: "" };
+  return { energy: "", tension: "", urgeFast: "", sleepScore: "", readinessScore: "", sleepDuration: "" };
 }
 
 export interface DailyPlanEntry extends PlanFill {
@@ -2318,8 +2360,9 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Setup", "No — you fill this in", "The trade setup type. Select from the dropdown: ORB, ABCD, BHOD, BLOD, VWAP Bounce, or Mean Reversion."],
     ["Process Followed?", "No — you fill this in", "Did you follow your trading plan and rules for this trade? Select Yes or No from the dropdown."],
     ["Notes", "No — you fill this in", "Free-form notes: what you were thinking, what went right or wrong, lessons for next time."],
-    ["Sleep Score", "No — you fill this in (daily)", "Your sleep quality score (0–100). Fill in once on the first trade of each day."],
-    ["Readiness Score", "No — you fill this in (daily)", "Your overall readiness to trade (0–100). Fill in once on the first trade of each day."],
+    ["Sleep Score", "Auto-filled from Morning Plan", "Your sleep quality score (0–100). Logged pre-market in the Morning Plan check-in; auto-fills onto every trade of the day. Edit here only to correct."],
+    ["Readiness Score", "Auto-filled from Morning Plan", "Your overall readiness to trade (0–100). Logged pre-market in the Morning Plan check-in; auto-fills onto every trade of the day. Edit here only to correct."],
+    ["Sleep (hrs)", "Auto-filled from Morning Plan", "How long you slept, in hours (decimals allowed, e.g. 7.5). Logged pre-market in the Morning Plan check-in; auto-fills onto every trade of the day. Edit here only to correct."],
     ["Emotional State", "No — you fill this in (daily)", "Legacy daily field, kept for history — the Energy / Tension / Urge to Trade Fast? columns are the primary psych capture now (logged in the Morning Plan). Dropdown: Calm, Anxious, Excited, Frustrated, or Fatigued."],
     ["Energy (1-5)", "Auto-filled from Morning Plan", "Daily energy level logged pre-market in the Morning Plan: 1 = drained, 5 = fully charged. Auto-fills onto every trade of the day."],
     ["Tension (1-5)", "Auto-filled from Morning Plan", "Daily tension level logged pre-market in the Morning Plan: 1 = settled, 5 = wired/racing. Auto-fills onto every trade of the day."],
@@ -2378,8 +2421,9 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Conviction (1-3)", "Rate your conviction before entry: 1 = low (taking it but not ideal), 2 = solid setup, 3 = A+ setup. Over time, compare your P&L across conviction levels."],
     ["Catalyst", "Select the catalyst from dropdown or type comma-separated values for multiple: Earnings/News, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
     ["Tags", "Add tags during screenshot review to categorize patterns. Comma-separated. Use the web app's Screenshot Review page or type directly."],
-    ["Sleep Score", "Rate your sleep quality 0–100. Fill in once on the first trade row of each day."],
-    ["Readiness Score", "Rate your overall readiness to trade 0–100. Fill in once on the first trade row of each day."],
+    ["Sleep Score", "Log in the Morning Plan check-in (0–100). Auto-fills onto every trade of the day; edit here only to correct."],
+    ["Readiness Score", "Log in the Morning Plan check-in (0–100). Auto-fills onto every trade of the day; edit here only to correct."],
+    ["Sleep (hrs)", "Log in the Morning Plan check-in (hours slept, decimals allowed). Auto-fills onto every trade of the day; edit here only to correct."],
     ["Emotional State", "Legacy — kept for history. Log Energy / Tension / Urge to Trade Fast? in the Morning Plan instead; they auto-fill onto the day's trades."],
     ["Market Bias", "Select from dropdown. Fill in once per day. Over time, see if having a strong bias helps or hurts your trading."],
     ["Energy (1-5)", "Log in the Morning Plan before the open: 1 = drained, 5 = fully charged. Auto-fills onto every trade of the day; edit here only to correct."],

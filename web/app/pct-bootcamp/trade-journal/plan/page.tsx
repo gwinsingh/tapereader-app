@@ -19,12 +19,18 @@ interface PlanRow {
 // Day-level psych check-in (one value per day, not per symbol). Mirrors the
 // DailyPsych shape in lib/trade-journal/google-sheets.ts (kept in sync).
 interface DailyPsych {
-  energy: string;   // 1-5, drained -> fully charged
-  tension: string;  // 1-5, settled -> wired/racing
-  urgeFast: string; // Yes/No
+  energy: string;         // 1-5, drained -> fully charged
+  tension: string;        // 1-5, settled -> wired/racing
+  urgeFast: string;       // Yes/No
+  sleepScore: string;     // 0-100
+  readinessScore: string; // 0-100
+  sleepDuration: string;  // hours slept (decimals allowed, e.g. 7.5)
 }
 
-const EMPTY_PSYCH: DailyPsych = { energy: "", tension: "", urgeFast: "" };
+const EMPTY_PSYCH: DailyPsych = {
+  energy: "", tension: "", urgeFast: "",
+  sleepScore: "", readinessScore: "", sleepDuration: "",
+};
 
 // Always-on-radar symbols: seeded on every plan, and their trades get Origin
 // "Watchlist" even when no plan was saved (keep in sync with
@@ -250,6 +256,45 @@ export default function MorningPlanPage() {
               onChange={(v) => { setDaily((d) => ({ ...d, urgeFast: v })); setStatus(null); }}
             />
           </HintField>
+          <HintField
+            label="Sleep score"
+            hint={SLEEP_SCORE_HINT}
+          >
+            <NumInput
+              value={daily.sleepScore}
+              onChange={(v) => { setDaily((d) => ({ ...d, sleepScore: v })); setStatus(null); }}
+              min={0}
+              max={100}
+              step={1}
+              placeholder="0–100"
+            />
+          </HintField>
+          <HintField
+            label="Readiness score"
+            hint={READINESS_HINT}
+          >
+            <NumInput
+              value={daily.readinessScore}
+              onChange={(v) => { setDaily((d) => ({ ...d, readinessScore: v })); setStatus(null); }}
+              min={0}
+              max={100}
+              step={1}
+              placeholder="0–100"
+            />
+          </HintField>
+          <HintField
+            label="Sleep (hrs)"
+            hint={SLEEP_DURATION_HINT}
+          >
+            <NumInput
+              value={daily.sleepDuration}
+              onChange={(v) => { setDaily((d) => ({ ...d, sleepDuration: v })); setStatus(null); }}
+              min={0}
+              max={24}
+              step={0.5}
+              placeholder="e.g. 7.5"
+            />
+          </HintField>
         </div>
       </div>
 
@@ -459,6 +504,18 @@ const URGE_HINT: string[] = [
   "Yes · FOMO wiring is active today — expect chase risk, slow down, wait for your setup",
   "No · Happy to sit on hands until the plan triggers",
 ];
+const SLEEP_SCORE_HINT: string[] = [
+  "Sleep quality last night, 0–100 (e.g. from your Whoop/Oura/watch).",
+  "Higher = better-quality, more restorative sleep.",
+];
+const READINESS_HINT: string[] = [
+  "Overall readiness to trade today, 0–100 (e.g. your wearable's recovery/readiness).",
+  "Higher = more recovered and ready to perform.",
+];
+const SLEEP_DURATION_HINT: string[] = [
+  "How long you actually slept, in hours (decimals ok, e.g. 7.5).",
+  "Total time asleep, not time in bed.",
+];
 
 // Tap-to-set button group — faster than a dropdown for the 10-second check-in.
 // Tapping the selected value again clears it.
@@ -493,6 +550,32 @@ function ToggleButtons({ options, value, onChange }: {
 
 function ScaleButtons({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return <ToggleButtons options={["1", "2", "3", "4", "5"]} value={value} onChange={onChange} />;
+}
+
+// Numeric input for the day-level sleep/readiness fields (free numeric scales,
+// too wide for the 1-5 button group).
+function NumInput({ value, onChange, min, max, step, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-24 rounded border py-1.5 px-2 text-sm focus:outline-none"
+      style={inputStyle}
+    />
+  );
 }
 
 function BiasSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
