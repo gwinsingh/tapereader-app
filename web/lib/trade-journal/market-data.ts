@@ -105,27 +105,15 @@ type PolygonResponse = {
   results?: PolygonAgg[];
   error?: string;
   message?: string;
+  next_url?: string;
 };
 
 function fmtDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function fetchPolygon(
-  symbol: string,
-  multiplier: number,
-  timespan: "minute" | "day",
-  from: string,
-  to: string
-): Promise<Bar[]> {
-  const apiKey = process.env.POLYGON_API_KEY;
-  if (!apiKey) throw new Error("POLYGON_API_KEY is not set");
-
-  const url =
-    `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(symbol)}` +
-    `/range/${multiplier}/${timespan}/${from}/${to}` +
-    `?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
-
+// Fetch one Polygon page (with retry/backoff), returning the parsed JSON.
+async function fetchPolygonPage(url: string, label: string): Promise<PolygonResponse> {
   let res: Response | null = null;
   for (let attempt = 0; attempt < 5; attempt++) {
     res = await fetch(url);
@@ -140,34 +128,56 @@ async function fetchPolygon(
     const body = await res?.text().catch(() => "") ?? "";
     let detail = "";
     try { detail = JSON.parse(body).message || ""; } catch { /* ignore */ }
-    throw new Error(detail || `Polygon ${symbol} ${multiplier}${timespan} HTTP ${res?.status}`);
+    throw new Error(detail || `Polygon ${label} HTTP ${res?.status}`);
   }
 
   // Guard against non-JSON responses (Polygon CDN can return HTML challenge
   // pages when rate-limited, even with HTTP 200 status).
   const contentType = res.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) {
-    throw new Error(`Polygon ${symbol} ${multiplier}${timespan}: non-JSON response (${contentType || "no content-type"})`);
+    throw new Error(`Polygon ${label}: non-JSON response (${contentType || "no content-type"})`);
   }
 
-  let json: PolygonResponse;
   try {
-    json = (await res.json()) as PolygonResponse;
+    return (await res.json()) as PolygonResponse;
   } catch {
-    throw new Error(`Polygon ${symbol} ${multiplier}${timespan}: invalid JSON response`);
+    throw new Error(`Polygon ${label}: invalid JSON response`);
+  }
+}
+
+async function fetchPolygon(
+  symbol: string,
+  multiplier: number,
+  timespan: "minute" | "day",
+  from: string,
+  to: string
+): Promise<Bar[]> {
+  const apiKey = process.env.POLYGON_API_KEY;
+  if (!apiKey) throw new Error("POLYGON_API_KEY is not set");
+  const label = `${symbol} ${multiplier}${timespan}`;
+
+  // Polygon caps a single response at 50,000 rows. A minute-resolution range
+  // spanning more than ~55 trading days (e.g. QQQ/SPY across months) exceeds
+  // that, and with sort=asc the tail (most recent dates) would be silently
+  // dropped — leaving recent trades un-enriched. Follow next_url to page through
+  // the full range instead. (Cap pages defensively to avoid runaway loops.)
+  let url =
+    `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(symbol)}` +
+    `/range/${multiplier}/${timespan}/${from}/${to}` +
+    `?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
+
+  const all: PolygonAgg[] = [];
+  for (let page = 0; page < 12 && url; page++) {
+    const json = await fetchPolygonPage(url, label);
+    if (json.status === "ERROR") {
+      throw new Error(`Polygon error: ${json.error ?? json.message ?? json.status}`);
+    }
+    if (json.results?.length) all.push(...json.results);
+    // next_url carries the paging cursor but not the API key — re-append it.
+    url = json.next_url ? `${json.next_url}&apiKey=${apiKey}` : "";
   }
 
-  if (json.status === "ERROR") {
-    throw new Error(`Polygon error: ${json.error ?? json.message ?? json.status}`);
-  }
-
-  // Polygon returns {status:"OK"} without results field when there's no data
-  // for the given ticker/date range — this is not an error, just empty data.
-  if (!json.results || json.results.length === 0) {
-    return [];
-  }
-
-  return json.results.map((r) => ({
+  return all.map((r) => ({
     ts: r.t / 1000,
     open: r.o,
     high: r.h,
@@ -306,10 +316,6 @@ function parseEntryMinutes(entryTime: string): number {
 
 // --- Bar filtering & aggregation ---
 
-function barsForDate(bars: Bar[], date: string): Bar[] {
-  return bars.filter((b) => timestampToET(b.ts).date === date);
-}
-
 function barsByDate(bars: Bar[]): Map<string, Bar[]> {
   const map = new Map<string, Bar[]>();
   for (const b of bars) {
@@ -409,8 +415,7 @@ interface OpenRangeDay {
 // dozens of trades across months) spiked the Cloudflare edge isolate past its
 // resource limit (503). This runs a single O(bars) pass; compute30mATR is then
 // an O(distinct-dates) slice.
-function buildOpenRangeByDate(intradayBars: Bar[]): OpenRangeDay[] {
-  const grouped = barsByDate(intradayBars);
+function buildOpenRangeByDate(grouped: Map<string, Bar[]>): OpenRangeDay[] {
   const out: OpenRangeDay[] = [];
   for (const [date, bars] of grouped) {
     let high = -Infinity;
@@ -456,11 +461,10 @@ function computeVWAP(dayBars: Bar[], entryIdx: number): number {
 }
 
 function computeRVOL(
-  allIntradayBars: Bar[],
+  grouped: Map<string, Bar[]>,
   tradeDate: string,
   entryMinute: number
 ): number | null {
-  const grouped = barsByDate(allIntradayBars);
   const tradeDayBars = grouped.get(tradeDate);
   if (!tradeDayBars) return null;
 
@@ -680,7 +684,7 @@ function computeSpyDir(spyDayBars: Bar[], entryMinute: number): string | null {
 
 function computeEnrichment(
   trade: GroupedTrade & { exitTime: string },
-  intradayBars: Bar[],
+  intradayByDate: Map<string, Bar[]>,
   dailyBars: DailyBar[],
   floatShares: number | null,
   spyBarsForDate: Bar[],
@@ -690,7 +694,7 @@ function computeEnrichment(
   youngListing?: boolean
 ): MarketEnrichment {
   const entryMinute = parseEntryMinutes(trade.entryTime);
-  const dayBars = barsForDate(intradayBars, trade.date);
+  const dayBars = intradayByDate.get(trade.date) || [];
   if (dayBars.length === 0) return { ...EMPTY };
 
   const isLong = trade.side === "Long";
@@ -729,7 +733,7 @@ function computeEnrichment(
   const atrPct = atr && idx1m >= 0 ? computeAtrPct(dayBars, idx1m, atr) : null;
 
   // RVOL
-  const rvol = computeRVOL(intradayBars, trade.date, entryMinute);
+  const rvol = computeRVOL(intradayByDate, trade.date, entryMinute);
 
   // %VWAP
   let vwapPct: number | null = null;
@@ -914,9 +918,12 @@ export async function enrichSymbol(
   const youngListing = dailyBars.length > 0 && dailyBars[0].date > fmtDate(dailyFromSlack);
 
   const spyByDate = barsByDate(spyRaw);
-  // Precompute the per-session opening range ONCE (not per trade) — see
-  // buildOpenRangeByDate for why this matters on wide-range symbols.
-  const openRangeByDate = buildOpenRangeByDate(raw1m);
+  // Group the symbol's 1-min bars by date ONCE (not per trade). Every per-trade
+  // computation then reads its day's bars (and the opening-range baseline) from
+  // these maps — keeps enrich CPU bounded regardless of how many trades or how
+  // wide the date range is (was a source of edge resource-limit 503s).
+  const intradayByDate = barsByDate(raw1m);
+  const openRangeByDate = buildOpenRangeByDate(intradayByDate);
 
   const enrichments = trades.map((t) => {
     const fake: GroupedTrade & { exitTime: string } = {
@@ -937,7 +944,7 @@ export async function enrichSymbol(
       tradeIndex: t.index,
       data: computeEnrichment(
         fake,
-        raw1m,
+        intradayByDate,
         dailyBars,
         floatShares,
         spyByDate.get(t.date) || [],
