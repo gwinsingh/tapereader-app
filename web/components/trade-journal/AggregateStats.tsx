@@ -264,10 +264,10 @@ export default function AggregateStats({ stats }: Props) {
             <SkillCard
               label="Daily Prediction"
               pct={stats.skill.dailyReadPct}
-              sub={`≥ 0.8× ATR · strong (1.0×): ${
+              sub={`≥ 0.8× ADR · strong (1.0×): ${
                 stats.skill.dailyReadStrongPct === null ? "—" : `${stats.skill.dailyReadStrongPct}%`
               } · n = ${stats.skill.dailyReadN}`}
-              title="Share of trades where price moved at least 0.8× the daily ATR beyond the open in your direction (headline); 'strong' = the full 1.0× ATR. Daily ATR is the mean true range of the prior 14 sessions (pre-open snapshot, no lookahead)."
+              title="Share of trades where price moved at least 0.8× the daily ADR beyond the open in your direction (headline); 'strong' = the full 1.0× ADR. ADR (Average Daily Range) is the mean daily High−Low of the prior 14 sessions — gap-free, unlike ATR — matching the gap-free move measured from the open. Pre-open snapshot, no lookahead."
             />
             <SkillCard
               label="Execution Skill"

@@ -86,6 +86,12 @@ const SHEET_HEADERS = [
   // Readiness Score already exist near the top of this list and are NOT
   // re-added. Auto-filled from the Morning Plan check-in (see DAY_FILL_COLS).
   "Sleep (hrs)",
+  // Average Daily Range ($) — mean of (High - Low) over the 14 sessions BEFORE
+  // the trade date. Gap-free sibling of ATR (which is true range, so it counts
+  // overnight gaps a post-open day trade can't capture). Yardstick for the Daily
+  // Prediction metric. Appended at the very end like everything above so the
+  // positional COL map stays valid. (Column already added to the live sheet.)
+  "ADR",
 ];
 
 const COL = {
@@ -518,7 +524,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "Origin": 130, "L2 Bias": 90,
     "Daily Trend": 95, "Daily Conv": 80, "1H Trend": 90, "1H Conv": 75, "5m Trend": 90, "5m Conv": 75,
     "MAE (R)": 80, "Energy (1-5)": 95, "Tension (1-5)": 95, "Urge to Trade Fast?": 130,
-    "O": 80, "H": 80, "L": 80, "C": 80, "V": 100, "ATR": 75, "30mATR": 80,
+    "O": 80, "H": 80, "L": 80, "C": 80, "V": 100, "ATR": 75, "30mATR": 80, "ADR": 75,
   };
   for (const [header, width] of Object.entries(colWidths)) {
     const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
@@ -940,7 +946,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
-  for (const h of ["RVOL", "Breakout Vol Ratio", "VIX", "MAE (R)", "ATR", "30mATR"]) {
+  for (const h of ["RVOL", "Breakout Vol Ratio", "VIX", "MAE (R)", "ATR", "30mATR", "ADR"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1015,7 +1021,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   // Right-align
-  for (const h of ["Avg Entry", "Avg Exit", "Stop", "Max R Before Stop", "Farthest Price", "MAE (R)", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low", "PDC", "PDH", "PDL", "O", "H", "L", "C", "V", "ATR", "30mATR"]) {
+  for (const h of ["Avg Entry", "Avg Exit", "Stop", "Max R Before Stop", "Farthest Price", "MAE (R)", "P&L", "R (Risk)", "P&L (R)", "OR Size ($)", "OR High", "OR Low", "PDC", "PDH", "PDL", "O", "H", "L", "C", "V", "ATR", "30mATR", "ADR"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1245,6 +1251,7 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
     set("V", e.dayVolume ?? "");
     set("ATR", e.atr14 ?? "");
     set("30mATR", e.atr30m ?? "");
+    set("ADR", e.adr14 ?? "");
   }
 
   return row;
@@ -1286,9 +1293,9 @@ export interface SegmentStats {
 export interface SkillMetrics {
   intradayReadPct: number | null;    // % of readable trades that moved >= 1x 30mATR beyond open in the trade direction
   intradayReadN: number;             // denominator: trades with O/H/L + a numeric 30mATR
-  dailyReadPct: number | null;       // % that moved >= 0.8x daily ATR beyond open (headline)
-  dailyReadStrongPct: number | null; // % that moved >= 1.0x daily ATR beyond open (strong read)
-  dailyReadN: number;                // denominator: trades with O/H/L + a numeric ATR
+  dailyReadPct: number | null;       // % that moved >= 0.8x daily ADR beyond open (headline)
+  dailyReadStrongPct: number | null; // % that moved >= 1.0x daily ADR beyond open (strong read)
+  dailyReadN: number;                // denominator: trades with O/H/L + a numeric ADR
   executionPct: number | null;       // Target Capture %: among trades whose MFE reached target, mean(min(realizedR,target))/target
   executionN: number;                // denominator: trades whose Max R Before Stop >= target (with risk + realized R)
   captureTarget: number;             // the target (R) used for the execution metric
@@ -1463,10 +1470,12 @@ interface ParsedRow {
 }
 
 // Prediction thresholds (favorable move beyond the open, as a multiple of the
-// relevant pre-open ATR). Intraday uses the 30-minute ATR; daily uses ATR-14.
+// relevant pre-open range). Intraday uses the 30-minute opening range (30mATR);
+// daily uses ADR (gap-free average daily range), NOT true-range ATR — the
+// excursion is gap-free (measured from the open), so its yardstick must be too.
 const INTRADAY_READ_MULT = 1.0;       // >= 1x 30mATR = a typical opening-bell move your way
-const DAILY_READ_MULT = 0.8;          // >= 0.8x daily ATR = the daily-scale move showed up (headline)
-const DAILY_READ_STRONG_MULT = 1.0;   // >= 1.0x daily ATR = a full-ATR move your way (strong read)
+const DAILY_READ_MULT = 0.8;          // >= 0.8x daily ADR = the daily-scale move showed up (headline)
+const DAILY_READ_STRONG_MULT = 1.0;   // >= 1.0x daily ADR = a full-ADR move your way (strong read)
 export const DEFAULT_CAPTURE_TARGET = 2.5;
 
 function emptySkill(captureTarget: number): SkillMetrics {
@@ -1491,7 +1500,7 @@ function computeSkillMetrics(dataRows: string[][], colMap: ColMap, captureTarget
   const oIdx = cm(colMap, "O");
   const hIdx = cm(colMap, "H");
   const lIdx = cm(colMap, "L");
-  const atrIdx = cm(colMap, "ATR");
+  const adrIdx = cm(colMap, "ADR");
   const atr30Idx = cm(colMap, "30mATR");
   const maxRIdx = cm(colMap, "Max R Before Stop");
   const pnlRIdx = cm(colMap, "P&L (R)");
@@ -1520,11 +1529,16 @@ function computeSkillMetrics(dataRows: string[][], colMap: ColMap, captureTarget
         intraN++;
         if (excursion >= INTRADAY_READ_MULT * atr30) intraHit++;
       }
-      const atr = numCell(r[atrIdx]);
-      if (atr !== null && atr > 0) {
+      // Daily read uses ADR (gap-free average daily range = mean High-Low over
+      // the prior 14 sessions), NOT ATR. The favorable excursion is measured
+      // from the open, so it excludes the overnight gap; dividing by true-range
+      // ATR (which includes gaps) would compare gap-free travel against a
+      // gap-inflated yardstick. ADR keeps numerator and denominator gap-free.
+      const adr = numCell(r[adrIdx]);
+      if (adr !== null && adr > 0) {
         dailyN++;
-        if (excursion >= DAILY_READ_MULT * atr) dailyHit++;
-        if (excursion >= DAILY_READ_STRONG_MULT * atr) dailyStrong++;
+        if (excursion >= DAILY_READ_MULT * adr) dailyHit++;
+        if (excursion >= DAILY_READ_STRONG_MULT * adr) dailyStrong++;
       }
     }
 
@@ -1828,6 +1842,7 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
   const maxRIdx = cm(colMap, "Max R Before Stop");
   const maeIdx = cm(colMap, "MAE (R)");
   const dayOpenIdx = cm(colMap, "O");
+  const adrIdx = cm(colMap, "ADR");
 
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, "")) || 0;
   const hasValue = (idx: number, row: string[]) => idx >= 0 && row[idx] !== undefined && row[idx] !== "";
@@ -1848,6 +1863,11 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
     // marks the row as processed by the OHLCV enrichment (avoids re-triggering
     // forever on genuinely-uncomputable ATR values).
     const hasCandle = hasValue(dayOpenIdx, row);
+    // ADR was added after OHLCV/ATR/30mATR, so rows enriched before it exist with
+    // a candle but no ADR — treat a missing ADR as needing work so one Backfill
+    // pass fills it. ADR is computable whenever the daily history is (else "N/A"),
+    // so this won't re-trigger forever.
+    const hasAdr = hasValue(adrIdx, row);
     const riskVal = riskIdx >= 0 ? parseNum(row[riskIdx]) : 0;
     const sharesVal = sharesIdx >= 0 ? parseNum(row[sharesIdx]) : 0;
     const hasRisk = riskVal > 0 && sharesVal > 0;
@@ -1855,7 +1875,7 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
     // A row needs enrichment if it lacks the basic market data, the daily candle
     // group, or has R filled but is missing an R-dependent field (Max R Before
     // Stop, MAE). VIX is handled separately by the per-date backfillVixForTab pass.
-    const needsWork = !hasBasicEnrichment || !hasCandle || (hasRisk && (!hasMaxR || !hasMae));
+    const needsWork = !hasBasicEnrichment || !hasCandle || !hasAdr || (hasRisk && (!hasMaxR || !hasMae));
     if (!needsWork) continue;
 
     const riskPerShare = hasRisk ? riskVal / sharesVal : undefined;
@@ -2407,8 +2427,9 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["L", "Yes (market data)", "Trade-date daily candle Low. For a short, O minus L is the favorable excursion beyond the open."],
     ["C", "Yes (market data)", "Trade-date daily candle Close."],
     ["V", "Yes (market data)", "Trade-date daily Volume (total shares traded that day)."],
-    ["ATR", "Yes (market data)", "Daily ATR ($) — mean true range of the 14 sessions BEFORE the trade date (pre-open snapshot, no lookahead). The yardstick for the Daily Prediction metric (0.8x = headline, 1.0x = strong read)."],
+    ["ATR", "Yes (market data)", "Daily ATR ($) — mean TRUE range of the 14 sessions BEFORE the trade date (pre-open snapshot, no lookahead). Includes overnight gaps. Reference volatility; also feeds %ATR / OR %ATR."],
     ["30mATR", "Yes (market data)", "30-minute ATR ($) — mean of the 9:30-10:00 ET range over the 14 sessions BEFORE the trade date (pre-open snapshot). The yardstick for the Intra-Day Prediction metric (1x = a typical opening-bell move in your direction)."],
+    ["ADR", "Yes (market data)", "Average Daily Range ($) — mean of (High − Low) over the 14 sessions BEFORE the trade date (pre-open snapshot, no lookahead). Gap-free, unlike ATR. The yardstick for the Daily Prediction metric (0.8x = headline, 1.0x = strong read), matching the gap-free favorable move from the open."],
   ];
 
   const SPACER: string[] = [];
@@ -2729,6 +2750,7 @@ export async function updateEnrichment(
     ["V", (d) => d.dayVolume],
     ["ATR", (d) => d.atr14],
     ["30mATR", (d) => d.atr30m],
+    ["ADR", (d) => d.adr14],
   ];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

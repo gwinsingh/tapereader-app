@@ -32,9 +32,10 @@ export interface MarketEnrichment {
   pdl: number | string | null;
   // Trade-date daily candle (O/H/L/C/V) + volatility references. OHLCV is raw
   // generic data (future-proof: new questions won't need a re-backfill). atr14
-  // is the daily ATR ($) and atr30m is the mean 9:30-10:00 ET range over the
-  // prior 14 sessions — both pre-open snapshots (no lookahead). N/A-able when
-  // the listing is too young to have the required prior history.
+  // is the daily ATR ($, true range — counts overnight gaps), atr30m is the mean
+  // 9:30-10:00 ET range, and adr14 is the daily Average Daily Range ($, mean
+  // High-Low — gap-free), all over the prior 14 sessions — pre-open snapshots
+  // (no lookahead). N/A-able when the listing is too young for the prior history.
   dayOpen: number | string | null;
   dayHigh: number | string | null;
   dayLow: number | string | null;
@@ -42,6 +43,7 @@ export interface MarketEnrichment {
   dayVolume: number | string | null;
   atr14: number | string | null;
   atr30m: number | string | null;
+  adr14: number | string | null;
 }
 
 interface Bar {
@@ -95,6 +97,7 @@ const EMPTY: MarketEnrichment = {
   dayVolume: null,
   atr14: null,
   atr30m: null,
+  adr14: null,
 };
 
 // --- Polygon.io fetchers ---
@@ -391,6 +394,22 @@ function computeATR14(dailyBars: DailyBar[], tradeDate: string): number | null {
       Math.abs(dailyBars[i].low - dailyBars[i - 1].close)
     );
     sum += tr;
+  }
+  return sum / 14;
+}
+
+// Average Daily Range ($): mean of (High - Low) over the 14 sessions BEFORE the
+// trade date. Unlike ATR (true range), it ignores overnight gaps — so it matches
+// the favorable move measured from the open (which is also gap-free) and is the
+// yardstick for the Daily Prediction metric. Same no-lookahead window and same
+// 15-bar minimum as computeATR14.
+function computeADR14(dailyBars: DailyBar[], tradeDate: string): number | null {
+  const idx = dailyBars.findIndex((b) => b.date === tradeDate);
+  if (idx < 15) return null;
+
+  let sum = 0;
+  for (let i = idx - 14; i < idx; i++) {
+    sum += dailyBars[i].high - dailyBars[i].low;
   }
   return sum / 14;
 }
@@ -729,6 +748,9 @@ function computeEnrichment(
   // ATR-14
   const atr = computeATR14(dailyBars, trade.date);
 
+  // ADR-14 (gap-free average daily range — yardstick for Daily Prediction)
+  const adr = computeADR14(dailyBars, trade.date);
+
   // %ATR
   const atrPct = atr && idx1m >= 0 ? computeAtrPct(dayBars, idx1m, atr) : null;
 
@@ -825,6 +847,7 @@ function computeEnrichment(
     dayVolume: dayCandle ? dayCandle.volume : null,
     atr14: naIfYoung(atr !== null ? Math.round(atr * 100) / 100 : null, 15),
     atr30m: naIfYoung(atr30m, 14),
+    adr14: naIfYoung(adr !== null ? Math.round(adr * 100) / 100 : null, 15),
   };
 }
 
