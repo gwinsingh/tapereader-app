@@ -1,6 +1,12 @@
 # Trading Journal — Market Research
 
-**Status:** research in progress · Started 2026-09-01
+**Status:** research complete · 2026-09-01 · 15 tracks, ~55 products, 596 sources
+
+> **The short version:** don't build a commercial trading journal — build the
+> features into our own, and gate any commercial move behind three cheap tests.
+> The wedge is real but undefendable; the economics are what decide. Full
+> reasoning in [`04-product-thesis.md`](04-product-thesis.md); what to actually
+> do in [`06-dogfood-backlog.md`](06-dogfood-backlog.md).
 
 An in-depth study of the commercial trading-journal market, run to answer two
 linked questions:
