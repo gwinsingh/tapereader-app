@@ -32,7 +32,7 @@ decides.
 | Monthly churn | **7–10%**, with a ~6.6% floor from traders quitting trading | ibid. |
 | LTV | $170–215 | ibid. |
 | Affiliate commission (the dominant channel) | **20–30%, recurring, often lifetime** | ibid. |
-| Resulting gross margin | **~53%** | ibid. |
+| Resulting gross margin | **~53%** (84–92% on infrastructure alone, walked down by affiliate share, LLM COGS and support) | ibid., `05-build-plan.md` |
 
 A ~$90M category split a dozen ways is one mid-sized vertical SaaS. That is not
 disqualifying on its own — a one-person product taking 0.5% of it would be a
@@ -205,7 +205,7 @@ solve distribution some other way, and we do not currently have that answer.
 
 | | |
 |---|---|
-| Build to sellable v1 | **56–81 person-weeks** (`05-build-plan.md`) |
+| Build to sellable v1 | **56–81 person-weeks** = **18–24 months solo** (`05-build-plan.md`) |
 | Table-stakes features currently missing | **34** (20 absent, 14 partial) |
 | Gross margin after affiliate commissions | ~53% |
 | LTV | $170–215 |
@@ -214,9 +214,14 @@ solve distribution some other way, and we do not currently have that answer.
 | Our moat, after red-teaming | the substrate: falsified · the wedge: real but unportable to a moat |
 | Core demand assumption | untested, leaning against |
 
-The honest reading: this is a **9–12 month build, for one person with AI
-assistance, into a small category, at half margin, against incumbents with
-bought distribution, resting on an unproven behavioural assumption.**
+The honest reading: this is an **18–24 month build for one person** (the
+9–12 month figure assumes two), **into a small category, at half margin, against
+incumbents with bought distribution, resting on an unproven behavioural
+assumption.**
+
+Three things get qualitatively worse solo, not just slower: no second reviewer on
+the row-level-scoping surface, non-delegable broker-auth support, and licence
+negotiation that cannot be parallelised.
 
 The expected value is poor. Recommending otherwise would require ignoring at
 least three of the rows above.

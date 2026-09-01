@@ -1,6 +1,6 @@
 # Gap Analysis — TapeReader Auto Trade Journal vs. the market
 
-**Status:** Part A complete (internal audit, 2026-09-01) · Part B pending vendor research
+**Status:** Part A complete (internal audit, 2026-09-01) · **Part B complete (2026-09-01)**
 **Method:** `00-method.md`. Part A is a code audit, not a doc summary — every claim below was
 read out of the implementation. Where `CLAUDE.md` or `docs/trade-journal/README.md` drifts
 from the code, the code wins and the drift is flagged.
@@ -669,16 +669,459 @@ first-class artifact rather than one generic attachment list. (`google-drive.ts:
 
 ---
 
-# Part B — Gap analysis vs. the market (filled in after vendor research completes)
+# Part B — Gap analysis vs. the market
 
-> **Placeholder.** To be written by the orchestrator once `01-landscape.md`,
-> `02-feature-matrix.md`, and the `vendors/*.md` files exist. Expected contents:
->
-> - **B.1 Table stakes we lack** — import breadth, auto-sync, fees/commissions, options and
->   futures, mobile, sharing/accountability, reports.
-> - **B.2 Parity features we have** — calendar, R multiples, MFE/MAE, tagging, setup and
->   time-of-day breakdowns, screenshot review.
-> - **B.3 Features we have that the category lacks** — validate §8 against the matrix,
->   keeping only what survives vendor evidence.
-> - **B.4 Verdict per persona** — market researcher / product manager / engineer, per §2 of
->   `00-method.md`, flagging where they disagree.
+**Written 2026-09-01**, after `01-landscape.md`, `02-feature-matrix.md`, the seven vendor
+files and the six thematic files were complete. Part A is a code audit and stands
+unchanged; Part B joins it to the market evidence.
+
+**Two things constrain everything below, and they are not optional framing.**
+
+1. **`vendors/_theme-red-team.md` FALSIFIED the claim that our enrichment substrate is a
+   scarce asset** (Claim 3). Order-aware MFE, MAE, ADR, 30mATR and the bracket
+   counterfactual are commodity: NinjaTrader gives MFE/MAE away free `[R]`, a frozen
+   two-person Chartlog gives MFE/MAE + full R/R away unpaywalled at $14.99 `[V]`, and
+   TradesViz ships the whole family at **higher resolution** (5-second for futures and
+   S&P 500 names) **with two-proportion z-test gating we do not have**, at ~$20–27/mo
+   `[V]`. Our entire enrichment module is 983 lines `[V]`. Nothing in Part B may be
+   written as though that substrate is a lead.
+2. **`_theme-red-team.md` Claim 4 is UNRESOLVED, leaning against**: no public evidence
+   anywhere shows *any* trader sustaining a per-symbol multi-timeframe pre-market
+   forecast log, and a strictly lighter input (per-trade conviction) was already abandoned
+   by this project's own trader for open-pace friction `[V]`. Every lead in §B.2 that
+   depends on the Morning Plan being filled inherits that risk. The day-level bounded
+   psych check-in (Energy/Tension/Urge/sleep) is the half the red team rates SURVIVES.
+
+Confidence tags follow `00-method.md`. Row numbers refer to `02-feature-matrix.md`.
+
+---
+
+## B.1 Where we stand against table stakes
+
+**34 features classed table stakes score TR at ○ or ◐ — 20 absent, 14 partial**
+(`02-feature-matrix.md`, "Table stakes we lack"). The useful move is not to list them
+again but to split them by *who is harmed*, because that split decides whether an item
+belongs in `06-dogfood-backlog.md` or only in `05-build-plan.md`.
+
+### (a) Genuine product gaps — real capability we do not have, and would use ourselves
+
+| # | Feature | Status | What its absence costs *us* |
+|---|---|---|---|
+| 4.1 / 4.2 | Trade-annotated price chart | ○ / ◐ | **The single largest hole.** Universal across all seven vendors, and none of them built it — TradingView's library renders four of them `[V]`. We *fetch* 1-minute bars for every trade and render none of them. Its absence is what forces the entire out-of-band Drive screenshot ritual (§5.6, §6.4). |
+| 5.2 | Daily/session journal as an object | ○ | We have a pre-market plan and **no closing ritual of any kind**. The review loop where a journal's value is actually realised does not exist for us. Edgewonk's Sessions (report cards, reflection prompts, lesson tracking) is the reference `[V]`. |
+| 5.4 / 5.5 | Reflection templates · rich media in notes | ○ / ○ | Cheap, universal, and the documented fix for the blank-page problem that stops people journaling. Our Notes column is a plain spreadsheet cell. |
+| 3.8 / 8.3 | Drawdown | ◐ / ○ | We have **no drawdown of any kind**, and streaks are walked in sheet row order rather than date order (§4.1). "How long do my bad stretches last" is the question that actually causes people to quit `[V]` Tradervue. |
+| 9.1 / 9.2 / 9.4 | Named setups with definitions · criteria checklists · per-setup performance | ◐ / ○ / ◐ | `Setup` is a six-option dropdown with no definition behind it. Chartlog's Rules & Rule Groups (market conditions / entry triggers / exit triggers) + Sample Sets with a published **N≥25** norm is the most coherent playbook in the segment `[V]`. |
+| 3.5 / 5.3 | Tag analytics | ◐ / ◐ | We have tags and **no tag report** — tags are filter-only. Tradervue ships tag *combinations* `[V]`. |
+| 3.6 | Day-of-week and hold-duration breakdowns | ◐ | Our 12-block granular time-of-day grid starting 9:30–9:35 is finer than anyone's, and we have neither of the two breakdowns every vendor ships. |
+| 12.1 | Periodic review artifact | ◐ | The calendar is a periodic *surface* with no review *artifact* — nothing to write, finish, or look back at. |
+| 4.5 | Screenshot upload from the app | ◐ | Files must be dropped into Drive with a hand-typed `YYYY-MM-DD SYMBOL` filename. Edgewonk's Chartbook does clipboard paste + auto-compression + TradingView import, indexed across trades, plans **and missed trades** `[V]`. |
+| 1.9 | Historical backfill | ◐ | The date comes from a form field, so **one upload = one trading day**. Any multi-day export stamps every trade with the same date. |
+| 6.2 | Rule adherence | ◐ | One self-graded Yes/No bit per trade, no lock, no per-rule attribution. Six of seven vendors ship something richer. TradeZella's **"Finish My Day"** — which locks the day's rule checkboxes so compliance cannot be backfilled — is the highest behavioural-integrity-per-line-of-code idea in the study `[V]`. |
+| 1.1 | Manual trade entry | ○ | If DAS didn't export it, it isn't in the journal. Blocks paper/sim reps, blocks reconstructing a missing day. |
+| 11.1 / 11.2 | LLM stat summary · conversational query | ○ / ○ | Universal among live vendors as of 2026. Worth noting the counter-evidence: **Tradervue — 200k signups, 15 years — has shipped zero AI of any kind** `[V]`, and we cannot tell whether that is disruption risk or evidence the feature does not drive retention. |
+
+### (b) Defects — wrong numbers, not missing features. Fix regardless of any strategy.
+
+A gap costs you a sale; **a defect costs you the numbers**, and "the numbers are wrong and
+stay wrong" is the #1 churn driver in `vendors/tradersync.md`. These are the items where
+the journal is currently lying to its only user.
+
+| Defect | Where | Consequence |
+|---|---|---|
+| **No authentication on any route** (13.5) | §7.1 — no `middleware.ts`, no session, no API key on any of 14 edge routes | Every endpoint is publicly reachable on `tapereader.us`. A guessed tab name reads full P&L; `PATCH /tags` and `POST /plan` **write**. The production spreadsheet ID is hardcoded into the client bundle. This is not "pre-product"; it is a live exposure today. |
+| **Position flips mis-grouped** (2.1) | `trade-grouper.ts:76-100` | A fill crossing through zero is treated as a single exit; position lands negative and the *next* fill is appended to a still-open trade. Silently wrong P&L, silently wrong direction. |
+| **Comma-split Setup/Catalyst double-counting** (9.4) | `google-sheets.ts:1665-1706` | A trade tagged `ORB, ABCD` contributes its **full** P&L to both segments, so segment totals can exceed the account total. Every setup conclusion drawn from this is inflated. |
+| **Gross-only P&L** (2.7) | No commissions, fees, ECN rebates, borrow or slippage anywhere in the pipeline | **This quietly invalidates every dollar figure we compute** — including Standard R, the calendar, the bracket counterfactual and the whole profitability simulation — and makes 12.6 moot. Tradervue treats exchange fees and **ECN fee/rebate sign** as first-class, which is what makes its liquidity reports possible `[V]`. DAS exports carry the fee column; we discard it. |
+| **No tests** (§7.11) | Nothing under `web/lib/trade-journal/`, `web/app/api/trade-journal/`, `web/components/trade-journal/` | The grouper and the R math are exactly the code you would want pinned. `_theme-data-integration.md` §6.4 names golden-file tests against real broker exports as the single highest-value engineering investment in the entire build plan `[I]`. |
+| **Corporate actions unhandled** (1.10) | Polygon adjusted bars fetched against raw fills | A split inside the 250-day enrichment lookback silently distorts ATR / ADR / SMA. Nobody markets this; everybody needs it. |
+| **Overnight holds recorded as $0 rows** (2.4) | `trade-grouper.ts:103-108` | An unclosed position is finalized anyway with `avgExit = $0.00` and `pnl = 0`. Note this is the *same architectural choice* TraderSync made, and **its own paying users call the missing unrealized P&L a deal-breaker** `[V]`. |
+| Naive `line.split(",")` (1.2) · `# Partials` = all fills · streaks in row order | `csv-parser.ts:48`, `trade-grouper.ts:171`, `google-sheets.ts:1645-1652` | Individually small, collectively the reason no number here can be quoted without checking. |
+
+**Four have outsized leverage**, because everything in their section depends on them:
+**2.7 fees** (every dollar figure), **4.1 the chart** (the whole review ritual),
+**5.2 a daily journal object** (the whole review *loop*), and **13.5 auth** (without it
+there is no per-user anything, which is why capture target, theme and filters all live in
+`localStorage`).
+
+### (c) Only matters if a second user ever exists
+
+These are the ones that disqualify us as a *product* and cost us nothing as a *tool*.
+Everything here belongs to `05-build-plan.md`, not to the dogfood backlog.
+
+| # | Feature | Why it is inert for us |
+|---|---|---|
+| 1.3 | Breadth of file-format support (○) | We trade on DAS. Verified competitor parser counts: TS 495 · TVz ~250 · EW ~100+ · TM 194 · TV 83 · TZ ~50 · CL 21 `[V]`. Irrelevant to a user with one broker; `_theme-data-integration.md` §6.5 says we cannot out-accumulate "seven years of broker-format drift" anyway `[V]`. |
+| 1.4 | True auto broker sync (○) | The most inflated row in the matrix — real auto-sync is TS 73 · TVz ~70 · TM 21 · TZ ~13 · TV **5** `[V]`. And **there is no DAS journal API at any price a retail trader would pay** — DAS's own API is $100–1,500/mo per trader and certification-gated `[V]`. Our CSV upload is not a stopgap; it is the route. |
+| 1.8 / 2.6 | Options, futures, forex, crypto · contract multipliers (○) | We trade US equities. Worth flagging the counter-risk: Chartlog's documented churn story is traders **outgrowing the asset scope** `[R]`, and the red team rates "equity-only reproduces Chartlog's churn mode" as unverified with the one datapoint against us. |
+| 1.6 / 2.9 | Multi-account aggregation · account-level layer (◐) | One tab per account is adequate for one person with one active account (`U16632046-GURI`). |
+| 12.2 / 12.3 / 12.4 | Shareable links · mentor access · team dashboards (○) | No audience. Note 12.2 is currently *worse* than absent: every route is unauthenticated, so exposure is accidental rather than designed. |
+| 13.3 | Speed with large histories (○) | We read the full tab `A:CG` and scan O(rows) in an edge isolate with a hard CPU limit; two 503-causing hotspots have already been engineered around. This degrades linearly and will bite *us* eventually — but at one trader's row count it is years away, not weeks. |
+| 13.1 | Mobile (○) | **Half-inert.** As a product it is a named churn reason for four of seven vendors and the category bar is on the floor (best in class: a 2.9★ Play app, a 2.7★ iOS app, a PWA) `[V]`. As a *tool*, exactly one surface is wanted on a phone: the Morning Plan at 9:00 am, which is currently a desktop form. |
+
+---
+
+## B.2 Where we are ahead — stated conservatively
+
+Rigorously, from `02-feature-matrix.md`: **five features where TR scores ● and no vendor
+does**, plus two contested. Each is stated with how long the lead survives a funded
+competitor deciding it matters. The honest summary is that **none of these is a moat, and
+four of the five are gated on a behaviour we have not measured.**
+
+| # | Lead | Best vendor | Durability — stated plainly |
+|---|---|---|---|
+| **6.5** | Physiological inputs typed (Sleep Score, Readiness, hours slept, Energy, Tension, Urge-to-Trade-Fast) | TVz ◐ | **Weeks, and a precedent already exists.** TradesViz's *own published worked example* for Day Plans is **Sleep Score / Stress / Mood / Major Life Event**, auto-applied to every trade opened that day `[V]` — architecturally identical to our `DAY_FILL_COLS`. The red team notes this **falsifies** the separate claim that sleep/readiness has no precedent in the category. Our lead is that ours is *typed and shipped* where theirs is *user-constructed*. That is an onboarding advantage, not a capability one. |
+| **6.4** | Pre-market conviction 1–3 per planned symbol, back-filled onto the executed trade | TZ/TS/EW/TVz all ◐ | **One join and one accuracy statistic away for three competitors.** All of TradeZella (SR-03 scores the session against the morning plan, flags broken rules with timestamps), Edgewonk (Trading Plans promote-on-fill) and TradesViz (Trade/Day Plans + Plan Analysis) already hold the pre-commitment container `[V]`. Conviction is the field they left out. Assume **~2 quarters of lead, not a moat** (`_theme-red-team.md` "What would have to be true" item 4). |
+| **7.3** | Multi-timeframe bias recorded pre-open (Daily/1H/5m × trend + conviction) | TVz ◐ | **Genuinely unshipped anywhere** — TradeZella's "HTF bias" is a chart *indicator*, not a recorded judgment `[V]`. But this is the single field most exposed to Claim 4: six structured fields *per symbol*, authored in the 20 minutes before the open. For a 5-name watchlist that is ~40 fields plus 5 free-text theses at the highest-friction minute of the day. **Unresolved whether anyone including us sustains it.** |
+| **7.5** | Idea-origin classification (`Watchlist`/`Callout`/`Intraday discovery`, auto-derived, orthogonal to `Process Followed?`) | EW/TVz ◐ | **Cheap to copy, and its value is asserted rather than evidenced.** It is derived from a join we already do, so a competitor with a plan object gets it for a day's work. The matrix records the honest caveat: no market demand for it appears anywhere in the study. |
+| **8.6** | Risk-unit schedule over time (dated Full-R, applied by latest effective date ≤ trade date) | all ○ | **The most durable of the five, and the narrowest.** Nobody has it; Tradervue's file names the exact gap — "risk is a static scalar per trade with no history" `[V]`. It is a real correctness win for any R-native trader whose account grows ($28 → $48 does not retroactively rescale history), and it is perhaps 200 lines. Nobody will copy it because nobody has noticed it. |
+
+**Contested — real, but we are not alone.**
+
+- **10.3 fixed-bracket counterfactual.** Edgewonk ships the construct (actual R vs.
+  passive set-and-forget R, with an explicit "R lost/gained by managing" line) but drives
+  it from a **hand-ticked `OTP Hit` boolean** `[V]`. Ours is derived from order-aware
+  1-minute bars, so it can express degree rather than a bit, and it is reported per
+  calendar week. **We have the better method on a construct that already exists.**
+- **10.2 partial-taking simulation.** TraderSync's Rolling Exit Analytics covers the same
+  ground from the other direction `[V]`. Ours is honest about its own optimism (any
+  touched R level is assumed to fill exactly; the residual is assumed to behave as the
+  actual trade did) — which is a documentation virtue, not a lead.
+
+**Three things people will want to put on this list that do not belong on it.**
+
+1. **The Prediction & Execution funnel.** It has no counterpart anywhere in the study,
+   and it is an *instance* of row 3.13 (benchmarking vs. market conditions), not a row of
+   its own — and **3.13 is a row where Tradervue and TradesViz both beat us on breadth**.
+   It is the only one of 33 enrichment fields that reaches a report.
+2. **Order-aware MFE.** A better *method* on a row where five vendors also score ●, and
+   `_theme-red-team.md` §3A shows the resolution race is already lost (TradesViz computes
+   MFE/MAE at 5-second granularity for futures and S&P 500 names `[V]`).
+3. **Screenshot auto-matching (4.6).** We score ● only because every vendor solved the
+   problem by *rendering charts instead* — Chartlog states the category position outright:
+   "Forget about screenshots" `[V]`. Our `date|symbol` join is a workaround for lacking
+   4.1, not an advantage. The one part that survives the critique is treating **entry and
+   EOD charts as distinct classes** — "what I saw" vs. "what actually happened" — which
+   no chart renderer produces.
+
+**And two things that are advantages but are not features**, per `_theme-red-team.md` §3B:
+**same-session cadence** (we enrich the evening of the trade; TradesViz runs a 24-hour
+sync with ~16-hour delay on same-day extended-hours data and "cannot credibly serve any
+intraday or same-session review use case" `[V]`), and **the user owns the store** (the
+Google Sheet is the trader's own file — maximal portability, arrived at by accident of
+architecture).
+
+---
+
+## B.3 Where we are behind in ways that matter to us as a USER
+
+This is the section that feeds `06-dogfood-backlog.md`. The filter applied here is
+strictly *"would this have improved our own trading over the last six months?"* —
+commercial value is deliberately ignored. Everything below is computable from data we
+already store or already fetch.
+
+### B.3.1 Tradervue's Exit Analysis is better-formed than our Capture Tracker
+
+Tradervue explicitly **rejects** naive max-theoretical-P&L — "rarely actionable… for
+non-trivial trades with more than one exit" `[V]` — and instead:
+
+1. identifies the **last exit group** (final exit-side execution plus fills within a few
+   seconds of it);
+2. **floats that group** to maximum P&L, bounded by a **time window** (no earlier than the
+   immediately prior execution, no later than session close) **and a risk window** (may not
+   exceed the larger of actual Position MAE or the user's stated Initial Risk);
+3. outputs **Best Exit P&L** and **Efficiency**, usable as a stat, a column, and a report axis.
+
+**Why this beats ours.** Our Target Capture % uses a *fixed* R target (default 2.5) and a
+pessimistic bracket assumption, so it answers "did you capture the target you nominated".
+Tradervue's holds **the entry and the risk actually taken constant and varies only the
+exit** — which is precisely the decision under the trader's control, and it needs no
+nominated target at all. It is a constrained search over intraday bars, O(bars in window)
+per trade, trivially cacheable, and it degrades gracefully when Initial Risk is missing
+(falls back to Position MAE). **It is directly implementable on the existing order-aware
+1-minute walker in `market-data.ts`.** `[I]`
+
+Adjacent, from the same file: Tradervue splits **Position** MFE/MAE from **Price** MFE/MAE
+— isolating the market call from the sizing decision — and **nobody else does** `[V]`.
+
+### B.3.2 The eleven Market Behavior reports — the sharpest self-indictment in the study
+
+Tradervue's Market Behavior group conditions P&L on: symbol · instrument volume ·
+**relative volume vs. 50-day MA** · prior-day relative volume · instrument movement ·
+**opening gap** · **day type** · **ATR(14)** · **entry % of ATR(14)** · relative volatility
+(TR/ATR) · **entry price vs. SMA** `[V]`.
+
+**We store every single input either Tradervue or TradesViz uses** — `%Gap`, `RVOL`, `ATR`,
+`ADR`, `30mATR`, `%ATR`, `Dist 20/50 SMA (%)`, `Float`, `Avg $ Vol`, `SPY Dir`, `VIX`,
+`PDC/PDH/PDL`, `O/H/L/C/V` — **and have a breakdown surface for none of them.** Thirty-three
+enrichment columns; exactly one (the Prediction funnel) reaches a report. That is the
+highest ratio of insight to new code anywhere in this research (`vendors/tradervue.md`
+rates it M effort).
+
+Two cheap additions ride along:
+
+- **Day Type classifier** — inside range / trend up / trend down / outside range, with
+  Tradervue's published definition (*Trend Up Day* = closes above yesterday's high, opens
+  in the bottom 15% of the day's range, closes in the top 15%) `[V]`. One derived column
+  from daily OHLC we already store; turns "I don't trade well on chop days" from a feeling
+  into a filter.
+- **Liquidity add/remove from ECN fee sign** `[V]` — the objective, un-self-reportable
+  measure of chasing. **DAS exports carry the fee column and we discard it.** Entry-liquidity%
+  vs. exit-liquidity% is the honest version of our hand-applied `chased` tag.
+
+### B.3.3 Edgewonk's pre-rated behaviour tags, and Missed Trades
+
+**The mechanism that matters.** Edgewonk's trade-comment library is a set of behaviour
+statements whose **moral valence (positive/negative) is pre-assigned by the trader while
+calm**, bucketed by trade stage; at journaling time the trader only *selects*. `[V]`
+
+> This decouples the judgement from the emotional state it is trying to measure — the
+> single hardest problem in self-reported psychology data. It is also why a comment can
+> attach to a *winning* trade and still be negative, which is what makes rule-adherence
+> measurable independently of P&L.
+
+Everything downstream is a projection of that one table: **Efficiency %** (positive ÷ total
+comments — note the denominator is comments, not trades), the **Tiltmeter** (a rolling,
+recency-weighted discipline score overlaid on the equity curve, the calendar *and* the
+trade table — formula undisclosed), **Mistake Impact Analysis by category**, and
+**Edge Leak / True System Edge**, which express indiscipline **in dollars rather than
+percent** `[V]`.
+
+Against that, our Discipline % is honest (blanks excluded, `n` surfaced, filter-aware) and
+**is a single aggregate with no time series, so it cannot show escalation** — which is the
+only thing tilt data is for.
+
+**Missed Trades.** Exactly **one implementation in the entire study** (row 7.7). Edgewonk's
+Trading Plans promote into the journal on fill and **demote into Missed Trades if not**,
+with reason tagging and its own analytics; the vendor frames them as evidence of
+"hesitation, weak routines, and confidence issues" — i.e. measuring *failure to act*, which
+P&L data structurally cannot see `[V]`. **We already compute the unmatched plan rows at
+upload and throw them away** (`appendTrades`, `google-sheets.ts:2657-2662`). This is the
+cheapest unclaimed ground in the matrix for anyone who already has a plan object, and we
+are that anyone.
+
+Also worth copying, and nearly free: Edgewonk's **Chartbook** indexes screenshots from
+executed trades, **Missed Trades and Trading Plans** `[V]`; our Screenshot Review covers
+executed trades only.
+
+### B.3.4 TradesViz's z-test-gated deterministic detectors
+
+`_theme-ai-review.md` and `vendors/tradesviz.md` call this the most directly stealable
+artifact in the whole research pass, and it is fully published `[V]`: **16 deterministic
+detectors** (18 on Platinum), **not an LLM**, ranked by dollar impact, minimum sample
+**n≥10**, capped at **four cards**, with a diversity pass across eight groups, and
+**every win-rate comparison gated by a two-proportion z-test** against the pooled baseline
+(High p<0.05 / Medium p<0.10 / Low chips). Suppression is scoped to the *variant*
+("Weak Trading Day: Tuesday" doesn't hide Thursday) and **auto-expires after 30 days** if
+the pattern stops firing. Ranking is published verbatim:
+`score = abs(pnl_impact) × confidence_weight × detector_weight × (1 + helpful_boost) × trend_multiplier`.
+
+The detector list, with what we can compute **today** from data already in the sheet:
+
+| Detector | Computable now? |
+|---|---|
+| Losers Took Extra Heat (adverse excursion past planned invalidation) | **Yes** — `MAE (R)` |
+| Losses Beyond Planned Stop (realized loss ≥ 125% of planned) | **Yes** — `P&L (R)` vs `R (Risk)` |
+| Winners Need More Room (closed well before best available exit) | **Yes** — `Max R Before Stop` vs `P&L (R)` |
+| EOD Exit Would Have Helped (simulate flat-by-X) | **Yes** — 1-min bars already fetched |
+| MAE Bigger Than MFE · Risk/Reward Leak | **Yes** |
+| Revenge Trading (opened within 30 min of a losing close, same account) | **Yes** — entry/exit times are on the row |
+| Size Increases After Losses (post-loss size ≥ 1.25× post-win size, and that bucket is negative) | **Yes** — `Shares`, `R (Risk)` |
+| Cold-Start Trades Underperform (>24 h since last close) | **Yes** |
+| Weak Time Window · Weak Trading Day · Worst Day × Hour cell | **Yes** — needs the day-of-week breakdown we lack (3.6) |
+| Loss Is Concentrated (≥30% of red ink from one ticker) | **Yes** |
+| High-News Days Underperform (tier-3 economic-calendar events) | No — needs an economic calendar |
+
+**Eleven of sixteen are arithmetic over columns we already have.** The part we should copy
+even more than the detectors is **the z-test gate** — row 3.11 records that we surface
+honest denominators and run **no significance test at all**, which for a discretionary
+trader with 124 trades is exactly the failure mode that matters.
+
+### B.3.5 Chartlog's rules engine and the N≥25 sample norm
+
+Chartlog models **Strategies as first-class objects**, each carrying an explicit checklist
+split into **market conditions** ("mid-cap", "RVOL +20%", "has news"), **entry triggers**
+("only enter if B is above VWAP") and **exit triggers** ("exit at 2R"), plus **Sample Sets**
+— a named, counted batch of trades taken under one rule set, with the published teaching
+that you need **≥25 instances before drawing conclusions** `[V]`. The framing is literally
+the scientific method: hypothesis → experiment → collect → analyse → conclude.
+
+Two things this fixes for us. First, it **upgrades `Process Followed? Y/N` from one binary
+into "which specific rule broke"** — and Edgewonk goes one step further by measuring *which
+individual rules actually generate profit* `[V]`. Second, the N≥25 norm is the missing
+rigor layer above our `Setup` dropdown, and it is the discipline that stops us drawing
+conclusions from six trades. Chartlog teaches the norm without computing it; pairing it
+with §B.3.4's z-test is strictly better than either.
+
+Also from Chartlog, cheap and useful to us: **"losers always count as −1.00R"** as a stated
+convention — independently arrived at, and identical to the pessimistic assumption our
+bracket counterfactual and Profitability Analysis already use. Worth saying out loud in
+our own UI.
+
+### B.3.6 The rest of the dogfood-relevant deficit, briefly
+
+- **Statistical-significance block** — SQN, K-Ratio, Kelly %, P&L standard deviation and a
+  **p-value on your edge**. Tradervue is the only retail journal that will tell you your
+  results are noise `[V]`. Pure arithmetic on data we hold. Row 3.11: we score ◐.
+- **Drawdown over *completed* drawdown periods** — average drawdown, average days in
+  drawdown, biggest, average trades in drawdown `[V]`. We have none of it.
+- **Weekly/monthly retro object** — Chartlog's day/week/month grouped journal with a
+  description per grouping, and Edgewonk's Sessions report cards. **The weekly retro is
+  where our execution-gap `Δ` number would actually get acted on**, and there is nowhere
+  for it to be acted on today.
+- **Correlating our psych inputs with performance (row 6.6).** TradesViz is the only ●,
+  and only because *any* Day Plan field becomes a pivot dimension `[V]`. The matrix's own
+  verdict: **"TR collects the richest psych inputs in the category and joins none of them
+  to outcomes."** Win rate and expectancy by sleep bucket / energy bucket / urge-flag is a
+  `GROUP BY` over columns already on every row.
+- **Mark-as-reviewed** — a review *workflow* state separate from the data `[V]` Chartlog.
+  Cheap, and it makes the daily ritual finishable.
+- **Charts (large/small) list view** — Tradervue renders a filtered trade set as a wall of
+  auto-charts, auto-picking the finest timeframe containing the whole trade `[V]`. Cheap,
+  highly rated, and it pairs directly with our existing filter bar and Screenshot Review.
+- **TradeZella's day-lock ("Finish My Day")** — locks the day's rule checkboxes so
+  compliance cannot be backfilled `[V]`. The single highest behavioural-integrity return
+  per line of code in the study.
+
+---
+
+## B.4 The two category blind spots — and whether we actually exploit them
+
+`02-feature-matrix.md` identifies eight cross-cutting patterns. Two are structural
+openings rather than observations. The honest assessment of both is the same: **we hold
+the prerequisite and we do not use it.**
+
+### B.4.1 Everyone competes on the exit; nobody competes on the entry
+
+Row 3.10 has **five vendors with real, differently-architected exit-quality
+implementations** — TraderSync's file calls it the question "that actually separates
+profitable discretionary traders" — and **entry-quality decomposition is absent from all
+eight columns**, ours included.
+
+The cause is structural, and Tradervue's file states it plainly: *the entire schema starts
+at "a fill happened"*, and adding planning "is not a feature, it is a second data model
+plus a second UI surface" `[V]`. Exit quality is computable from bars with no additional
+input; entry quality requires knowing what you **intended**, and §7 of the matrix shows
+nobody has an intent object. The broker-native survey found the identical gap from the
+other side: **brokers begin at the order ticket** `[V]`.
+
+**Do we exploit it? We hold the prerequisite and produce nothing from it.** `[I]`
+
+*What we have that they don't:* a real intent object. `Daily Plan` carries per-symbol
+conviction, thesis, a controlled catalyst taxonomy, L2 bias and six MTF fields, authored
+pre-open and back-filled onto the executed trade through one shared header map
+(`PLAN_FILL_COLS`), with `Origin` derived from plan membership and deliberately kept
+orthogonal to `Process Followed?`. That is the second data model the category does not
+have.
+
+*What we produce from it:* **`Origin` as a filter value, and nothing else.** Row 7.4
+scores us ◐ with the note "derives `Origin` from plan membership but produces **no
+reconciliation report**." There is no plan-fill rate, no forecast accuracy by conviction
+bucket, no missed-trade object, no entry-efficiency metric of any kind.
+
+*And the funnel does not count.* The Prediction & Execution funnel measures excursion
+**from the session open, deliberately entry-timing-independent** (§8.1) — by construction
+it grades the **thesis**, not the entry. It is the right metric for a different question.
+
+*Two honest caveats before anyone builds on this.* (i) `_theme-red-team.md` Claim 2:
+the pre-commitment *container* is already shipped by three competitors, the grading
+*mechanism* is industrialised elsewhere (TipRanks; Pikkit's automatic closing-line value
+in free sports-betting apps; Sinux scoring Discord analysts' calls), and the manual
+practice is taught in the ICT/SMC community with a free TradingView script attached.
+**This is an unported mechanism, not an invention** — worth building, worth roughly zero
+as a moat. (ii) `_theme-red-team.md` Claim 4: whether the input survives contact with the
+9:10 am clock is **unresolved and leaning against**, and the decisive test costs nothing —
+**plot our own plan-fill rate (distinct dates with a `Daily Plan` row ÷ distinct trading
+dates, weekly since 2026-06-23, plus per-field fill rate) before building anything on top
+of it.**
+
+### B.4.2 Psychology is the most-marketed and least-built section in the matrix
+
+Every vendor sells discipline in its headline copy. What they ship is one of three things:
+free-text emotion tags (TV, TS, CL, TM), a schema the user must invent (EW's Custom
+Statistics, TVz's Day Plans), or LLM tone-reading (TZ's Sentiment Agent). Rows 6.3, 6.5
+and 6.6 are near-empty. The cause is that self-reported psych data **collapses exactly when
+it matters** — reviewers say Edgewonk's tracking "requires self-honesty" and struggles when
+the trader is stressed `[R]`.
+
+Only two structural fixes exist anywhere in the study, and both work by **removing the
+judgment from the moment of judgment**:
+
+1. **Edgewonk's** — pre-commit the valence of each behaviour while calm, then only
+   *select* at journaling time.
+2. **Ours** — pull the number off an instrument (sleep score, readiness, hours slept)
+   **before the P&L is known**.
+
+**Do we exploit it? We own half the fix and none of the payoff.** `[I]`
+
+- We ship the **richest typed psych schema in the category** (6.5 ●, 6.4 ●), and it is
+  authored pre-open, which is the unloaded moment — `_theme-voice-of-customer.md` §1.2(d)
+  shows journal-avoidance bites hardest *after* losses, so front-loading is the right call.
+- We ship **row 6.6 as ○**. Nothing joins any of it to money. The matrix's verdict is
+  blunt: *"collecting psych inputs is not the hard part; nobody has made them pay."*
+- We do **not** have Edgewonk's half — a pre-rated behaviour vocabulary. Our
+  `Process Followed?` is a single self-graded bit written after the outcome is known,
+  which is precisely the design the structural fix exists to avoid.
+- We have **no time series** on discipline (6.7 ◐), so escalation — the only thing tilt
+  data is for — is invisible to us.
+- And the leverage argument is genuinely in our favour, which is why this is worth doing:
+  one plan entry auto-fills `PLAN_FILL_COLS` + `DAY_FILL_COLS` onto **every trade of that
+  date** and sets `Origin`. Most abandoned journaling inputs are per-trade and scale with
+  trade count; ours is per-day and scales with nothing `[I]`.
+
+**A caution the evidence forces.** Across hundreds of reviews of six vendors,
+`_theme-voice-of-customer.md` §6.3 found **not one user praising a mood/emotion field**;
+praise attaches to checklists, custom statistics and rule adherence. The surviving pattern
+is *bounded, scored* inputs — the one documented survivor sustained **12 criteria scored
+1–5 per session for 41 sessions** `[R]`. Our day-level block (Energy 1–5, Tension 1–5,
+Urge Yes/No, sleep hours) is near-verbatim that shape and the red team rates it
+**SURVIVES**. Our per-symbol MTF block is not, and the red team rates it **UNRESOLVED,
+leaning against**. Build the join for the half that survives first.
+
+---
+
+## B.5 Verdict per persona
+
+Per `00-method.md` §2. Strategy selection is `04-product-thesis.md`'s job, not this file's;
+these are the three readings of the same evidence, and the disagreement is the point.
+
+**Market researcher.** The category is small — a defensible **$40M–$180M/yr globally,
+central ~$90M**, on 120k–450k paying subscribers `[I]`. Modal price $29–30, realized ARPU
+**$24–30** after annual discounting `[V]`/`[I]`. Distribution is **rented from trading
+educators at 20–30% of revenue in perpetuity**, and the discovery layer (comparison-site
+SEO) is funded by the same commissions — TradeZella's founder brought a 750k-subscriber
+YouTube channel to launch `[R]`, and `_theme-business-model.md` §4.3 finds **no fourth
+channel** in the evidence. Churn is 7–10%/month blended against a ~6.6%/month floor set by
+traders quitting trading altogether. The verdict on our leads: they are real, they are
+narrow, and **none of them is a distribution answer**.
+
+**Product manager.** The 34 table-stakes gaps are almost all bounded and known; the four
+with leverage (fees, chart, daily journal object, auth) are the ones that unblock
+everything else in their sections. The interesting ground is `02-feature-matrix.md`'s
+frontier list, and the two blind spots in §B.4 are the only places where we hold a
+prerequisite the category structurally lacks. But the wedge that follows from them is an
+**unported mechanism, not an invention** (three competitors hold the container; the
+grading mechanism ships in adjacent verticals), and it rests on an assumption rated
+**total load-bearing and entirely unverified** — that a trader who did not write the
+software will author a per-symbol MTF forecast on 60–70% of days for six months. Assume
+**~2 quarters of lead** on anything visible, and **measure our own plan-fill rate before
+building on it.**
+
+**Engineer.** Everything in §B.3 is computable from data already in the sheet or bars
+already fetched; the maths exists and is already exercised against our own trading. What
+does *not* survive contact with a second user is the substrate: **Sheets-as-database with
+full-tab `A:CG` scans in a 10 ms edge isolate**, one Polygon key at 5 req/min, one Drive
+folder pair joined on `date|symbol`, and zero tests under the grouper. And the commercial
+version has a constraint the tool version does not: our Polygon plan states verbatim *"you
+may not use the Market Data to build an application intended for use by end users other
+than you"* `[V]` — **the substrate is not an asset we own, it is a licence we do not have.**
+
+**Where they disagree.** The PM sees the pre-trade object as the one genuinely open
+position on the board; the market researcher notes that a superior product with no audience
+in this category *does not get discovered*, not merely grows slower; the engineer notes
+that the cheapest work in §B.3 is entirely independent of both arguments and pays off on
+the first Sunday it is used. That last point is the one thing all three agree on, and it
+is what `06-dogfood-backlog.md` is for.
+
+Costing for both scopes — dogfood and sellable v1 — is in
+[`05-build-plan.md`](05-build-plan.md).
