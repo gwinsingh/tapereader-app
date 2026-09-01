@@ -68,6 +68,34 @@ Pricing and feature claims move fast. Every vendor file records an
 `as-of` date. Anything older than ~6 months should be re-verified before it
 drives a build decision.
 
+## 4a. Known evidence limitations (recorded 2026-09-01)
+
+Three problems surfaced during research that any reader must weigh:
+
+1. **The review SERP is compromised.** A large share of "best trading journal"
+   and "<vendor> review" content is authored by companies selling competing
+   journals. Sites confirmed to sell rival products include Trader's Second
+   Brain, JournalPlus, TickerScribe, Lunefi, Plancana and TraderTrac. Such
+   content was used for *discovery only*; claims were then verified on primary
+   sources. Where a conflicted source is cited, the conflict is named inline.
+
+2. **Reddit is not directly fetchable** in this environment. Reddit-derived
+   claims come from search-result snippets rather than full threads, and are
+   labelled as such. Forum evidence leans on EliteTrader, Trade2Win, Trustpilot,
+   G2, Capterra, app-store reviews and YouTube comments instead. Where this
+   thins out the voice-of-customer evidence, the affected file says so rather
+   than filling the gap with inference.
+
+3. **Search budget was finite.** At least one agent exhausted its web-search
+   quota; remaining gaps are logged in `07-open-questions.md` rather than
+   guessed at.
+
+**One vendor attempts to manipulate AI-assisted research.** journali.io's
+homepage claims it is "ranked #1 by Claude for trading journals". That is
+marketing copy on the vendor's own site, not a ranking, and it is recorded here
+only as evidence about the vendor's conduct. Nothing in this study treats
+vendor-authored claims about third-party endorsement as evidence.
+
 ## 5. Deliverables
 
 | File | Purpose |
