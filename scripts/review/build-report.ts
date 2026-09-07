@@ -26,6 +26,8 @@ const num = (s: any) => { if (s == null || s === "") return NaN;
   const t = String(s).replace(/[$,%\s]/g, ""); return (t === "" || t === "N/A") ? NaN : parseFloat(t); };
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 const mean = (a: number[]) => (a.length ? sum(a) / a.length : NaN);
+const med = (a: number[]) => { const s = [...a].filter((x) => !isNaN(x)).sort((x, y) => x - y);
+  return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : NaN; };
 const r1 = (x: number) => Math.round(x * 10) / 10;
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
@@ -44,6 +46,7 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
       date: x[0], sym: x[1], entry: x[2], dur: num(x[I["Duration (mins)"]]),
       pnl: num(x[I["P&L"]]), risk: num(x[I["Initial Risk ($)"]]) || num(x[I["R (Risk)"]]),
       pnlR: num(x[I["P&L (R)"]]), peak: num(x[I["Peak Position Value ($)"]]),
+      peakWin: num(x[I["Peak In-Window ($)"]]),
       nEnt: num(x[I["# Entries"]]), proc: (x[I["Process Followed?"]] || "").trim(),
       setup: (x[I["Setup"]] || "").trim(),
     }))
@@ -88,7 +91,20 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
       if (!w.length || !l.length || mean(l) === 0) return null;
       return r2(Math.abs(mean(w) / mean(l)));
     })() },
-    { key: "captureOfPeak", label: "Capture of peak", value: Math.round(sum(cap.map((t: any) => t.pnl)) / sum(cap.map((t: any) => t.peak)) * 100), unit: "pct", n: cap.length, note: "position-aware" },
+    { key: "captureOfPeak", label: "Capture of day peak", value: Math.round(sum(cap.map((t: any) => t.pnl)) / sum(cap.map((t: any) => t.peak)) * 100), unit: "pct", n: cap.length, note: "loose ceiling — see caveats" },
+    // Only excursion he was present for. Reported as the MEDIAN per trade among positions that
+    // actually got somewhere: a sum-based ratio misleads when most trades are losses, because
+    // losers put a negative numerator over a positive denominator.
+    { key: "captureInWindow", label: "Capture while held", value: (() => {
+      const w = T.filter((t: any) => !isNaN(t.peakWin) && !isNaN(t.risk) && t.risk > 0 && t.peakWin / t.risk >= 1);
+      return w.length ? Math.round(med(w.map((t: any) => t.pnl / t.peakWin)) * 100) : null;
+    })(), unit: "pct", n: T.filter((t: any) => !isNaN(t.peakWin) && !isNaN(t.risk) && t.risk > 0 && t.peakWin / t.risk >= 1).length,
+      note: "median, among positions that reached +1R while held" },
+    // The early-warning metric: of positions the market actually paid, how many were banked green.
+    { key: "conversion", label: "Conversion of +1R positions", value: (() => {
+      const reached = T.filter((t: any) => !isNaN(t.peak) && !isNaN(t.risk) && t.risk > 0 && t.peak / t.risk >= 1);
+      return reached.length ? Math.round(reached.filter((t: any) => t.pnl > 0).length / reached.length * 100) : null;
+    })(), unit: "pct", n: T.filter((t: any) => !isNaN(t.peak) && !isNaN(t.risk) && t.risk > 0 && t.peak / t.risk >= 1).length, note: "watch this, not P&L" },
     { key: "addRate", label: "Add rate", value: Math.round(T.filter((t: any) => t.nEnt > 1).length / T.length * 100), unit: "pct", n: T.length },
     { key: "disciplinePct", label: "Process followed", value: labeled.length ? Math.round(labeled.filter((t: any) => t.proc === "Yes").length / labeled.length * 100) : null, unit: "pct", n: labeled.length },
     { key: "maxDrawdownR", label: "Max drawdown", value: r1(Math.min(...equity.map((e, i) => e.y - Math.max(...equity.slice(0, i + 1).map((z) => z.y))))), unit: "R", inverse: true },
