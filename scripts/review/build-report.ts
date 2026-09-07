@@ -82,7 +82,12 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
     { key: "winRate", label: "Win rate", value: Math.round(wins.length / T.length * 100), unit: "pct", n: T.length },
     { key: "tradesPerSession", label: "Trades / session", value: r1(T.length / days.length), unit: "ratio", inverse: true, n: days.length },
     { key: "grossPnl", label: "Gross P&L", value: r2(sum(T.map((t: any) => t.pnl))), unit: "$" },
-    { key: "payoff", label: "Payoff ratio", value: r2(Math.abs(mean(wins.map((t: any) => t.pnlR)) / mean(T.filter((t: any) => t.pnl <= 0).map((t: any) => t.pnlR)))), unit: "ratio" },
+    { key: "payoff", label: "Payoff ratio", unit: "ratio", value: (() => {
+      const w = wins.map((t: any) => t.pnlR).filter((v: number) => !isNaN(v));
+      const l = T.filter((t: any) => t.pnl <= 0).map((t: any) => t.pnlR).filter((v: number) => !isNaN(v));
+      if (!w.length || !l.length || mean(l) === 0) return null;
+      return r2(Math.abs(mean(w) / mean(l)));
+    })() },
     { key: "captureOfPeak", label: "Capture of peak", value: Math.round(sum(cap.map((t: any) => t.pnl)) / sum(cap.map((t: any) => t.peak)) * 100), unit: "pct", n: cap.length, note: "position-aware" },
     { key: "addRate", label: "Add rate", value: Math.round(T.filter((t: any) => t.nEnt > 1).length / T.length * 100), unit: "pct", n: T.length },
     { key: "disciplinePct", label: "Process followed", value: labeled.length ? Math.round(labeled.filter((t: any) => t.proc === "Yes").length / labeled.length * 100) : null, unit: "pct", n: labeled.length },
