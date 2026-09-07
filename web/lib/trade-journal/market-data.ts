@@ -20,6 +20,8 @@ export interface MarketEnrichment {
   mfeR: number | null;
   peakPositionValue: number | null;
   troughPositionValue: number | null;
+  peakInWindow: number | null;
+  troughInWindow: number | null;
   farthestPrice: number | null;
   maeR: number | null;
   breakoutVolRatio: number | null;
@@ -83,6 +85,8 @@ const EMPTY: MarketEnrichment = {
   mfeR: null,
   peakPositionValue: null,
   troughPositionValue: null,
+  peakInWindow: null,
+  troughInWindow: null,
   farthestPrice: null,
   maeR: null,
   breakoutVolRatio: null,
@@ -367,9 +371,20 @@ function findEntryBarIndex(bars: Bar[], entryMinute: number): number {
   return -1;
 }
 
+/**
+ * Consecutive same-direction bars BEFORE the entry.
+ *
+ * This deliberately starts at `entryIdx - 1`. Starting at the entry bar reads that bar's
+ * CLOSE, which prints after the entry was placed — so the field encoded the outcome rather
+ * than the setup. On the 1H timeframe the entry bar is 09:30–10:30, meaning a 09:31 entry
+ * was being scored on whether the first hour finished green, up to 59 minutes later. The
+ * symptom was a 0% win rate on the 67 trades (across two independent books) where the count
+ * was zero — impossible for a genuine pre-trade variable. Lagged properly, all three
+ * timeframes are a clean null, which is the honest answer.
+ */
 function countConsecutive(bars: Bar[], entryIdx: number, isLong: boolean): number {
   let count = 0;
-  for (let i = entryIdx; i >= 0; i--) {
+  for (let i = entryIdx - 1; i >= 0; i--) {
     const bullish = bars[i].close >= bars[i].open;
     if (isLong ? bullish : !bullish) {
       count++;
@@ -754,20 +769,31 @@ export interface EntryRef {
 /**
  * Peak and trough dollar value of the position as it was actually built.
  *
- * At each bar only lots already bought are credited (no lookahead — he cannot hold
- * shares he has not bought yet), and exits are ignored, so this measures the best the
- * position was ever worth rather than grading his scale-outs. Capture then has a valid
- * denominator for a scaled-in trade: realised P&L / peak.
+ * At each bar only lots already bought are credited (no lookahead — he cannot hold shares
+ * he has not bought yet). Two windows are returned because they answer different questions
+ * and conflating them badly overstates the trail leak:
+ *
+ *   peak      — to 16:00 ET. TOTAL OPPORTUNITY the day contained. A loose ceiling: it keeps
+ *               accruing after he was flat, so a trade held 90 seconds and closed at -1R can
+ *               still show a large "peak" (2026-08-04 SOXL: 1.5 min, -1.00R, 5.48R peak).
+ *   peakInWin — only while he actually held (first entry → last exit). This is the right
+ *               denominator for "did he exit well", because it contains only excursion he
+ *               was present for and could have taken.
+ *
+ * Capture against `peak` runs ~6%; against `peakInWin` ~85%. Neither is "the" answer — quote
+ * the one that matches the question, and say which.
  */
 function computePositionExcursion(
   dayBars: Bar[],
   entries: { minute: number; price: number; shares: number }[],
-  isLong: boolean
-): { peak: number; trough: number } | null {
+  isLong: boolean,
+  exitMinute?: number
+): { peak: number; trough: number; peakInWin: number; troughInWin: number } | null {
   if (!entries.length) return null;
   const EOD_MINUTE = 960;
   const start = entries[0].minute;
-  let peak = 0, trough = 0, seen = false;
+  const close = exitMinute != null && exitMinute >= start ? exitMinute : EOD_MINUTE;
+  let peak = 0, trough = 0, peakInWin = 0, troughInWin = 0, seen = false;
   for (const b of dayBars) {
     const et = timestampToET(b.ts);
     const min = etMinutes(et.h, et.m);
@@ -784,8 +810,13 @@ function computePositionExcursion(
     const worst = isLong ? b.low * shares - cost : cost - b.high * shares;
     if (best > peak) peak = best;
     if (worst < trough) trough = worst;
+    if (min <= close) {
+      if (best > peakInWin) peakInWin = best;
+      if (worst < troughInWin) troughInWin = worst;
+    }
   }
-  return seen ? { peak: Math.round(peak * 100) / 100, trough: Math.round(trough * 100) / 100 } : null;
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return seen ? { peak: r2(peak), trough: r2(trough), peakInWin: r2(peakInWin), troughInWin: r2(troughInWin) } : null;
 }
 
 // --- Main enrichment function ---
@@ -883,7 +914,8 @@ function computeEnrichment(
 
   // Position-aware excursion across the whole entry ladder (see computePositionExcursion).
   const posExc = entryRef?.entries?.length
-    ? computePositionExcursion(dayBars, entryRef.entries, isLong)
+    ? computePositionExcursion(dayBars, entryRef.entries, isLong,
+        trade.exitTime ? parseEntryMinutes(trade.exitTime) : undefined)
     : null;
 
   // MAE over the actual holding window (entry -> exit); requires R, like Max R
@@ -938,6 +970,8 @@ function computeEnrichment(
     mfeR,
     peakPositionValue: posExc?.peak ?? null,
     troughPositionValue: posExc?.trough ?? null,
+    peakInWindow: posExc?.peakInWin ?? null,
+    troughInWindow: posExc?.troughInWin ?? null,
     farthestPrice: maxRResult?.farthestPrice ?? null,
     maeR,
     breakoutVolRatio,

@@ -17,7 +17,8 @@ const arg = (k: string, d: string) => {
 const TAB = arg("tab", "WIP-U16632046-GURI");
 const WRITE = process.argv.includes("--write");
 const ONLY = process.argv.slice(2).find((a) => !a.startsWith("--"));
-const NEW_COLS = ["MFE (R)", "Peak Position Value ($)", "Trough Position Value ($)", "Position MFE (R)", "Capture %"];
+const NEW_COLS = ["MFE (R)", "Peak Position Value ($)", "Trough Position Value ($)", "Position MFE (R)", "Capture %",
+                  "Peak In-Window ($)", "In-Window MFE (R)", "In-Window Capture %"];
 const num = (s: any) => { if (s == null || s === "") return NaN;
   const t = String(s).replace(/[$,%\s]/g, ""); return (t === "" || t === "N/A") ? NaN : parseFloat(t); };
 const colA1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
@@ -66,13 +67,17 @@ const colA1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1
   console.log(`${bySym.size} symbols, ${[...bySym.values()].reduce((a, b) => a + b.length, 0)} trades (skipped ${skipped} without a ladder)`);
 
   const out: { i: number; maxR: number | null; mfe: number | null; mae: number | null;
-               far: number | null; peak: number | null; trough: number | null }[] = [];
+               far: number | null; peak: number | null; trough: number | null;
+               peakWin: number | null; troughWin: number | null;
+               c1m: number | null; c5m: number | null; c1h: number | null }[] = [];
   for (const [sym, trades] of bySym) {
     try {
       const res = await enrichSymbol(sym, trades);
       for (const e of res.enrichments) {
         out.push({ i: e.tradeIndex, maxR: e.data.maxRBeforeStop, mfe: e.data.mfeR, mae: e.data.maeR,
-                   far: e.data.farthestPrice, peak: e.data.peakPositionValue, trough: e.data.troughPositionValue });
+                   far: e.data.farthestPrice, peak: e.data.peakPositionValue, trough: e.data.troughPositionValue,
+                   peakWin: e.data.peakInWindow, troughWin: e.data.troughInWindow,
+                   c1m: e.data.consec1m, c5m: e.data.consec5m, c1h: e.data.consec1h });
       }
       console.log(`  ${sym.padEnd(6)} ${trades.length} trades ok`);
     } catch (err: any) { console.log(`  ${sym.padEnd(6)} FAILED: ${err.message}`); }
@@ -110,8 +115,16 @@ const colA1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1
     const put = (h: string, v: any) => { if (v != null) data.push({ range: `${TAB}!${colA1(I[h])}${row}`, values: [[v]] }); };
     put("Max R Before Stop", o.maxR); put("MFE (R)", o.mfe); put("MAE (R)", o.mae); put("Farthest Price", o.far);
     put("Peak Position Value ($)", o.peak); put("Trough Position Value ($)", o.trough);
+    put("Peak In-Window ($)", o.peakWin);
+    // Recomputed lagged — the previous values counted the entry bar and were look-ahead.
+    put("#1m", o.c1m); put("#5m", o.c5m); put("#1H", o.c1h);
     // Derived as live formulas so they follow any later correction to R.
     const P = colA1(I["Peak Position Value ($)"]), IR = colA1(I["Initial Risk ($)"]), PL = colA1(I["P&L"]);
+    if (o.peakWin != null && o.peakWin > 0) {
+      const PW = colA1(I["Peak In-Window ($)"]), IR2 = colA1(I["Initial Risk ($)"]), PL2 = colA1(I["P&L"]);
+      data.push({ range: `${TAB}!${colA1(I["In-Window MFE (R)"])}${row}`, values: [[`=IF(${IR2}${row}="","",${PW}${row}/${IR2}${row})`]] });
+      data.push({ range: `${TAB}!${colA1(I["In-Window Capture %"])}${row}`, values: [[`=IF(${PW}${row}<=0,"",${PL2}${row}/${PW}${row})`]] });
+    }
     if (o.peak != null && o.peak > 0) {
       data.push({ range: `${TAB}!${colA1(I["Position MFE (R)"])}${row}`, values: [[`=IF(${IR}${row}="","",${P}${row}/${IR}${row})`]] });
       data.push({ range: `${TAB}!${colA1(I["Capture %"])}${row}`, values: [[`=IF(${P}${row}<=0,"",${PL}${row}/${P}${row})`]] });
