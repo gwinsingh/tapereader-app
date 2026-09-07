@@ -3,7 +3,7 @@
 const fs = require("fs"), path = require("path");
 const { parseEnvLocal, getAccessToken, ENV_PATH } = require("./env.js");
 const OUT = path.join(__dirname, ".data");
-const TABS = ["U16632046-GURI", "TRPCT1541-GURI", "Daily Plan", "Calendar Config"];
+const TABS = ["WIP-U16632046-GURI", "WIP-TRPCT1541-GURI", "Daily Plan", "Calendar Config"];
 
 (async () => {
   const env = parseEnvLocal(ENV_PATH);

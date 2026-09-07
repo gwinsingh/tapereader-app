@@ -43,8 +43,21 @@ Helpers: `L.st(arr,label)` → n / win% / expR + bootstrap 95% CI / sumR / $ (ma
 Write scripts into `scripts/review/` and run with `node`.
 
 ## THE HEADLINE CONSTRAINT
-Live: sumR **+19.4R on measured risk** (was +23.1R on typed risk), **bootstrap 95% CI on mean R
-includes zero — recompute it, do not reuse the old figure.**
+Everything below is on MEASURED risk from the order ladder. Verified figures:
+
+| | trades | sessions | sumR | mean R | bootstrap 95% CI |
+|---|---|---|---|---|---|
+| **live** (Jul30–Aug28) | 71 | 19 | **+19.4R** | +0.28 | **[−0.17, +0.79] — includes zero** |
+| **practice** (May6–Jul30) | 248 | 54 | **+7.3R** | +0.03 | [−0.17, +0.25] |
+
+Two things this changes versus the previous round, which used typed risk:
+- Live was quoted at +23.1R. It is +19.4R.
+- **Practice was quoted at −9.1R. It is +7.3R.** The practice baseline is NOT negative, so the
+  previous round's central claim — "you did not improve, the tape got easier" — rests on a gap that
+  has shrunk from 32R to 12R. **Re-derive that conclusion from scratch; do not restate it.**
+
+Win rate still FELL (27% → 23%), so the live month remains a payoff-ratio story, not an accuracy one.
+**One month at n=71 cannot establish an edge.** Find what is reliably true; label the rest honestly.
 Win rate **fell** 27% → 23%. The month's profit rests on a few large winners.
 **One month at n=71 cannot establish an edge.** Your job is not to explain why the month was good.
 Your job is to find what is *reliably* true and to label honestly what is not.

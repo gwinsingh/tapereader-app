@@ -43,11 +43,24 @@ function load(file) {
     dT: g(r,"Daily Trend"), dC: n(r,"Daily Conv"), hT: g(r,"1H Trend"), hC: n(r,"1H Conv"),
     mT: g(r,"5m Trend"), mC: n(r,"5m Conv"),
     energy: n(r,"Energy (1-5)"), tension: n(r,"Tension (1-5)"), urge: g(r,"Urge to Trade Fast?"),
+    // --- order-ladder columns (see BRIEF.md) ---
+    entryLadder: g(r,"Entry Ladder"), exitLadder: g(r,"Exit Ladder"), stopLadder: g(r,"Stop Ladder"),
+    nEntries: n(r,"# Entries"), nExits: n(r,"# Exits"),
+    firstEntry: n(r,"First Entry"), initStop: n(r,"Initial Stop"),
+    initRisk: n(r,"Initial Risk ($)"), maxRisk: n(r,"Max Risk At Stake ($)"),
+    stopRaises: n(r,"Stop Raises"), stoppedOut: g(r,"Stopped Out?"),
+    riskBasis: g(r,"Risk Basis"), riskSource: g(r,"Risk Source"),
+    peak: n(r,"Peak Position Value ($)"), trough: n(r,"Trough Position Value ($)"),
+    /** THE correct MFE. Bounds realised R even for a pyramid. Use instead of maxR. */
+    posMFE: n(r,"Position MFE (R)"),
+    capturePct: n(r,"Capture %"),
   }));
 }
 
-const live     = load("U16632046_GURI.json");   // 71 trades, 19 sessions, 7/30–8/28  LIVE MONEY
-const practice = load("TRPCT1541_GURI.json");   // 248 trades, 54 sessions, 5/6–7/30  PRACTICE
+// CORRECTED tabs: R is the measured initial risk from the DAS order ladder, and
+// Position MFE (R) supersedes Max R Before Stop. The un-prefixed tabs are stale.
+const live     = load("WIP_U16632046_GURI.json");   // 71 trades, 19 sessions, 7/30–8/28  LIVE MONEY
+const practice = load("WIP_TRPCT1541_GURI.json");   // 248 trades, 54 sessions, 5/6–7/30  PRACTICE
 
 // ---------- stats ----------
 const sum  = a => a.reduce((s, x) => s + x, 0);
