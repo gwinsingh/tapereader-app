@@ -62,7 +62,13 @@ export interface TradeLadder {
   avgEntry: number;
   firstStop: number | null;        // first protective order placed (may be a transient misfire)
   initialStop: number | null;      // stop active SETTLE_SECS after entry — the one he committed to
-  initialRisk: number | null;      // dollars risked on the first entry, measured off initialStop
+  initialRisk: number | null;      // dollars risked on the trade, measured off the real stop
+  /**
+   * Which entry `initialRisk` was measured from. Normally the first entry — but a token
+   * starter (2026-06-24 WEN opened with 1 share and added 38 six minutes later) makes the
+   * first lot's risk a meaningless denominator: $0.35, which turned a -$13 loss into -33.7R.
+   */
+  riskBasis: "first-entry" | "max-at-stake";
   maxRiskAtStake: number | null;   // peak risk during the BUILD phase (before the first exit)
   riskCurve: RiskPoint[];
   stopRaises: number;              // count of protective-stop moves in the favourable direction
@@ -259,7 +265,20 @@ function assemble(
     ?? buildPhase[0] ?? null;
   const initialStop = settled ? settled.stop : firstStop;
   // Read risk straight off the curve so it reflects the shares actually open.
-  const initialRisk = settled ? settled.risk : null;
+  let initialRisk = settled ? settled.risk : null;
+  let riskBasis: "first-entry" | "max-at-stake" = "first-entry";
+
+  const maxAtStake = buildPhase.length
+    ? Math.round(Math.max(...buildPhase.map((r) => r.risk)) * 100) / 100 : null;
+
+  // A first entry under a tenth of the final position is a token starter, not the trade.
+  // Fall back to peak build-phase exposure so the R denominator reflects real risk taken.
+  const TOKEN_STARTER = 0.10;
+  if (entries.length > 1 && totalShares > 0 && maxAtStake != null && maxAtStake > 0 &&
+      entries[0].shares / totalShares < TOKEN_STARTER) {
+    initialRisk = maxAtStake;
+    riskBasis = "max-at-stake";
+  }
 
   let stopRaises = 0;
   for (let i = 1; i < stops.length; i++) {
@@ -283,7 +302,8 @@ function assemble(
     firstStop,
     initialStop,
     initialRisk,
-    maxRiskAtStake: buildPhase.length ? Math.round(Math.max(...buildPhase.map((r) => r.risk)) * 100) / 100 : null,
+    riskBasis,
+    maxRiskAtStake: maxAtStake,
     riskCurve,
     stopRaises,
     everStoppedOut,

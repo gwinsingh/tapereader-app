@@ -27,7 +27,7 @@ const colA1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1
   const H = { Authorization: `Bearer ${tok}` };
   const SS = env.GOOGLE_SPREADSHEET_ID;
   const got: any = await (await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SS}/values/${encodeURIComponent(TAB)}!A1:CZ200`, { headers: H })).json();
+    `https://sheets.googleapis.com/v4/spreadsheets/${SS}/values/${encodeURIComponent(TAB)}!A1:DZ600`, { headers: H })).json();
   let hdr: string[] = got.values[0].slice();
   const body: string[][] = got.values.slice(1).filter((x: string[]) => (x[0] || "").trim() && (x[1] || "").trim());
   const I: Record<string, number> = {}; hdr.forEach((h, i) => I[h] = i);

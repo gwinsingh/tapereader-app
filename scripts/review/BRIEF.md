@@ -99,7 +99,18 @@ Your job is to find what is *reliably* true and to label honestly what is not.
 9. **"Probe" (<2 min) is defined by the exit** — not knowable at entry. Never propose "don't take probes".
 10. **Missing-not-at-random.** 8/26 and 8/28 have blank Setup/Process/RightTheory and were both losers;
    8/28 was the highest-volume day (7 trades). Journal abandonment tracks bad days.
-11. **A trade-count cap contradicts his stated risk rule.** To propose one you must beat his max-loss
+11. **"Added" vs "no add" is selection-confounded.** He only adds once the trade has proved him
+    right, so the split (added n=27 +1.25R vs no-add n=43 −0.33R) is largely definitional — it is
+    NOT evidence that adding causes good trades. The honest test is the starter-only
+    counterfactual: same exit, first lot only. That says adds contributed +$148.53 across those 27
+    trades but helped on only 11 of 27.
+12. **`Position MFE (R)` grows with position size.** Peak dollar value ÷ INITIAL risk, so a trade
+    that scaled 5x shows a large MFE partly because size grew, not only because the move was big.
+    It is dollar-honest and it does bound realised R, but do not read it as "the move was worth
+    35R" — read it as "the position, as built, was worth 35x the risk committed at entry".
+13. **His 2.5R target is 2.5R of the LAST entry's risk**, not of initial risk. Any target-capture
+    number stated against initial risk is measuring something he was not aiming at — say so.
+14. **A trade-count cap contradicts his stated risk rule.** To propose one you must beat his max-loss
     rule on the data, and say so explicitly.
 
 ## FINDINGS FROM THE PREVIOUS ROUND THAT ARE NOW VOID — redo them

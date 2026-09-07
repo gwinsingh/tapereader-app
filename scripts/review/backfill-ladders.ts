@@ -21,7 +21,7 @@ const WRITE = process.argv.includes("--write");
 const NEW_COLS = [
   "Entry Ladder", "Exit Ladder", "Stop Ladder", "# Entries", "# Exits",
   "First Entry", "Initial Stop", "Initial Risk ($)", "Max Risk At Stake ($)",
-  "Stop Raises", "Stopped Out?",
+  "Stop Raises", "Stopped Out?", "Risk Basis",
 ];
 const f = (x: number | null, d = 2) => (x == null || isNaN(x) ? "" : Number(x.toFixed(d)));
 
@@ -76,18 +76,32 @@ const f = (x: number | null, d = 2) => (x == null || isNaN(x) ? "" : Number(x.to
     const files = byDate.get(date);
     const sheetRows = body.map((r, i) => ({ r, i })).filter((x) => (x.r[0] || "").trim() === date);
     if (!files?.length) { noLog.push(`${date} (${sheetRows.length} trades)`); continue; }
-    const seenRow = new Set<string>();
-    const parsed = [];
+    // Merge the day's exports by per-key MAX COUNT, not set-union. A naive unique-row
+    // dedupe collapses legitimate repeat fills (two identical prints of the same order in
+    // one second), which silently drops executions and breaks round-trip matching. Max-count
+    // keeps within-file repeats while not double-counting a byte-identical re-export.
+    const key = (r: any) => `${r.time}|${r.event}|${r.side}|${r.symbol}|${r.shares}|${r.price}|${r.account}`;
+    const perFile: any[][] = [];
     for (const file of files) {
       const csv = await (await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, { headers: H })).text();
-      for (const row of parseFullLog(csv)) {
-        const k = `${row.time}|${row.event}|${row.side}|${row.symbol}|${row.shares}|${row.price}|${row.account}`;
-        if (seenRow.has(k)) continue;
-        seenRow.add(k);
-        parsed.push(row);
+      perFile.push(parseFullLog(csv));
+    }
+    const maxCount = new Map<string, number>();
+    for (const rows of perFile) {
+      const c = new Map<string, number>();
+      for (const r of rows) c.set(key(r), (c.get(key(r)) ?? 0) + 1);
+      for (const [k, v] of c) maxCount.set(k, Math.max(maxCount.get(k) ?? 0, v));
+    }
+    const usedCount = new Map<string, number>();
+    const parsed: any[] = [];
+    for (const rows of perFile) {
+      for (const r of rows) {
+        const k = key(r);
+        const u = usedCount.get(k) ?? 0;
+        if (u < (maxCount.get(k) ?? 0)) { parsed.push(r); usedCount.set(k, u + 1); }
       }
     }
-    if (files.length > 1) console.log(`     note: ${date} merged ${files.length} exports (${parsed.length} unique rows)`);
+    if (files.length > 1) console.log(`     note: ${date} merged ${files.length} exports -> ${parsed.length} rows`);
     // 2026-07-30 is the handover day: the fills were executed in the OLD practice account
     // (TRPCT1541) but recorded in the live sheet. Fall back to an unfiltered read when the
     // requested account has no rows, and say so rather than silently dropping the day.
@@ -115,6 +129,7 @@ const f = (x: number | null, d = 2) => (x == null || isNaN(x) ? "" : Number(x.to
         "Max Risk At Stake ($)": f(lad.maxRiskAtStake),
         "Stop Raises": lad.stopRaises,
         "Stopped Out?": lad.everStoppedOut ? "Y" : "N",
+        "Risk Basis": lad.riskBasis,
       });
     }
     const extra = ladders.filter((l) => !used.has(l));
