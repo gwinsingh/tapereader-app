@@ -4,19 +4,47 @@
 Gurwinder, discretionary US-equity day trader, PCT Bootcamp. ~4 months of logged data.
 Playbook: **Opening Range Breakout only** (5-min OR, 9:30–9:35 ET). Long-biased.
 
-## Data
+## Data — READ THIS, THE SHEETS CHANGED
+
+Run `node scripts/review/fetch.js` first (it snapshots into `.data/`). Point it at the **WIP**
+tabs — `WIP-U16632046-GURI` (live) and `WIP-TRPCT1541-GURI` (practice). The un-prefixed tabs are
+the OLD uncorrected data; do not use them.
+
 ```js
 const L = require("/Users/gurwinder/Workspace/tapereader-app/scripts/review/lib.js");
 L.live      // 71 trades, 19 sessions, 2026-07-30 → 2026-08-28. LIVE MONEY. THE MONTH UNDER REVIEW.
 L.practice  // 248 trades, 54 sessions, 2026-05-06 → 2026-07-30. Practice/sim. HISTORY.
 ```
+
+### What changed since the last analysis round
+The DAS logs contain the whole bracket lifecycle, not just fills, so the trader's real stop ladder
+has been recovered and every risk-derived number recomputed. New columns on both WIP tabs:
+
+| column | meaning |
+|---|---|
+| `Entry Ladder` / `Exit Ladder` | `HH:MM:SS@price×shares \| ...` — the actual fills, clustered into logical orders |
+| `Stop Ladder` | every protective-stop placement and move, timestamped |
+| `# Entries` / `# Exits` | logical orders (NOT the old `# Partials`, which counted both sides) |
+| `First Entry`, `Initial Stop`, `Initial Risk ($)` | the real committed risk, measured not typed |
+| `Max Risk At Stake ($)` | peak exposure during the BUILD phase (before the first exit) |
+| `Stop Raises`, `Stopped Out?` | trailing behaviour |
+| `Peak/Trough Position Value ($)` | excursion valued against the share ladder actually held |
+| **`Position MFE (R)`** | peak ÷ initial risk — **the correct MFE. Use this, not `Max R Before Stop`.** |
+| `Capture %` | realised P&L ÷ peak position value |
+| `Risk Source` | `auto (ladder)` or `manual` |
+
+`R (Risk)` is now the MEASURED initial risk, so `P&L (R)` changed on 70 of 71 live rows.
+**Live month is +19.4R, not the +23.1R quoted in the previous round.** 2026-08-13 SPY and QQQ were
+deliberate full-size entries mis-logged as half — the trader confirmed this; SPY fell 5.10R → 2.64R
+and QQQ 6.00R → 3.14R.
 Helpers: `L.st(arr,label)` → n / win% / expR + bootstrap 95% CI / sumR / $ (marks `*` if n<15);
 `L.bootCI(arrOfR)`, `L.permP(a,b)` permutation p-value, `L.byDay`, `L.days`, `L.dayR`, `L.R`,
 `L.sum/mean/med/sd/f`. **Read lib.js first** — every field is listed there.
 Write scripts into `scripts/review/` and run with `node`.
 
 ## THE HEADLINE CONSTRAINT
-Live: sumR **+23.1R**, mean R **+0.33**, **bootstrap 95% CI [−0.12, +0.84] — includes zero.**
+Live: sumR **+19.4R on measured risk** (was +23.1R on typed risk), **bootstrap 95% CI on mean R
+includes zero — recompute it, do not reuse the old figure.**
 Win rate **fell** 27% → 23%. The month's profit rests on a few large winners.
 **One month at n=71 cannot establish an edge.** Your job is not to explain why the month was good.
 Your job is to find what is *reliably* true and to label honestly what is not.
@@ -58,17 +86,28 @@ Your job is to find what is *reliably* true and to label honestly what is not.
    win" from duration buckets alone; use MFE to separate entry quality from exit behaviour.
 3. **`# Partials` is a duration proxy** — you cannot take 3 partials on a 2-minute trade.
 4. **Concurrency is a duration proxy** — a second position is only possible if the first is still open.
-5. **`Breakout Vol Ratio` is NOT an entry signal.** It is the volume of the first bar after 9:35 that
+5. **First-lot MFE cannot bound a pyramid.** `Max R Before Stop` measures the first lot against
+   the first entry's risk. On a scaled-in trade realised R legitimately EXCEEDS it (NVDA 2026-08-05
+   grew 7 → 39 shares). Any capture ratio built on it is meaningless for the 27 multi-entry live
+   trades. **Always use `Position MFE (R)`**, which does bound realised R.
+6. **`Breakout Vol Ratio` is NOT an entry signal.** It is the volume of the first bar after 9:35 that
    breaks the OR ÷ mean OR-bar volume: day-level, post-hoc, completed-bar, unrelated to his actual entry.
    Day-quality descriptor only. (A previous review wrongly proposed it as an entry filter.)
-6. **`Process Followed?` / `RightTheory?` are retrospective self-labels** — partly outcome-contaminated.
+7. **`Process Followed?` / `RightTheory?` are retrospective self-labels** — partly outcome-contaminated.
    Descriptive, not causal.
-7. **VIX / SPY Dir are day-level.** Effective n = 19 sessions, not 71 trades.
-8. **"Probe" (<2 min) is defined by the exit** — not knowable at entry. Never propose "don't take probes".
-9. **Missing-not-at-random.** 8/26 and 8/28 have blank Setup/Process/RightTheory and were both losers;
+8. **VIX / SPY Dir are day-level.** Effective n = 19 sessions, not 71 trades.
+9. **"Probe" (<2 min) is defined by the exit** — not knowable at entry. Never propose "don't take probes".
+10. **Missing-not-at-random.** 8/26 and 8/28 have blank Setup/Process/RightTheory and were both losers;
    8/28 was the highest-volume day (7 trades). Journal abandonment tracks bad days.
-10. **A trade-count cap contradicts his stated risk rule.** To propose one you must beat his max-loss
+11. **A trade-count cap contradicts his stated risk rule.** To propose one you must beat his max-loss
     rule on the data, and say so explicitly.
+
+## FINDINGS FROM THE PREVIOUS ROUND THAT ARE NOW VOID — redo them
+Anything built on `Max R Before Stop`, `MAE (R)`, `# Partials` or typed `R (Risk)`:
+capture / target capture / Execution Skill, the MFE decomposition, the "54% of trades never offered
+1R" claim, every stop-level counterfactual, H4 (hold time), H5 (partials), and the risk-at-stake
+readings. The regime conclusion (low-VIX tape, not skill) rested on realised R and market data and
+is expected to survive — but re-verify it on the corrected R.
 
 ## PRE-REGISTERED HYPOTHESES (from the July review of `practice`) — test on `live` ONLY
 - H1  VIX < 17.2 outperforms VIX ≥ 17.2      (practice +18.6R vs −24.9R) — **UNTESTABLE, see facts above**
