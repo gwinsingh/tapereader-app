@@ -17,7 +17,11 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { parseEnvLocal, getAccessToken, ENV_PATH } = require("./env.js");
 
-const TAB = "WIP-U16632046-GURI";
+const arg = (k: string, d: string) => {
+  const hit = process.argv.find((a) => a.startsWith(`--${k}=`));
+  return hit ? hit.slice(k.length + 3) : d;
+};
+const TAB = arg("tab", "WIP-U16632046-GURI");
 const WRITE = process.argv.includes("--write");
 const num = (s: any) => { if (s == null || s === "") return NaN;
   const t = String(s).replace(/[$,%\s]/g, ""); return (t === "" || t === "N/A") ? NaN : parseFloat(t); };

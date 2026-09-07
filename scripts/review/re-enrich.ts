@@ -10,10 +10,14 @@ const env = parseEnvLocal(ENV_PATH);
 for (const k of ["POLYGON_API_KEY"]) if (env[k]) process.env[k] = env[k];
 import { enrichSymbol } from "../../web/lib/trade-journal/market-data.ts";
 
-const TAB = "WIP-U16632046-GURI";
+const arg = (k: string, d: string) => {
+  const hit = process.argv.find((a) => a.startsWith(`--${k}=`));
+  return hit ? hit.slice(k.length + 3) : d;
+};
+const TAB = arg("tab", "WIP-U16632046-GURI");
 const WRITE = process.argv.includes("--write");
 const ONLY = process.argv.slice(2).find((a) => !a.startsWith("--"));
-const NEW_COLS = ["MFE (R)"];
+const NEW_COLS = ["MFE (R)", "Peak Position Value ($)", "Trough Position Value ($)", "Position MFE (R)", "Capture %"];
 const num = (s: any) => { if (s == null || s === "") return NaN;
   const t = String(s).replace(/[$,%\s]/g, ""); return (t === "" || t === "N/A") ? NaN : parseFloat(t); };
 const colA1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
@@ -28,9 +32,17 @@ const colA1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1
   const body: string[][] = got.values.slice(1).filter((x: string[]) => (x[0] || "").trim() && (x[1] || "").trim());
   const I: Record<string, number> = {}; hdr.forEach((h, i) => I[h] = i);
 
+  type Lot = { minute: number; price: number; shares: number };
   type T = { date: string; entryTime: string; exitTime: string; side: "Long" | "Short";
              avgEntry: number; index: number; riskPerShare?: number;
-             entryRef?: { price: number; riskPerShare: number } };
+             entryRef?: { price: number; riskPerShare: number; entries?: Lot[]; initialRisk?: number } };
+  // "09:32:46@119.65x3 | 09:38:08@123.085x3" -> lots, minute-of-day for the bar walk
+  const parseLadder = (s: string): Lot[] =>
+    s.split("|").map((p) => p.trim()).filter(Boolean).map((p) => {
+      const m = p.match(/^(\d+):(\d+):(\d+)@([\d.]+)x(\d+)$/);
+      if (!m) return null;
+      return { minute: +m[1] * 60 + +m[2], price: parseFloat(m[4]), shares: parseInt(m[5], 10) };
+    }).filter(Boolean) as Lot[];
   const bySym = new Map<string, T[]>();
   let skipped = 0;
   body.forEach((r, i) => {
@@ -47,17 +59,20 @@ const colA1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1
       date: r[0], entryTime: r[2], exitTime: r[3],
       side: (r[5] as "Long" | "Short"), avgEntry: num(r[7]), index: i,
       riskPerShare: initRisk / shares,
-      entryRef: { price: firstEntry, riskPerShare: initRisk / shares },
+      entryRef: { price: firstEntry, riskPerShare: initRisk / shares,
+                  entries: parseLadder(ladder), initialRisk: initRisk },
     });
   });
   console.log(`${bySym.size} symbols, ${[...bySym.values()].reduce((a, b) => a + b.length, 0)} trades (skipped ${skipped} without a ladder)`);
 
-  const out: { i: number; maxR: number | null; mfe: number | null; mae: number | null; far: number | null }[] = [];
+  const out: { i: number; maxR: number | null; mfe: number | null; mae: number | null;
+               far: number | null; peak: number | null; trough: number | null }[] = [];
   for (const [sym, trades] of bySym) {
     try {
       const res = await enrichSymbol(sym, trades);
       for (const e of res.enrichments) {
-        out.push({ i: e.tradeIndex, maxR: e.data.maxRBeforeStop, mfe: e.data.mfeR, mae: e.data.maeR, far: e.data.farthestPrice });
+        out.push({ i: e.tradeIndex, maxR: e.data.maxRBeforeStop, mfe: e.data.mfeR, mae: e.data.maeR,
+                   far: e.data.farthestPrice, peak: e.data.peakPositionValue, trough: e.data.troughPositionValue });
       }
       console.log(`  ${sym.padEnd(6)} ${trades.length} trades ok`);
     } catch (err: any) { console.log(`  ${sym.padEnd(6)} FAILED: ${err.message}`); }
@@ -94,11 +109,18 @@ const colA1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1
     const row = o.i + 2;
     const put = (h: string, v: any) => { if (v != null) data.push({ range: `${TAB}!${colA1(I[h])}${row}`, values: [[v]] }); };
     put("Max R Before Stop", o.maxR); put("MFE (R)", o.mfe); put("MAE (R)", o.mae); put("Farthest Price", o.far);
+    put("Peak Position Value ($)", o.peak); put("Trough Position Value ($)", o.trough);
+    // Derived as live formulas so they follow any later correction to R.
+    const P = colA1(I["Peak Position Value ($)"]), IR = colA1(I["Initial Risk ($)"]), PL = colA1(I["P&L"]);
+    if (o.peak != null && o.peak > 0) {
+      data.push({ range: `${TAB}!${colA1(I["Position MFE (R)"])}${row}`, values: [[`=IF(${IR}${row}="","",${P}${row}/${IR}${row})`]] });
+      data.push({ range: `${TAB}!${colA1(I["Capture %"])}${row}`, values: [[`=IF(${P}${row}<=0,"",${PL}${row}/${P}${row})`]] });
+    }
   }
   for (let i = 0; i < data.length; i += 400) {
     const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SS}/values:batchUpdate`, {
       method: "POST", headers: { ...H, "Content-Type": "application/json" },
-      body: JSON.stringify({ valueInputOption: "RAW", data: data.slice(i, i + 400) }) });
+      body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: data.slice(i, i + 400) }) });
     const j: any = await res.json();
     console.log(`  wrote ${Math.min(400, data.length - i)} cells${j.error ? " ERROR " + JSON.stringify(j.error) : ""}`);
   }

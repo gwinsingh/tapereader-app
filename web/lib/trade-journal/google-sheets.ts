@@ -1503,6 +1503,7 @@ function computeSkillMetrics(dataRows: string[][], colMap: ColMap, captureTarget
   const adrIdx = cm(colMap, "ADR");
   const atr30Idx = cm(colMap, "30mATR");
   const maxRIdx = cm(colMap, "Max R Before Stop");
+  const posMfeIdx = cm(colMap, "Position MFE (R)");
   const pnlRIdx = cm(colMap, "P&L (R)");
   const riskIdx = cm(colMap, "R (Risk)");
 
@@ -1742,6 +1743,21 @@ export interface TradeForAnalysis {
 }
 
 // "N/A" (insufficient history) and blank both parse to null.
+/**
+ * The MFE to use for capture / trail-leak / bracket maths.
+ *
+ * `Max R Before Stop` measures the FIRST lot only, against the risk committed on the
+ * first entry. For a position that was scaled into, realised R can legitimately exceed
+ * it, so any capture ratio built on it is meaningless for a pyramid. `Position MFE (R)`
+ * values the excursion against the share ladder actually held and does bound realised R.
+ * Prefer it wherever it exists; fall back for rows (or tabs) without a ladder.
+ */
+function resolveMfe(row: string[], posIdx: number, maxRIdx: number): number | null {
+  const pos = posIdx >= 0 ? parseNullableNum(row[posIdx]) : null;
+  if (pos != null) return pos;
+  return maxRIdx >= 0 ? parseNullableNum(row[maxRIdx]) : null;
+}
+
 function parseNullableNum(v: string | undefined): number | null {
   const n = parseFloat(String(v ?? "").replace(/[$,]/g, ""));
   return isNaN(n) ? null : n;
@@ -1760,6 +1776,7 @@ export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter)
   const exitIdx = cm(colMap, "Avg Exit");
   const riskIdx = cm(colMap, "R (Risk)");
   const maxRIdx = cm(colMap, "Max R Before Stop");
+  const posMfeIdx = cm(colMap, "Position MFE (R)");
   const maeIdx = cm(colMap, "MAE (R)");
   const setupIdx = cm(colMap, "Setup");
   const entryTimeIdx = cm(colMap, "Entry Time");
@@ -1780,7 +1797,7 @@ export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter)
       avgExit: exitIdx >= 0 ? parseNum(r[exitIdx]) : 0,
       pnl: parseNum(r[pnlIdx]),
       risk: riskIdx >= 0 ? parseNum(r[riskIdx]) : 0,
-      maxRBeforeStop: maxRIdx >= 0 ? parseNum(r[maxRIdx]) : 0,
+      maxRBeforeStop: resolveMfe(r, posMfeIdx, maxRIdx) ?? 0,
       maeR: maeIdx >= 0 ? parseNullableNum(r[maeIdx]) : null,
       setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
       entryTime: entryTimeIdx >= 0 ? r[entryTimeIdx] || "" : "",
@@ -2253,6 +2270,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
   const convictionIdx = cm(colMap, "Conviction (1-3)");
   const processIdx = cm(colMap, "Process Followed?");
   const maxRIdx = cm(colMap, "Max R Before Stop");
+  const posMfeIdx = cm(colMap, "Position MFE (R)");
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, ""));
 
   const hasFullRConfig = fullRForDate(schedule, tabName, "9999-12-31") !== null;
@@ -2302,7 +2320,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
       pnl: Math.round(pnl * 100) / 100,
       realizedR: !isNaN(pnlR) ? pnlR : (!isNaN(risk) && risk > 0 ? Math.round((pnl / risk) * 100) / 100 : null),
       risk: !isNaN(risk) && risk > 0 ? risk : null,
-      maxRBeforeStop: maxRIdx >= 0 ? parseNullableNum(r[maxRIdx]) : null,
+      maxRBeforeStop: resolveMfe(r, posMfeIdx, maxRIdx),
       symbol: symbolIdx >= 0 ? (r[symbolIdx] || "").trim() : "",
       setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
       side: sideIdx >= 0 ? (r[sideIdx] || "").trim() : "",
@@ -2919,7 +2937,7 @@ export async function getTradesForReview(tabName: string): Promise<TradeRowForRe
       avgExit: parseNum(r[cm(colMap, "Avg Exit")]),
       notes: (r[cm(colMap, "Notes")] || "").trim(),
       rowIndex: i + 2, // 1-based, header is row 1
-      maxRBeforeStop: parseNullableNum(r[cm(colMap, "Max R Before Stop")]),
+      maxRBeforeStop: resolveMfe(r, cm(colMap, "Position MFE (R)"), cm(colMap, "Max R Before Stop")),
       maeR: parseNullableNum(r[cm(colMap, "MAE (R)")]),
       duration: parseNum(r[cm(colMap, "Duration (mins)")]),
     }))

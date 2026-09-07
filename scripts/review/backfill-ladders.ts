@@ -9,8 +9,12 @@ const { parseEnvLocal, getAccessToken, ENV_PATH } = require("./env.js");
 import { parseFullLog, buildLadders, fmtFills, fmtBrackets, normTime,
          type TradeLadder } from "../../web/lib/trade-journal/order-ladder.ts";
 
-const TAB = "WIP-U16632046-GURI";
-const ACCT = "U16632046";
+const arg = (k: string, d: string) => {
+  const hit = process.argv.find((a) => a.startsWith(`--${k}=`));
+  return hit ? hit.slice(k.length + 3) : d;
+};
+const TAB = arg("tab", "WIP-U16632046-GURI");
+const ACCT = arg("acct", "U16632046");
 const DAS_FOLDER = "13IuvOxDpzBnoyyxnLkbXP4Icrqd7TowH";
 const WRITE = process.argv.includes("--write");
 
@@ -51,11 +55,17 @@ const f = (x: number | null, d = 2) => (x == null || isNaN(x) ? "" : Number(x.to
       return `2026-${String(MON[named[1].toLowerCase()]).padStart(2, "0")}-${named[2]}`;
     return null;
   };
-  const byDate = new Map<string, { id: string; name: string }>();
+  // One un-dated export; its contents identify it.
+  const ALIAS: Record<string, string> = { "trade-log.csv": "2026-05-06" };
+  // Several dates have more than one export (a re-pull, or a "-actual" correction).
+  // Merge every file for a date and dedupe identical rows rather than picking one —
+  // 2026-05-29 has two files where neither is a superset of the other.
+  const byDate = new Map<string, { id: string; name: string }[]>();
   for (const file of dr.files || []) {
-    const d = dateOf(file.name);
+    const d = ALIAS[file.name] ?? dateOf(file.name);
     if (!d) continue;
-    if (!byDate.has(d)) byDate.set(d, file);   // first wins; duplicates are byte-identical
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d)!.push(file);
   }
 
   const dates = [...new Set(body.map((r) => (r[0] || "").trim()))].filter(Boolean).sort();
@@ -63,11 +73,21 @@ const f = (x: number | null, d = 2) => (x == null || isNaN(x) ? "" : Number(x.to
   let matched = 0, unmatched: string[] = [], noLog: string[] = [];
 
   for (const date of dates) {
-    const file = byDate.get(date);
+    const files = byDate.get(date);
     const sheetRows = body.map((r, i) => ({ r, i })).filter((x) => (x.r[0] || "").trim() === date);
-    if (!file) { noLog.push(`${date} (${sheetRows.length} trades)`); continue; }
-    const csv = await (await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, { headers: H })).text();
-    const parsed = parseFullLog(csv);
+    if (!files?.length) { noLog.push(`${date} (${sheetRows.length} trades)`); continue; }
+    const seenRow = new Set<string>();
+    const parsed = [];
+    for (const file of files) {
+      const csv = await (await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, { headers: H })).text();
+      for (const row of parseFullLog(csv)) {
+        const k = `${row.time}|${row.event}|${row.side}|${row.symbol}|${row.shares}|${row.price}|${row.account}`;
+        if (seenRow.has(k)) continue;
+        seenRow.add(k);
+        parsed.push(row);
+      }
+    }
+    if (files.length > 1) console.log(`     note: ${date} merged ${files.length} exports (${parsed.length} unique rows)`);
     // 2026-07-30 is the handover day: the fills were executed in the OLD practice account
     // (TRPCT1541) but recorded in the live sheet. Fall back to an unfiltered read when the
     // requested account has no rows, and say so rather than silently dropping the day.

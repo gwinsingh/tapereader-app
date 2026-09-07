@@ -18,6 +18,8 @@ export interface MarketEnrichment {
   orLow: number | null;
   maxRBeforeStop: number | null;
   mfeR: number | null;
+  peakPositionValue: number | null;
+  troughPositionValue: number | null;
   farthestPrice: number | null;
   maeR: number | null;
   breakoutVolRatio: number | null;
@@ -79,6 +81,8 @@ const EMPTY: MarketEnrichment = {
   orLow: null,
   maxRBeforeStop: null,
   mfeR: null,
+  peakPositionValue: null,
+  troughPositionValue: null,
   farthestPrice: null,
   maeR: null,
   breakoutVolRatio: null,
@@ -733,10 +737,55 @@ function computeSpyDir(spyDayBars: Bar[], entryMinute: number): string | null {
   return "Flat";
 }
 
-/** True first-entry reference recovered from the DAS order ladder. */
+/** True entry reference recovered from the DAS order ladder. */
 export interface EntryRef {
   price: number;          // first entry fill price (not the blended average)
   riskPerShare: number;   // (first entry price - real initial stop), absolute
+  /**
+   * Full entry ladder, for position-aware excursion. Without it, excursion is
+   * measured on the first lot alone — which cannot bound the P&L of a position
+   * that was scaled into, so any "capture %" built on it is meaningless for a
+   * pyramid (realised R legitimately exceeds MFE).
+   */
+  entries?: { minute: number; price: number; shares: number }[];
+  initialRisk?: number;   // dollars committed on the first entry
+}
+
+/**
+ * Peak and trough dollar value of the position as it was actually built.
+ *
+ * At each bar only lots already bought are credited (no lookahead — he cannot hold
+ * shares he has not bought yet), and exits are ignored, so this measures the best the
+ * position was ever worth rather than grading his scale-outs. Capture then has a valid
+ * denominator for a scaled-in trade: realised P&L / peak.
+ */
+function computePositionExcursion(
+  dayBars: Bar[],
+  entries: { minute: number; price: number; shares: number }[],
+  isLong: boolean
+): { peak: number; trough: number } | null {
+  if (!entries.length) return null;
+  const EOD_MINUTE = 960;
+  const start = entries[0].minute;
+  let peak = 0, trough = 0, seen = false;
+  for (const b of dayBars) {
+    const et = timestampToET(b.ts);
+    const min = etMinutes(et.h, et.m);
+    if (min < start || min > EOD_MINUTE) continue;
+    let shares = 0, cost = 0;
+    for (const e of entries) {
+      if (e.minute > min) break;
+      shares += e.shares;
+      cost += e.shares * e.price;
+    }
+    if (shares === 0) continue;
+    seen = true;
+    const best = isLong ? b.high * shares - cost : cost - b.low * shares;
+    const worst = isLong ? b.low * shares - cost : cost - b.high * shares;
+    if (best > peak) peak = best;
+    if (worst < trough) trough = worst;
+  }
+  return seen ? { peak: Math.round(peak * 100) / 100, trough: Math.round(trough * 100) / 100 } : null;
 }
 
 // --- Main enrichment function ---
@@ -832,6 +881,11 @@ function computeEnrichment(
     ? computeMFE(dayBars, entryMinute, refPrice, refRisk, isLong)
     : null;
 
+  // Position-aware excursion across the whole entry ladder (see computePositionExcursion).
+  const posExc = entryRef?.entries?.length
+    ? computePositionExcursion(dayBars, entryRef.entries, isLong)
+    : null;
+
   // MAE over the actual holding window (entry -> exit); requires R, like Max R
   const maeR = refRisk && refRisk > 0 && trade.exitTime
     ? computeMAE(dayBars, entryMinute, parseEntryMinutes(trade.exitTime), refPrice, refRisk, isLong)
@@ -882,6 +936,8 @@ function computeEnrichment(
     orLow: or ? Math.round(or.orLow * 100) / 100 : null,
     maxRBeforeStop: maxRResult?.maxR ?? null,
     mfeR,
+    peakPositionValue: posExc?.peak ?? null,
+    troughPositionValue: posExc?.trough ?? null,
     farthestPrice: maxRResult?.farthestPrice ?? null,
     maeR,
     breakoutVolRatio,
