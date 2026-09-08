@@ -7,6 +7,12 @@ const tools = [
     description:
       "Upload DAS Trader CSV logs to automatically journal executed trades into a shared Google Sheet, grouped by account.",
   },
+  {
+    name: "Performance Reviews",
+    href: "/pct-bootcamp/reviews",
+    description:
+      "Periodic performance reviews: a frozen scorecard, pre-registered hypothesis tests, and the decisions taken for the next period.",
+  },
 ];
 
 export default function PCTBootcampPage() {

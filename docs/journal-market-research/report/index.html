@@ -1,0 +1,734 @@
+<title>Trading Journal Teardown</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F6F8F7;
+  --surface:     #FFFFFF;
+  --surface-2:   #EFF3F1;
+  --ink:         #14201D;
+  --ink-2:       #3D4B47;
+  --ink-3:       #6B7A75;
+  --rule:        #DBE2DF;
+  --rule-strong: #C2CCC8;
+  --accent:      #14605A;
+  --accent-soft: #E3EFEC;
+
+  --good:        #2C6B4C;
+  --good-soft:   #E2EEE6;
+  --warn:        #85601C;
+  --warn-soft:   #F2EBDC;
+  --crit:        #98392B;
+  --crit-soft:   #F5E4E0;
+  --unk:         #474E70;
+  --unk-soft:    #E6E8F0;
+
+  --measure: 68ch;
+  --f-display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --f-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0F1413;
+    --surface:     #161D1B;
+    --surface-2:   #1D2624;
+    --ink:         #E7ECEA;
+    --ink-2:       #B4C0BC;
+    --ink-3:       #84948F;
+    --rule:        #29332F;
+    --rule-strong: #3A4642;
+    --accent:      #57B6A8;
+    --accent-soft: #16302D;
+
+    --good:        #6FBF8F;
+    --good-soft:   #162C21;
+    --warn:        #D2AC5C;
+    --warn-soft:   #2E2716;
+    --crit:        #E0887A;
+    --crit-soft:   #33201C;
+    --unk:         #9AA2CC;
+    --unk-soft:    #1E2130;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #0F1413;
+  --surface:     #161D1B;
+  --surface-2:   #1D2624;
+  --ink:         #E7ECEA;
+  --ink-2:       #B4C0BC;
+  --ink-3:       #84948F;
+  --rule:        #29332F;
+  --rule-strong: #3A4642;
+  --accent:      #57B6A8;
+  --accent-soft: #16302D;
+
+  --good:        #6FBF8F;
+  --good-soft:   #162C21;
+  --warn:        #D2AC5C;
+  --warn-soft:   #2E2716;
+  --crit:        #E0887A;
+  --crit-soft:   #33201C;
+  --unk:         #9AA2CC;
+  --unk-soft:    #1E2130;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 17px;
+  line-height: 1.65;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px 120px;
+}
+
+/* ---- rail layout: prose in a measure, rail carries real annotation ---- */
+.band { display: grid; grid-template-columns: 1fr; gap: 0; }
+@media (min-width: 1060px) {
+  .band { grid-template-columns: 132px minmax(0, 1fr); column-gap: 40px; }
+}
+.rail {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: .55em;
+  line-height: 1.5;
+}
+@media (max-width: 1059px) {
+  .rail { padding-top: 0; margin-bottom: 10px; }
+}
+.rail b { display: block; font-weight: 500; color: var(--accent); }
+.col { min-width: 0; }
+.prose { max-width: var(--measure); }
+
+/* ---- masthead ---- */
+.mast { padding: 76px 0 40px; border-bottom: 1px solid var(--rule-strong); }
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 22px;
+}
+h1 {
+  font-family: var(--f-display);
+  font-weight: 500;
+  font-size: clamp(2.9rem, 7vw, 4.6rem);
+  line-height: 1.02;
+  letter-spacing: -.021em;
+  margin: 0 0 24px;
+  text-wrap: balance;
+  max-width: 16ch;
+}
+.standfirst {
+  font-family: var(--f-display);
+  font-size: clamp(1.2rem, 2.3vw, 1.5rem);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 54ch;
+  margin: 0 0 40px;
+  text-wrap: pretty;
+}
+.standfirst em { font-style: italic; color: var(--ink); }
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-top: 1px solid var(--rule);
+}
+.stat {
+  flex: 1 1 160px;
+  padding: 20px 22px 20px 0;
+  border-right: 1px solid var(--rule);
+  min-width: 150px;
+}
+.stat:last-child { border-right: 0; }
+.stat .n {
+  font-family: var(--f-mono);
+  font-size: 1.9rem;
+  font-weight: 500;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  display: block;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.stat .l {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-top: 7px;
+  display: block;
+}
+
+/* ---- sections ---- */
+section { padding: 62px 0 0; }
+h2 {
+  font-family: var(--f-display);
+  font-weight: 500;
+  font-size: clamp(1.75rem, 3.4vw, 2.4rem);
+  line-height: 1.15;
+  letter-spacing: -.016em;
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--f-body);
+  font-weight: 600;
+  font-size: 1.02rem;
+  letter-spacing: .002em;
+  margin: 34px 0 10px;
+}
+p { margin: 0 0 17px; }
+.prose > p:last-child { margin-bottom: 0; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2.5px; }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+strong { font-weight: 600; color: var(--ink); }
+
+/* ---- verdict panel ---- */
+.verdict {
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-left: 3px solid var(--accent);
+  padding: 34px 34px 30px;
+  margin: 0 0 8px;
+}
+.verdict .label {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 16px;
+}
+.verdict .call {
+  font-family: var(--f-display);
+  font-size: clamp(1.5rem, 3.1vw, 2.05rem);
+  line-height: 1.28;
+  letter-spacing: -.014em;
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+.verdict p:last-child { margin-bottom: 0; color: var(--ink-2); }
+
+/* ---- claim cards ---- */
+.claims { display: grid; gap: 14px; margin-top: 26px; }
+.claim {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 22px 24px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 760px) {
+  .claim { grid-template-columns: 1fr 200px; column-gap: 28px; align-items: start; }
+}
+.claim .q {
+  font-family: var(--f-display);
+  font-size: 1.22rem;
+  line-height: 1.4;
+  margin: 0 0 8px;
+  text-wrap: pretty;
+}
+.claim .why { margin: 0; font-size: 15.5px; color: var(--ink-2); line-height: 1.6; }
+.chip {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  padding: 6px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.chip .dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: currentColor; }
+.chip.good { color: var(--good); background: var(--good-soft); }
+.chip.warn { color: var(--warn); background: var(--warn-soft); }
+.chip.crit { color: var(--crit); background: var(--crit-soft); }
+.chip.unk  { color: var(--unk);  background: var(--unk-soft); }
+
+/* ---- pull quote ---- */
+blockquote {
+  margin: 30px 0;
+  padding: 4px 0 4px 26px;
+  border-left: 2px solid var(--accent);
+  font-family: var(--f-display);
+  font-size: 1.32rem;
+  line-height: 1.45;
+  color: var(--ink);
+  max-width: 58ch;
+  text-wrap: pretty;
+}
+blockquote p:last-child { margin-bottom: 0; }
+
+/* ---- tables ---- */
+.tw { overflow-x: auto; margin: 22px 0 6px; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; min-width: 480px; }
+caption {
+  text-align: left;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 14px 18px 0;
+}
+th, td { text-align: left; padding: 11px 18px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+  background: var(--surface-2);
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.k { font-weight: 500; }
+
+/* ---- backlog tiers ---- */
+.tier {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  margin: 0 0 12px;
+}
+.tier > summary {
+  cursor: pointer;
+  padding: 17px 22px;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  list-style: none;
+  font-weight: 600;
+}
+.tier > summary::-webkit-details-marker { display: none; }
+.tier > summary::after {
+  content: "+";
+  margin-left: auto;
+  font-family: var(--f-mono);
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.tier[open] > summary::after { content: "\2212"; }
+.tier[open] > summary { border-bottom: 1px solid var(--rule); }
+.tier .tno {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 500;
+}
+.tier .tsub { font-weight: 400; color: var(--ink-3); font-size: 14.5px; }
+.tier .body { padding: 6px 22px 20px; }
+.tier ul { margin: 0; padding: 0; list-style: none; }
+.tier li {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  gap: 4px 16px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 700px) {
+  .tier li { grid-template-columns: 1fr 62px; }
+}
+.tier li:last-child { border-bottom: 0; }
+.tier li .t { font-weight: 500; }
+.tier li .d { color: var(--ink-2); font-size: 15px; line-height: 1.55; grid-column: 1; }
+.eff {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .07em;
+  color: var(--ink-3);
+  text-align: left;
+  align-self: start;
+}
+@media (min-width: 700px) { .eff { text-align: right; grid-row: 1 / span 2; grid-column: 2; } }
+
+/* ---- gates ---- */
+.gates { display: grid; gap: 12px; margin-top: 22px; }
+@media (min-width: 820px) { .gates { grid-template-columns: repeat(3, 1fr); } }
+.gate {
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--accent);
+  background: var(--surface);
+  padding: 22px;
+}
+.gate .g { font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 9px; }
+.gate h4 { font-family: var(--f-display); font-size: 1.2rem; font-weight: 500; margin: 0 0 9px; line-height: 1.3; }
+.gate p { font-size: 15px; color: var(--ink-2); margin: 0; line-height: 1.55; }
+.gate .cost { font-family: var(--f-mono); font-size: 11.5px; color: var(--accent); margin-top: 12px; display: block; }
+
+/* ---- doc index ---- */
+.docs { border-top: 1px solid var(--rule-strong); margin-top: 26px; }
+.doc {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 4px 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+}
+@media (min-width: 720px) { .doc { grid-template-columns: 42px 260px 1fr; align-items: baseline; } }
+.doc .no { font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.doc .nm { font-weight: 600; font-size: 15.5px; }
+.doc .ds { color: var(--ink-2); font-size: 15px; grid-column: 2 / -1; }
+@media (min-width: 720px) { .doc .ds { grid-column: 3; } }
+
+/* ---- key ---- */
+.key {
+  display: flex; flex-wrap: wrap; gap: 10px 24px;
+  font-family: var(--f-mono); font-size: 12px; color: var(--ink-3);
+  padding: 16px 0 0; margin-top: 8px; border-top: 1px solid var(--rule);
+}
+.key b { color: var(--ink-2); font-weight: 500; }
+
+.note {
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  padding: 20px 22px;
+  margin: 26px 0 0;
+  font-size: 15.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+.note strong { color: var(--ink); }
+
+footer {
+  margin-top: 74px;
+  padding-top: 26px;
+  border-top: 1px solid var(--rule-strong);
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Market study &middot; 1 September 2026 &middot; Internal</p>
+  <h1>Trading Journal Teardown</h1>
+  <p class="standfirst">Fifteen parallel research tracks across the commercial trading-journal market, run to answer two questions: what should we build into our own journal next, and what would it take to sell one. The answer to the second is <em>don't</em> &mdash; and the reason is not the engineering.</p>
+
+  <div class="stats">
+    <div class="stat"><span class="n">15</span><span class="l">Research tracks</span></div>
+    <div class="stat"><span class="n">55</span><span class="l">Products surveyed</span></div>
+    <div class="stat"><span class="n">596</span><span class="l">Sources cited</span></div>
+    <div class="stat"><span class="n">105</span><span class="l">Features scored &times;8</span></div>
+    <div class="stat"><span class="n">1</span><span class="l">Claim falsified</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>Verdict</b>The recommendation</div>
+    <div class="col">
+      <div class="verdict">
+        <p class="label">Recommendation</p>
+        <p class="call">Don't build a commercial trading journal. Build the features into our own, and gate any commercial move behind three tests we haven't run.</p>
+        <p>This is not a hedge. The research found a real gap in the market and a real technical advantage. It also found an economic picture in which neither is enough &mdash; and the second finding decides.</p>
+      </div>
+
+      <div class="prose">
+        <h3>Why the gap isn't enough</h3>
+        <p>The category is small: <strong>$40&ndash;180M a year, central estimate ~$90M</strong>, split a dozen ways. The modal price has been pinned at <strong>$29.95/month</strong> for years, realized ARPU lands at $24&ndash;30 after annual discounts, and monthly churn runs 7&ndash;10% with a floor set by customers <em>quitting trading altogether</em>.</p>
+        <p>But the number that decides is distribution. Acquisition in this category runs through trading-educator affiliates at <strong>20&ndash;30% commission, recurring and often lifetime</strong> &mdash; which drops gross margin to roughly 53%. The review layer that appears to independently rank these products is funded by the same commissions; this study had to exclude six &ldquo;review&rdquo; publishers that turned out to sell rival journals. TradeZella's founder had a 750,000-subscriber YouTube channel <em>before</em> launch. That is the category's actual business model, and a better product with no audience does not get evaluated, let alone bought.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>Evidence</b>Economics</div>
+    <div class="col">
+      <h2 class="prose">What decides it</h2>
+      <div class="prose"><p>Every figure below is sourced in the underlying research. Together they describe an eighteen-to-twenty-four-month solo build into a small category, at half margin, against incumbents with bought distribution.</p></div>
+
+      <div class="tw">
+        <table>
+          <caption>The commercial case, assembled</caption>
+          <thead><tr><th>Measure</th><th class="num">Value</th><th>Consequence</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Category revenue</td><td class="num">~$90M/yr</td><td>One mid-sized vertical SaaS, split a dozen ways</td></tr>
+            <tr><td class="k">Modal price</td><td class="num">$29.95/mo</td><td>Ceiling $99; under attack from lifetime licences and free tiers</td></tr>
+            <tr><td class="k">Realized ARPU</td><td class="num">$24&ndash;30</td><td>After the standard 25% annual discount</td></tr>
+            <tr><td class="k">Monthly churn</td><td class="num">7&ndash;10%</td><td>~6.6% floor from traders leaving the activity</td></tr>
+            <tr><td class="k">Lifetime value</td><td class="num">$170&ndash;215</td><td>Against a 20&ndash;30% lifetime affiliate haircut</td></tr>
+            <tr><td class="k">Gross margin</td><td class="num">~53%</td><td>Distribution, not infrastructure, takes the other half</td></tr>
+            <tr><td class="k">Build to sellable v1</td><td class="num">56&ndash;81 wks</td><td><strong>18&ndash;24 calendar months solo</strong> &mdash; the 9&ndash;12 figure assumes two people</td></tr>
+            <tr><td class="k">Table-stakes features we lack</td><td class="num">34</td><td>20 absent, 14 partial &mdash; three are defects, not gaps</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note"><strong>One finding cuts the other way.</strong> Because the product is deliberately end-of-day, every chart it would draw is T+1 historical &mdash; which needs no exchange licence at all. No CTA/UTP subscriber fees, no per-user attestation. The &ldquo;yesterday only&rdquo; constraint inherited from a free Polygon tier turns out to be a compliance advantage worth keeping.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>Red team</b>Four claims<br>attacked</div>
+    <div class="col">
+      <h2 class="prose">Four claims, attacked on purpose</h2>
+      <div class="prose"><p>Once the findings started converging on a flattering thesis, a dedicated agent was tasked with breaking it. One claim was falsified outright, one remains unresolved, and two survived in weakened form. This section is the reason to trust the rest of the document.</p></div>
+
+      <div class="claims">
+        <div class="claim">
+          <div>
+            <p class="q">&ldquo;The discretionary US-equity intraday segment has been vacated, not saturated.&rdquo;</p>
+            <p class="why">The counter-hypothesis &mdash; that it was abandoned because it's a dying market &mdash; failed. Retail engagement drove a <strong>+44% YoY rise in US equity volume in 2025</strong>, and <strong>FINRA 26-10 abolished the PDT rule and the $25k minimum on 4 June 2026</strong>. The segment is growing. But &ldquo;vacated&rdquo; overstates it: five multi-asset incumbents serve this trader, and what's actually vacant is <em>specialists</em> &mdash; because equity intraday has no prop-style affiliate channel to buy distribution through.</p>
+          </div>
+          <div><span class="chip warn"><span class="dot"></span>Survives weakened</span></div>
+        </div>
+
+        <div class="claim">
+          <div>
+            <p class="q">&ldquo;Nobody grades a timestamped pre-market forecast.&rdquo;</p>
+            <p class="why">Literally unfalsified for journals. But the pre-commitment container already ships at Edgewonk, TradesViz and TradeZella, and the grading mechanism is industrialised elsewhere &mdash; TipRanks, Discord call-scoring, and mass-market in sports-betting closing-line-value trackers. This is an <strong>unported mechanism, not an invention</strong>. Worth building; worth roughly zero as a moat.</p>
+          </div>
+          <div><span class="chip warn"><span class="dot"></span>Survives weakened</span></div>
+        </div>
+
+        <div class="claim">
+          <div>
+            <p class="q">&ldquo;Our enrichment substrate is a scarce, hard-to-copy asset.&rdquo;</p>
+            <p class="why">Broken by a file already in this repo. TradesViz ships MFE/MAE at <em>finer</em> resolution than ours &mdash; five-second bars for S&amp;P names &mdash; plus exit counterfactuals and ATR/gap context, statistically gated, at $20&ndash;27/month. Chartlog gives MFE/MAE away at $14.99. Our whole substrate is 983 lines. And Polygon's terms forbid serving that data to anyone but ourselves.</p>
+          </div>
+          <div><span class="chip crit"><span class="dot"></span>Falsified</span></div>
+        </div>
+
+        <div class="claim">
+          <div>
+            <p class="q">&ldquo;Traders will actually fill in a pre-market forecast.&rdquo;</p>
+            <p class="why">The demand-side assumption the entire wedge rests on, and nothing settles it in either direction. What we do know: of 45 public trading journals on Elite Trader, <strong>47% were dead inside 60 days and 33% inside 14</strong>. What survives is <em>bounded, scored</em> input &mdash; across hundreds of reviews not one praised a free-text mood field. A per-symbol multi-timeframe forecast plus thesis is the unbounded, narrative shape abandoners name, authored at the busiest minute of the day, paying off in six to twelve months. Most damning: our own trader already abandoned a lighter version of exactly this.</p>
+          </div>
+          <div><span class="chip unk"><span class="dot"></span>Unresolved &middot; leans against</span></div>
+        </div>
+      </div>
+
+      <div class="key">
+        <span><b>Survives weakened</b> &mdash; true, but narrower than claimed</span>
+        <span><b>Falsified</b> &mdash; disproved by evidence</span>
+        <span><b>Unresolved</b> &mdash; no evidence either way</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>The gap</b>What nobody<br>fills</div>
+    <div class="col">
+      <h2 class="prose">Everyone competes on the exit</h2>
+      <div class="prose">
+        <p>The feature matrix scored 105 features across seven vendors and ourselves. The most interesting thing it produced was not a gap in any one product but a gap in all of them at once.</p>
+      </div>
+
+      <blockquote><p>Every schema in the category starts at <em>&ldquo;a fill happened.&rdquo;</em> Five vendors ship real, differently-architected exit-quality analytics. Not one ships entry-quality decomposition. Exit quality is computable from bars alone &mdash; entry quality requires knowing what you intended.</p></blockquote>
+
+      <div class="prose">
+        <p>Trading platforms have the mirror-image gap: they begin at the order ticket. So the pre-trade half of the loop &mdash; what you thought was going to happen, and how sure you were &mdash; is unserved by journals and platforms alike. Our Morning Plan sits exactly there, which is why the wedge is real.</p>
+        <p>The second blind spot is quieter and more damning. <strong>Psychology is the most-marketed and least-built section of the entire matrix.</strong> What actually ships is free-text tags, a schema the user has to invent, or an LLM reading tone. Self-reported psychological data collapses precisely when it matters most. Only two structural fixes exist anywhere in the category: Edgewonk's pre-committed comment valence, and taking the reading off an instrument <em>before</em> the P&amp;L is known. And only one vendor joins psychological data to money at all &mdash; collecting the inputs was never the hard part.</p>
+        <p>A third position is simply empty: <strong>nobody gates ordinary statistics on sample size.</strong> One vendor statistically gates its AI findings and markets that as a differentiator; none applies the same rigour to the dashboard. With 47% of journals dead inside two months, most statistics anyone looks at are noise &mdash; including ours.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>Position</b>Us vs<br>the market</div>
+    <div class="col">
+      <h2 class="prose">Where we actually stand</h2>
+      <div class="prose"><p>Scored honestly, including the unflattering half. Three of the missing thirty-four are defects rather than gaps, and one of them is live in production.</p></div>
+
+      <div class="tw">
+        <table>
+          <caption>Feature matrix summary &mdash; 105 features, 8 columns</caption>
+          <thead><tr><th>Position</th><th class="num">Count</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Ahead of every vendor</td><td class="num">5</td><td>Physiological inputs &middot; pre-market conviction &middot; multi-timeframe bias pre-open &middot; idea-origin classification &middot; dated risk-unit schedule</td></tr>
+            <tr><td class="k">Ahead, contested</td><td class="num">2</td><td>Bracket counterfactual (Edgewonk has it, hand-ticked) &middot; partial-taking simulation</td></tr>
+            <tr><td class="k">Table stakes missing</td><td class="num">34</td><td>Commissions and fees &middot; trade-annotated chart &middot; daily journal object &middot; mobile &middot; speed at scale &middot; authentication</td></tr>
+            <tr><td class="k">Defects, not gaps</td><td class="num">3</td><td>No auth on any journal route &middot; position flips silently mis-grouped &middot; comma-split setups double-counting P&amp;L</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note"><strong>The leads are real and thin.</strong> All five uncontested rows are weeks of work for a funded competitor. The substrate underneath them was falsified as a moat. Treat them as a personal advantage in our own trading &mdash; which is exactly what the backlog does &mdash; rather than as a defensible market position.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>Action</b>The backlog</div>
+    <div class="col">
+      <h2 class="prose">What to build, in order</h2>
+      <div class="prose"><p>Ranked by one question: would having this make us a better trader in the next three months? The ordering exploits a structural fact &mdash; <strong>we already store far more than we report on</strong>, so several category-leading features are a rendering job for us and a data-collection job for everyone else.</p></div>
+
+      <details class="tier" open>
+        <summary><span class="tno">Tier 0</span> Do first, regardless <span class="tsub">&mdash; two live defects and the measurement that governs everything</span></summary>
+        <div class="body"><ul>
+          <li><span class="t">Measure the Morning Plan fill rate</span><span class="eff">~20 min</span><span class="d">What fraction of trading days since the plan shipped actually have a plan saved, and is the trend rising or falling? Everything in Tier 3 depends on the answer and we have never looked. The highest-value unrun experiment in the study.</span></li>
+          <li><span class="t">Add auth to the 14 journal API routes</span><span class="eff">S&ndash;M</span><span class="d">No middleware exists; no route checks anything. Live on the public domain, proxying service-account access to the sheet, with mutating endpoints open.</span></li>
+          <li><span class="t">Fix position-flip mis-grouping</span><span class="eff">M</span><span class="d">A position flipping through zero is grouped wrongly, silently corrupting trades and every statistic downstream.</span></li>
+          <li><span class="t">Fix comma-split setup double-counting</span><span class="eff">S</span><span class="d">Multi-value cells attribute the trade's full P&amp;L to each value, inflating every breakdown we currently read.</span></li>
+          <li><span class="t">Golden-file tests for the trade grouper</span><span class="eff">M</span><span class="d">There are zero tests in the journal code, and the two fixes above can't be made safely without them.</span></li>
+        </ul></div>
+      </details>
+
+      <details class="tier" open>
+        <summary><span class="tno">Tier 1</span> Free wins <span class="tsub">&mdash; the data is already in the sheet</span></summary>
+        <div class="body"><ul>
+          <li><span class="t">Market Behavior reports</span><span class="eff">M</span><span class="d">Performance sliced by gap band, relative volume, ATR, distance from the 20- and 50-day averages, prior-close location, day type. We store every one of these inputs and report on none of them &mdash; the largest gap between data we hold and insight we extract.</span></li>
+          <li><span class="t">Exit Analysis</span><span class="eff">M</span><span class="d">Float the last exit to maximum P&amp;L bounded by the risk actually taken. Our Capture Tracker measures against a fixed 2.5R target; this measures against what was genuinely available. Better question, same bar walk.</span></li>
+          <li><span class="t">Missed Trades</span><span class="eff">S</span><span class="d">Surface planned symbols that never became trades. We currently discard them &mdash; and planned-and-skipped versus planned-and-taken is exactly the hesitation signal a discretionary trader needs.</span></li>
+          <li><span class="t">Sample-size gating on every statistic</span><span class="eff">M</span><span class="d">Show a confidence interval and an explicit &ldquo;not enough data yet&rdquo; band instead of a confident win rate on six trades. Nobody in the category does this and we already surface the denominators.</span></li>
+          <li><span class="t">Page-level unit toggle</span><span class="eff">S</span><span class="d">One control re-denominating every figure between dollars, percent and R. We already have it inside the calendar; promote it to the page.</span></li>
+          <li><span class="t">Entry-quality decomposition</span><span class="eff">M</span><span class="d">Split &ldquo;was the idea right&rdquo; from &ldquo;did I trade it well.&rdquo; The category's biggest blind spot, and we hold the inputs.</span></li>
+        </ul></div>
+      </details>
+
+      <details class="tier">
+        <summary><span class="tno">Tier 2</span> Worth real effort <span class="tsub">&mdash; the two best ideas found anywhere</span></summary>
+        <div class="body"><ul>
+          <li><span class="t">Pre-rated behaviour tags</span><span class="eff">M</span><span class="d">Author a comment library bucketed by trade stage and assign each phrase a valence <em>once, at definition time</em>; at journaling time you only pick. This decouples the moral judgement from the state being measured &mdash; the hardest problem in self-reported psychological data &mdash; and turns journaling into selection rather than confession. It also matches the bounded, scored shape that research says actually survives. Our Process Followed flag is this idea collapsed to one bit.</span></li>
+          <li><span class="t">Deterministic behavioural detectors</span><span class="eff">M&ndash;L</span><span class="d">Revenge trading, size-up-after-loss, cold-start, loss concentration &mdash; each gated behind a two-proportion z-test, ranked by dollar impact, capped at four findings, with the language model narrating rather than deciding. Near-zero run cost and far more trustworthy than feeding trades to an LLM.</span></li>
+          <li><span class="t">Commissions and fees in P&amp;L</span><span class="eff">M</span><span class="d">Every number we compute is currently optimistic by an unknown amount. Not a rounding error at intraday frequency.</span></li>
+          <li><span class="t">Day-level journal object</span><span class="eff">S&ndash;M</span><span class="d">We have day-level fields but no day-level narrative, and the daily retro is where discretionary traders actually learn.</span></li>
+          <li><span class="t">Trade-annotated charts</span><span class="eff">L</span><span class="d">Rendered entries, exits, excursion lines and the stop level on bars we already fetch &mdash; using Apache-licensed Lightweight Charts, explicitly not TradingView's Advanced Charts, whose licence restricts free use to free offerings and carries $50,000 liquidated damages per breach.</span></li>
+          <li><span class="t">Rules engine with sample sets</span><span class="eff">L</span><span class="d">Named rules grouped into market-condition, entry and exit, with cohorts that refuse to report below 25 trades. Turns &ldquo;setup&rdquo; from a free-text label into a testable definition.</span></li>
+        </ul></div>
+      </details>
+
+      <details class="tier">
+        <summary><span class="tno">Tier 3</span> The wedge <span class="tsub">&mdash; blocked until the fill-rate measurement comes back</span></summary>
+        <div class="body"><ul>
+          <li><span class="t">Forecast calibration scoring</span><span class="eff">L</span><span class="d">Grade the timestamped pre-market read against what the session actually did. Converts review from &ldquo;was I disciplined?&rdquo; to &ldquo;was I right?&rdquo; &mdash; the genuine white space, though the mechanism is ported rather than invented.</span></li>
+          <li><span class="t">Conviction-versus-outcome calibration</span><span class="eff">M</span><span class="d">Did size track being right? A trader who is right but sizes flat has a different problem than one who is wrong.</span></li>
+          <li><span class="t">Plan-to-execution reconciliation</span><span class="eff">M</span><span class="d">Traded-the-plan versus drifted, scored.</span></li>
+        </ul>
+        <div class="note" style="margin-top:18px"><strong>Before building any of this, shrink the input.</strong> If the fill rate is marginal, the right move is to make the morning plan smaller and more bounded &mdash; direction and conviction only, two symbols, thirty seconds &mdash; and measure again, rather than build scoring on top of an input that is decaying.</div>
+        </div>
+      </details>
+
+      <div class="prose"><p style="margin-top:22px">Tier 0 plus Tier 1 is roughly <strong>three to four weeks of part-time work</strong> and produces most of the trading value in this document. Everything after that is optional.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>Gates</b>What would<br>change this</div>
+    <div class="col">
+      <h2 class="prose">Three gates, each cheap to fail</h2>
+      <div class="prose"><p>The recommendation against building commercially is a judgement on current evidence, not a permanent verdict. These are the specific things that would overturn it, ordered so each can be abandoned without sunk cost.</p></div>
+
+      <div class="gates">
+        <div class="gate">
+          <p class="g">Gate 1</p>
+          <h4>The fill-rate test</h4>
+          <p>Query our own sheet. What share of trading days since the Morning Plan shipped have a plan saved, and which way is the trend moving? Below roughly 60% and falling, the wedge is dead and we stop here.</p>
+          <span class="cost">Cost: ~20 minutes</span>
+        </div>
+        <div class="gate">
+          <p class="g">Gate 2</p>
+          <h4>The second-user test</h4>
+          <p>One or two traders who are not us, for a full month, with fill rate measured. The founder's own usage proves nothing. This also surfaces every multi-tenancy assumption cheaply.</p>
+          <span class="cost">Cost: weeks, not months</span>
+        </div>
+        <div class="gate">
+          <p class="g">Gate 3</p>
+          <h4>A distribution answer</h4>
+          <p>Not &ldquo;we'll do content marketing.&rdquo; A specific named channel &mdash; an educator relationship, a community, an existing audience. No engineering starts on a commercial build before this exists, because this is what the research says decides the outcome.</p>
+          <span class="cost">Cost: unknown &mdash; which is the point</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>Caveats</b>What we<br>don't know</div>
+    <div class="col">
+      <h2 class="prose">Where the thin ice is</h2>
+      <div class="prose">
+        <p>Recorded so a future reader knows where to push rather than inheriting a document that reads as uniformly confident.</p>
+        <p><strong>Reddit was unreachable by every permitted route.</strong> The largest trader community contributed nothing directly. Voice-of-customer evidence rests on Elite Trader, NexusFi, Trade2Win, Trustpilot, the app stores and Hacker News &mdash; which skew toward a serious, self-selecting minority. The true abandonment rate among casual traders is probably <em>worse</em>, which would strengthen the recommendation, but we did not verify it.</p>
+        <p><strong>The review layer is vendor-owned.</strong> Six &ldquo;review&rdquo; publishers encountered during research sell rival journals; they were used for discovery only and excluded from evidence. One vendor's homepage claims it is &ldquo;ranked #1 by Claude for trading journals,&rdquo; which is marketing copy on its own site rather than any ranking &mdash; recorded here only as evidence about conduct in this category.</p>
+        <p><strong>No trial accounts were created and no credentials entered anywhere.</strong> Every feature claim comes from documentation, demos and reviews rather than hands-on use, so vendors' actual usability is inferred rather than experienced.</p>
+        <p><strong>The PDT abolition is three months old.</strong> It removed the single largest barrier to entry for new US equity day traders and no analysis of its effect yet exists. Every market-size figure in this study predates it, and the segment could be materially larger in a year.</p>
+        <p><strong>Prices move fast.</strong> All pricing was verified on 1 September 2026. Re-verify anything older than about six months before it drives a decision.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band">
+    <div class="rail"><b>Index</b>Source<br>documents</div>
+    <div class="col">
+      <h2 class="prose">The underlying research</h2>
+      <div class="prose"><p>This page is a summary. The evidence lives in markdown alongside it, where every non-obvious claim carries a confidence tag &mdash; <span style="font-family:var(--f-mono);font-size:.9em">[V]</span> verified on the vendor's own material, <span style="font-family:var(--f-mono);font-size:.9em">[R]</span> reported by third parties, <span style="font-family:var(--f-mono);font-size:.9em">[I]</span> our inference.</p></div>
+
+      <div class="docs">
+        <div class="doc"><span class="no">00</span><span class="nm">Method</span><span class="ds">Scope, the three analytical personas, evidence rules and known limitations</span></div>
+        <div class="doc"><span class="no">01</span><span class="nm">Landscape</span><span class="ds">~55 products, nine market archetypes, pricing bands, consolidation signals</span></div>
+        <div class="doc"><span class="no">02</span><span class="nm">Feature matrix</span><span class="ds">105 features across 8 columns, each classed table stakes, differentiator, frontier or vitamin</span></div>
+        <div class="doc"><span class="no">03</span><span class="nm">Gap analysis</span><span class="ds">Code-level audit of our own journal, then the gap against the market</span></div>
+        <div class="doc"><span class="no">04</span><span class="nm">Product thesis</span><span class="ds">The recommendation, the segment argument, and what we might be wrong about</span></div>
+        <div class="doc"><span class="no">05</span><span class="nm">Build plan</span><span class="ds">Architecture, ingest, licensing and effort for both dogfood and sellable scopes</span></div>
+        <div class="doc"><span class="no">06</span><span class="nm">Dogfood backlog</span><span class="ds">The actionable output, with an explicit not-doing list</span></div>
+        <div class="doc"><span class="no">07</span><span class="nm">Open questions</span><span class="ds">Ranked by how load-bearing and how unverified each one is</span></div>
+        <div class="doc"><span class="no">&mdash;</span><span class="nm">vendors/</span><span class="ds">Seven vendor deep-dives plus eight thematic studies: adjacencies, AI, business model, voice of customer, UX, data integration, red team</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>TapeReader &middot; internal market study &middot; compiled 1 September 2026<br>
+  15 research tracks &middot; 596 sources &middot; public sources only &middot; no trial accounts, no credentials entered<br>
+  Pricing and feature claims verified 2026-09-01 and decay quickly &mdash; check the as-of date in any source file before acting on it.</p>
+</footer>
+
+</div>

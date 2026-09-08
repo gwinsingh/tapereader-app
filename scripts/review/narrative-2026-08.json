@@ -1,0 +1,156 @@
+{
+  "verdict": "You made +19.4R, and nothing in this review establishes that you have an edge. Three trades — MRNA 8/19, QQQ 8/06, NVDA 8/05 — are 110% of the month; remove them and the book is −1.9R over 68 trades, behind your own practice book. At session level the live month is statistically indistinguishable from practice (p=0.38), and an unchanged practice-era version of you produces a month this good 11–14% of the time. That is not a criticism of how you traded. It is the sample size, and it is what one month at n=71 can support. What the month does establish is narrower and more useful: two behaviours measurably improved, one measurably deteriorated, and several recommendations from the previous review were built on corrupted risk data and are withdrawn.",
+  "headline": [
+    {
+      "label": "Net R",
+      "value": "+19.4R",
+      "sub": "on measured risk; 95% CI [−14.2, +56.8]"
+    },
+    {
+      "label": "Without the top 3 trades",
+      "value": "−1.9R",
+      "sub": "68 trades; practice was +7.3R over 248"
+    },
+    {
+      "label": "Chance of a month this good",
+      "value": "11–14%",
+      "sub": "resampling the unchanged practice-era trader"
+    }
+  ],
+  "findings": [
+    {
+      "tier": "T2-CONFIRM",
+      "claim": "Your add rule genuinely tightened — the most credible improvement in the file, and it is a counted behaviour rather than a P&L outcome.",
+      "numbers": "Adds placed while underwater: 0 of 27 live vs 7 of 76 practice. First add now taken at a median +0.60R into the move vs +0.40R in practice. 69% of live adds came at ≥+0.5R vs 45% in practice.",
+      "mechanism": "Adding to a loser converts a −1R trade into −2R. You did it seven times in practice and never once live. Because these are counts, three lucky trades cannot manufacture the result.",
+      "confounds": "The P&L half is NOT established: lift p=0.33, and excluding the top three trades the pyramid lift is −2.9R. The median adding trade loses 0.46R against holding the starter alone.",
+      "verdict": "Protect this rule. Judge its profitability on 200 trades, not 27."
+    },
+    {
+      "tier": "T2-CONFIRM",
+      "claim": "You honour your own stops, verified from the order ladder rather than self-report, and your loss tail roughly halved.",
+      "numbers": "16 of 70 live trades traded beyond the initial stop while still held — matching the Stopped Out? flag 16 for 16, so no silent widening. Only 1 of those 16 realised worse than −1R. Worst loss of the month −1.60R, against −3.90R in practice. Losses beyond −1R: 10% live vs 17% practice.",
+      "mechanism": "Discipline visible in the ladder, independent of the Process Followed? self-label.",
+      "confounds": "None material — this uses order data and the MAE walk over the actual holding window, not a retrospective label.",
+      "verdict": "Unambiguously better. Per-trade tail risk is roughly halved."
+    },
+    {
+      "tier": "T2-REJECT",
+      "claim": "Your peak risk-at-stake got worse, and it is the most statistically solid result in the review.",
+      "numbers": "10% of live trades exceeded 2× committed risk vs 2% in practice (p=0.0089); mean ratio 1.33 vs 1.16 (p=0.013). Worst: CRM 8/28 at 6.95× — $15 committed, $106 actually at stake, across 3 entries and 5 stop raises. GOOGL 8/03 at 4.02×. Two of the seven breaches were single-entry, so it is not purely a pyramid effect.",
+      "mechanism": "When you add, the stop does not move up enough to hold total exposure at one unit. A max-loss rule does not survive a 7× exposure event.",
+      "confounds": "One of only three sub-0.05 results in 87 tests, but it is a behavioural count with a clean mechanism, replicated on two independent framings, measured rather than self-reported, and its seven breaches split 3 winners / 4 losers so it is not outcome-contaminated.",
+      "verdict": "Fix this before anything else here. It is mechanical: after each add, the stop must hold total risk at one unit."
+    },
+    {
+      "tier": "T2-CONFIRM",
+      "claim": "When the market puts you 1R up, you more often than not give all of it back and finish negative.",
+      "numbers": "Of the 33 positions that reached +1R while you still held them, the MEDIAN capture of their in-window peak is −10% — the median such trade ended red. Across all 52 positions that reached +1R at any point, only 16 (31%) closed green. Before 8/21 that conversion was 15 of 41 (37%); after, 1 of 11 (9%).",
+      "mechanism": "The stop never trails past entry (0 of 296 trades across both books), so a position that is 1R up still carries its full initial loss. Every decision to bank is discretionary and taken under live P&L pressure, and the default outcome of doing nothing is a round trip.",
+      "confounds": "Benchmark-sensitive, so this uses the in-window peak — only excursion you were present for — rather than the day-long peak, which keeps accruing after you are flat and inflates the leak roughly 2×. Conversion is a count and is benchmark-free, which is why it is the metric to track.",
+      "verdict": "This is the leak, and it is the one finding that connects the stop behaviour, the drawdown, and your own notes about exiting too early. Track conversion weekly."
+    },
+    {
+      "tier": "T2-CONFIRM",
+      "claim": "Your stop has never once protected a profit — not in 296 trades across both books.",
+      "numbers": "0 of 70 live and 0 of 226 practice trades ever had the stop trailed to or beyond the entry price, including all 25 live trades that reached 2.5R (median stop high-water: 0.12R below entry). You do raise stops — 38 of 70 trades, up to 7 times — but never across entry. 0 of 15 winners were ever stopped out.",
+      "mechanism": "Read directly from the stop ladder. Every open position carries full initial risk until you manually close it, so 100% of your winning exits are discretionary decisions taken under live P&L pressure.",
+      "confounds": "Not a statistical claim. Checked against the exit ladder to exclude the broker's flatten-time stop reset, and against both average and first entry price.",
+      "verdict": "A fact, not a statistic. It does not prove a breakeven stop would earn more — that is untested — it shows your stop system does one job and none of the other."
+    },
+    {
+      "tier": "T2-REJECT",
+      "claim": "The drawdown after 8/21 was an exit collapse. Not the tape, not selection.",
+      "numbers": "Positions reaching +1R: 76% before vs 69% after (p=0.29) on a tape that was MORE often up (SPY Dir Up 52% → 71%, VIX 15.52 → 15.00). Selection unchanged: ETF share 41% → 35%, mean risk $16.80 → $17.20, multi-entry 39% → 35%. What changed: median duration 6.1 → 2.1 minutes, and of positions reaching +1R you converted 15 of 41 before and 1 of 11 after. Two MRNA trades that went +7.2R and +10.6R on the position both closed red.",
+      "mechanism": "After the peak you cut at the first adverse tick, traded more per session (3.6 → 4.25), entered later, and stopped journalling entirely (0% → 71% blank). A protecting-the-number pattern.",
+      "confounds": "17 trades over 4 sessions; p=0.054 is not significant at session level. Duration is partly definitional (artifact #2), which is why the independent conversion measure carries the claim.",
+      "verdict": "Four sessions is not a finding, but every independent measure points the same way and none points at the market."
+    },
+    {
+      "tier": "T2-REJECT",
+      "claim": "There is no entry filter in your enrichment columns, and the strongest-looking one was fake.",
+      "numbers": "53 median splits across 28 pre-trade variables: excluding look-ahead columns, 2 of 49 reached p<0.05 — exactly chance. Nothing significant in both books in the same direction. Extension: null on 48 tercile tests across 12 operationalisations and two entry-price definitions. #1m/#5m/#1H were LOOK-AHEAD — countConsecutive() read the entry bar's close, which prints after entry; #5m=0 had a 0% win rate on 67 trades across two books. Now fixed and lagged; lagged, all three are a clean null.",
+      "mechanism": "One setup, liquid names, a two-point VIX band — the pre-trade feature space you actually sample is too narrow to contain an exploitable gradient.",
+      "confounds": "R-normalisation checked directly: stop distance/ADR is itself among the 28 and does not replicate.",
+      "verdict": "Stop looking for an entry filter in these columns. The next marginal R is not there."
+    },
+    {
+      "tier": "T3-HYPOTHESIS",
+      "claim": "Your own 2.5R target is unreachable by construction on the trades you commit to most.",
+      "numbers": "Each add raises the last entry's risk while the stop trails behind, so on the 27 multi-entry trades R_last is a median 1.96× initial risk — '2.5R' becomes a ~4.9× move. Target met on 1 of 27 pyramids vs 3 of 43 single entries; 4 of 70 overall (6%). The market offered your target on 16 of 70; you converted 4, undershot 7, and turned 5 into losses. Median capture of your own target, when offered: 60%.",
+      "mechanism": "Mechanical: every add moves your own goalpost further away in dollars.",
+      "confounds": "Reconstructed from the entry and stop ladders with a 5-second grace for the broker writing the protective order; reduces exactly to initial risk on all 43 single-entry trades, so the definition is self-consistent.",
+      "verdict": "The target definition is more likely wrong than the exits are. Anchor it to initial risk or to the built position's average cost, not to the last add."
+    },
+    {
+      "tier": "T3-HYPOTHESIS",
+      "claim": "Your starter lot alone loses money in both books. The edge, if there is one, is not the entry.",
+      "numbers": "Single-entry trades (which are their own starter): live n=43 expR −0.33 [−0.59, −0.02]; practice n=156 expR −0.21 [−0.35, −0.06]. Both CIs exclude zero across 199 combined trades and 73 sessions, unchanged between periods (p=0.46).",
+      "mechanism": "An ORB entry with roughly a 0.9%-of-price stop and a ~20% hit rate does not pay for itself on the starter lot.",
+      "confounds": "Heavily selection-confounded: 'single entry' largely means 'it never went my way, so I never added'. NOT actionable as 'stop taking single-entry trades' — you cannot know at entry which kind it is, and refusing them also refuses the starters that become pyramids.",
+      "verdict": "The most reliable description in the dataset and the least actionable. Its value is framing: your edge is what you do in the two minutes after the entry."
+    },
+    {
+      "tier": "T3-HYPOTHESIS",
+      "claim": "Pre-market rest predicts your behaviour, not your P&L.",
+      "numbers": "Rest composite (sleep hours, sleep score, readiness) against day R: r=+0.40, p=0.12 — null. Against behaviour: trades/day r=−0.48 (p=0.051), process-followed rate r=+0.47 (p=0.068). All four rest measures point the same way on all three behaviours: 12 of 12 signs. Low-sleep sessions: 4.13 trades/day, 76% process, 55% notes. High: 3.33, 90%, 73%.",
+      "mechanism": "Under-rested you take more trades and log less. Recorded pre-market, so causally prior — almost nothing else in this dataset is.",
+      "confounds": "Effective n=17 sessions, not 59 trades. Not significant at 0.05 after 29 psych tests. Sleep range is only 6.0–7.5h, so the low group is not sleep-deprived in any clinical sense.",
+      "verdict": "Keep logging it. Do not trade off it yet — the 12/12 sign consistency is the part worth carrying forward."
+    }
+  ],
+  "targets": [
+    {
+      "tier": "outcome",
+      "label": "Cumulative R rising month over month",
+      "baseline": "+19.4R this month, +7.3R practice",
+      "target": "positive and rising",
+      "horizon": "reviewed monthly"
+    },
+    {
+      "tier": "performance",
+      "label": "Conversion: share of positions that reach +1R and still close green",
+      "baseline": "31% overall (16/52); 37% before 8/21, 9% after",
+      "target": "≥45%, and never two consecutive weeks below 25%",
+      "horizon": "weekly, evaluated over ~30 sessions"
+    },
+    {
+      "tier": "performance",
+      "label": "Peak risk-at-stake within one unit of committed risk",
+      "baseline": "10% of trades exceeded 2×; worst 6.95×",
+      "target": "0 trades above 2×; ≤5% above 1.5×",
+      "horizon": "every trade, checked weekly"
+    },
+    {
+      "tier": "process",
+      "label": "No add while the position is underwater",
+      "baseline": "0 of 27 live — already held",
+      "target": "maintain at 0",
+      "horizon": "every trade"
+    },
+    {
+      "tier": "process",
+      "label": "Conviction filled pre-market on every trade",
+      "baseline": "48%, collapsing to 0% on losing sessions",
+      "target": "100%",
+      "horizon": "daily"
+    },
+    {
+      "tier": "process",
+      "label": "Journal completeness through a drawdown",
+      "baseline": "0% blank before 8/21, 71% blank after",
+      "target": "under 10% blank in any week",
+      "horizon": "weekly"
+    }
+  ],
+  "caveats": [
+    "Nothing here establishes that you have an edge. The month's 95% CI is [−14.2R, +56.8R], it is indistinguishable from the practice book at session level (p=0.38), and dropping its three best trades makes it negative.",
+    "Do not scale risk on the basis of this month. You already scaled mid-month ($14 → $18 → $28); this review provides no evidence that was justified.",
+    "478 tests were examined across three tracks. At this sample size roughly 24 would reach p<0.05 by chance, which is why almost everything above is labelled hypothesis rather than finding.",
+    "Capture depends entirely on the benchmark, so every figure here is quoted with its benchmark. Against the day-long peak position value it is ~5%; against a stop-aware benchmark ~40% at a 2.5R target; against your own 2.5R target ~60%; and among positions that reached +1R while you actually held them, the median is −10%. The day-long figure is the loosest and the one I first quoted at you; it overstated the leak roughly 2×.",
+    "Three of the previous review's recommendations are withdrawn: the ≤3 daily loser cap, the −1.5R daily stop, and the claim that discretionary loss-cutting beats a mechanical stop. All three rested on hand-typed risk values that the order ladder has since shown to be wrong.",
+    "H1 (VIX < 17.2 outperforms) remains untestable — you have never traded live money above VIX 17.2. It carries forward untouched.",
+    "One live session (8/24) and 16 practice trades have no DAS export and therefore no ladder; their risk values remain hand-entered."
+  ],
+  "testsExamined": 478
+}

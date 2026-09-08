@@ -1,4 +1,4 @@
-import { GroupedTrade } from "./trade-grouper";
+import type { GroupedTrade } from "./trade-grouper";
 
 // Daily-history fields can be "N/A" — the literal string written to the sheet
 // when a recently listed ticker doesn't have enough daily bars to compute the
@@ -17,6 +17,11 @@ export interface MarketEnrichment {
   orHigh: number | null;
   orLow: number | null;
   maxRBeforeStop: number | null;
+  mfeR: number | null;
+  peakPositionValue: number | null;
+  troughPositionValue: number | null;
+  peakInWindow: number | null;
+  troughInWindow: number | null;
   farthestPrice: number | null;
   maeR: number | null;
   breakoutVolRatio: number | null;
@@ -77,6 +82,11 @@ const EMPTY: MarketEnrichment = {
   orHigh: null,
   orLow: null,
   maxRBeforeStop: null,
+  mfeR: null,
+  peakPositionValue: null,
+  troughPositionValue: null,
+  peakInWindow: null,
+  troughInWindow: null,
   farthestPrice: null,
   maeR: null,
   breakoutVolRatio: null,
@@ -361,9 +371,20 @@ function findEntryBarIndex(bars: Bar[], entryMinute: number): number {
   return -1;
 }
 
+/**
+ * Consecutive same-direction bars BEFORE the entry.
+ *
+ * This deliberately starts at `entryIdx - 1`. Starting at the entry bar reads that bar's
+ * CLOSE, which prints after the entry was placed — so the field encoded the outcome rather
+ * than the setup. On the 1H timeframe the entry bar is 09:30–10:30, meaning a 09:31 entry
+ * was being scored on whether the first hour finished green, up to 59 minutes later. The
+ * symptom was a 0% win rate on the 67 trades (across two independent books) where the count
+ * was zero — impossible for a genuine pre-trade variable. Lagged properly, all three
+ * timeframes are a clean null, which is the honest answer.
+ */
 function countConsecutive(bars: Bar[], entryIdx: number, isLong: boolean): number {
   let count = 0;
-  for (let i = entryIdx; i >= 0; i--) {
+  for (let i = entryIdx - 1; i >= 0; i--) {
     const bullish = bars[i].close >= bars[i].open;
     if (isLong ? bullish : !bullish) {
       count++;
@@ -562,17 +583,22 @@ function computeMaxRBeforeStop(
   for (let i = 0; i < barsInWindow.length; i++) {
     const b = barsInWindow[i];
 
+    // The favourable excursion on this bar is counted BEFORE deciding whether the
+    // stop was hit: intra-bar order is unknown, so a bar that touched both the stop
+    // and a new high may well have made the high first. This is the same reasoning
+    // that already skips the adverse check on the entry bar — checking the stop
+    // first silently zeroed out every trade that dipped through its stop and ran.
+    const favorable = isLong ? b.high - entryPrice : entryPrice - b.low;
+    if (favorable > maxFavorable) {
+      maxFavorable = favorable;
+      priceAtMax = isLong ? b.high : b.low;
+    }
+
     // Skip adverse check on entry bar — its low/high may reflect
     // price action before the entry, which happened mid-bar.
     if (i > 0) {
       const adverse = isLong ? entryPrice - b.low : b.high - entryPrice;
       if (adverse >= riskPerShare) break;
-    }
-
-    const favorable = isLong ? b.high - entryPrice : entryPrice - b.low;
-    if (favorable > maxFavorable) {
-      maxFavorable = favorable;
-      priceAtMax = isLong ? b.high : b.low;
     }
   }
 
@@ -580,6 +606,33 @@ function computeMaxRBeforeStop(
     maxR: Math.round((maxFavorable / riskPerShare) * 100) / 100,
     farthestPrice: Math.round(priceAtMax * 100) / 100,
   };
+}
+
+/**
+ * Unconditional max favourable excursion, entry -> 16:00 ET, ignoring the stop.
+ * Answers "was the entry any good", which is a different question from "what would a
+ * bracket order have captured" (that is computeMaxRBeforeStop).
+ */
+function computeMFE(
+  dayBars: Bar[],
+  entryMinute: number,
+  entryPrice: number,
+  riskPerShare: number,
+  isLong: boolean
+): number | null {
+  const EOD_MINUTE = 960;
+  if (riskPerShare <= 0) return null;
+  let best = 0;
+  let seen = false;
+  for (const b of dayBars) {
+    const et = timestampToET(b.ts);
+    const min = etMinutes(et.h, et.m);
+    if (min < entryMinute || min > EOD_MINUTE) continue;
+    seen = true;
+    const fav = isLong ? b.high - entryPrice : entryPrice - b.low;
+    if (fav > best) best = fav;
+  }
+  return seen ? Math.round((best / riskPerShare) * 100) / 100 : null;
 }
 
 // --- MAE (Max Adverse Excursion) over the actual holding window ---
@@ -699,6 +752,73 @@ function computeSpyDir(spyDayBars: Bar[], entryMinute: number): string | null {
   return "Flat";
 }
 
+/** True entry reference recovered from the DAS order ladder. */
+export interface EntryRef {
+  price: number;          // first entry fill price (not the blended average)
+  riskPerShare: number;   // (first entry price - real initial stop), absolute
+  /**
+   * Full entry ladder, for position-aware excursion. Without it, excursion is
+   * measured on the first lot alone — which cannot bound the P&L of a position
+   * that was scaled into, so any "capture %" built on it is meaningless for a
+   * pyramid (realised R legitimately exceeds MFE).
+   */
+  entries?: { minute: number; price: number; shares: number }[];
+  initialRisk?: number;   // dollars committed on the first entry
+}
+
+/**
+ * Peak and trough dollar value of the position as it was actually built.
+ *
+ * At each bar only lots already bought are credited (no lookahead — he cannot hold shares
+ * he has not bought yet). Two windows are returned because they answer different questions
+ * and conflating them badly overstates the trail leak:
+ *
+ *   peak      — to 16:00 ET. TOTAL OPPORTUNITY the day contained. A loose ceiling: it keeps
+ *               accruing after he was flat, so a trade held 90 seconds and closed at -1R can
+ *               still show a large "peak" (2026-08-04 SOXL: 1.5 min, -1.00R, 5.48R peak).
+ *   peakInWin — only while he actually held (first entry → last exit). This is the right
+ *               denominator for "did he exit well", because it contains only excursion he
+ *               was present for and could have taken.
+ *
+ * Capture against `peak` runs ~6%; against `peakInWin` ~85%. Neither is "the" answer — quote
+ * the one that matches the question, and say which.
+ */
+function computePositionExcursion(
+  dayBars: Bar[],
+  entries: { minute: number; price: number; shares: number }[],
+  isLong: boolean,
+  exitMinute?: number
+): { peak: number; trough: number; peakInWin: number; troughInWin: number } | null {
+  if (!entries.length) return null;
+  const EOD_MINUTE = 960;
+  const start = entries[0].minute;
+  const close = exitMinute != null && exitMinute >= start ? exitMinute : EOD_MINUTE;
+  let peak = 0, trough = 0, peakInWin = 0, troughInWin = 0, seen = false;
+  for (const b of dayBars) {
+    const et = timestampToET(b.ts);
+    const min = etMinutes(et.h, et.m);
+    if (min < start || min > EOD_MINUTE) continue;
+    let shares = 0, cost = 0;
+    for (const e of entries) {
+      if (e.minute > min) break;
+      shares += e.shares;
+      cost += e.shares * e.price;
+    }
+    if (shares === 0) continue;
+    seen = true;
+    const best = isLong ? b.high * shares - cost : cost - b.low * shares;
+    const worst = isLong ? b.low * shares - cost : cost - b.high * shares;
+    if (best > peak) peak = best;
+    if (worst < trough) trough = worst;
+    if (min <= close) {
+      if (best > peakInWin) peakInWin = best;
+      if (worst < troughInWin) troughInWin = worst;
+    }
+  }
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return seen ? { peak: r2(peak), trough: r2(trough), peakInWin: r2(peakInWin), troughInWin: r2(troughInWin) } : null;
+}
+
 // --- Main enrichment function ---
 
 function computeEnrichment(
@@ -710,7 +830,8 @@ function computeEnrichment(
   vixLevel: number | null,
   openRangeByDate: OpenRangeDay[],
   riskPerShare?: number,
-  youngListing?: boolean
+  youngListing?: boolean,
+  entryRef?: EntryRef
 ): MarketEnrichment {
   const entryMinute = parseEntryMinutes(trade.entryTime);
   const dayBars = intradayByDate.get(trade.date) || [];
@@ -773,14 +894,33 @@ function computeEnrichment(
     ? Math.round(((or.orHigh - or.orLow) / atr) * 1000) / 10
     : null;
 
-  // Max R before stop (order-aware: walks bars, stops at stop-loss)
-  const maxRResult = riskPerShare && riskPerShare > 0
-    ? computeMaxRBeforeStop(dayBars, entryMinute, trade.avgEntry, riskPerShare, isLong)
+  // Excursions are measured from the FIRST entry against the risk actually committed
+  // there. Using the blended Avg Entry with R/totalShares is wrong for any scaled-in
+  // position: on a pyramid the walk starts at a bar priced well below the blended
+  // average while the implied stop is a fraction of the real one, so the stop reads
+  // as hit immediately. Falls back to the old behaviour when no ladder is available.
+  const refPrice = entryRef?.price ?? trade.avgEntry;
+  const refRisk = entryRef?.riskPerShare ?? riskPerShare;
+
+  // Order-aware: what a bracket order would have captured before the stop.
+  const maxRResult = refRisk && refRisk > 0
+    ? computeMaxRBeforeStop(dayBars, entryMinute, refPrice, refRisk, isLong)
+    : null;
+
+  // Unconditional: what the market offered, regardless of the stop.
+  const mfeR = refRisk && refRisk > 0
+    ? computeMFE(dayBars, entryMinute, refPrice, refRisk, isLong)
+    : null;
+
+  // Position-aware excursion across the whole entry ladder (see computePositionExcursion).
+  const posExc = entryRef?.entries?.length
+    ? computePositionExcursion(dayBars, entryRef.entries, isLong,
+        trade.exitTime ? parseEntryMinutes(trade.exitTime) : undefined)
     : null;
 
   // MAE over the actual holding window (entry -> exit); requires R, like Max R
-  const maeR = riskPerShare && riskPerShare > 0 && trade.exitTime
-    ? computeMAE(dayBars, entryMinute, parseEntryMinutes(trade.exitTime), trade.avgEntry, riskPerShare, isLong)
+  const maeR = refRisk && refRisk > 0 && trade.exitTime
+    ? computeMAE(dayBars, entryMinute, parseEntryMinutes(trade.exitTime), refPrice, refRisk, isLong)
     : null;
 
   // Breakout volume ratio
@@ -827,6 +967,11 @@ function computeEnrichment(
     orHigh: or ? Math.round(or.orHigh * 100) / 100 : null,
     orLow: or ? Math.round(or.orLow * 100) / 100 : null,
     maxRBeforeStop: maxRResult?.maxR ?? null,
+    mfeR,
+    peakPositionValue: posExc?.peak ?? null,
+    troughPositionValue: posExc?.trough ?? null,
+    peakInWindow: posExc?.peakInWin ?? null,
+    troughInWindow: posExc?.troughInWin ?? null,
     farthestPrice: maxRResult?.farthestPrice ?? null,
     maeR,
     breakoutVolRatio,
@@ -868,7 +1013,7 @@ function isValidSymbol(s: string): boolean {
 
 export async function enrichSymbol(
   symbol: string,
-  trades: { date: string; entryTime: string; exitTime: string; side: "Long" | "Short"; avgEntry: number; index: number; riskPerShare?: number }[]
+  trades: { date: string; entryTime: string; exitTime: string; side: "Long" | "Short"; avgEntry: number; index: number; riskPerShare?: number; entryRef?: EntryRef }[]
 ): Promise<SymbolEnrichmentResult> {
   if (!isValidSymbol(symbol)) {
     throw new Error(`Invalid symbol "${symbol}" — expected a ticker like AAPL or SPY, got a number or empty value. This usually means the sheet columns are misaligned.`);
@@ -974,7 +1119,8 @@ export async function enrichSymbol(
         vixByDate.get(t.date) ?? null,
         openRangeByDate,
         t.riskPerShare,
-        youngListing
+        youngListing,
+        t.entryRef
       ),
     };
   });
