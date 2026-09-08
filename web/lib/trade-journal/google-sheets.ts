@@ -1,7 +1,8 @@
-import { GroupedTrade } from "./trade-grouper";
-import { MarketEnrichment, fetchVixMap } from "./market-data";
+import type { GroupedTrade } from "./trade-grouper";
+import type { MarketEnrichment } from "./market-data";
+import { fetchVixMap } from "./market-data";
 
-const SHEET_HEADERS = [
+export const SHEET_HEADERS = [
   "Date",
   "Entry Time",
   "Exit Time",
@@ -168,7 +169,16 @@ function colLetter(index: number): string {
 }
 
 const TOTAL_COLS = SHEET_HEADERS.length;
-const READ_RANGE_END = colLetter(TOTAL_COLS + 9);
+// Reads run to TOTAL_COLS + BUFFER, never to TOTAL_COLS, because the live tabs
+// legitimately carry columns this module does not manage (`RightTheory?` and
+// `EOD Screenshot` were hand-added; the ladder block was written by
+// scripts/review/backfill-ladders.ts before it landed here). A read that stops
+// at TOTAL_COLS silently drops them from every colMap built downstream — which
+// is how `Position MFE (R)` became invisible to `resolveMfe()`. Reading past the
+// last real column is free: Sheets returns short rows, and the extra header
+// cells are empty strings that no lookup asks for.
+const READ_BUFFER_COLS = 26;
+const READ_RANGE_END = colLetter(TOTAL_COLS + READ_BUFFER_COLS);
 
 const SETUP_OPTIONS = [
   "ORB",
@@ -1089,6 +1099,47 @@ async function repairFormulas(
   }
 }
 
+/**
+ * The whole migration decision, as a pure function — so it can be asserted against a
+ * real header row without touching the network (see `scripts/review/migration-safety.ts`).
+ *
+ * Migration is **strictly additive by construction**, and this is the shape that makes
+ * that checkable:
+ *
+ *  - `missingHeaders` is a set difference, so a tab that is a SUPERSET of SHEET_HEADERS
+ *    (the live `U16632046-GURI`: 96 managed + `RightTheory?` + `EOD Screenshot` = 98)
+ *    yields an empty list and the no-op branch runs. Columns the module does not know
+ *    about are never enumerated, so they can never be written, moved or dropped.
+ *  - When headers ARE missing they are appended at `appendStartCol = headerRow.length`,
+ *    i.e. strictly past every existing column. Nothing in range 0..headerRow.length-1 is
+ *    ever the target of a header write.
+ *  - The header row itself is never rewritten wholesale, so existing column ORDER is
+ *    preserved exactly and every downstream lookup goes through `buildColMap` (by name).
+ *  - `formulaWriteCols` is the complete set of columns any migration writes cell values
+ *    into. Anything outside it is untouched.
+ */
+export function planMigration(headerRow: string[]): {
+  missingHeaders: string[];
+  appendStartCol: number | null;
+  formulaWriteCols: number[];
+  colMap: ColMap;
+} {
+  const existingSet = new Set(headerRow.map((h) => h.trim()));
+  const missingHeaders = SHEET_HEADERS.filter((h) => !existingSet.has(h));
+  const fullHeader = missingHeaders.length ? [...headerRow, ...missingHeaders] : headerRow;
+  const colMap = buildColMap(fullHeader);
+  const formulaWriteCols = [...FORMULA_HEADERS]
+    .map((h) => colMap[h])
+    .filter((i): i is number => i !== undefined)
+    .sort((a, b) => a - b);
+  return {
+    missingHeaders,
+    appendStartCol: missingHeaders.length ? headerRow.length : null,
+    formulaWriteCols,
+    colMap,
+  };
+}
+
 async function migrateTabIfNeeded(
   token: string,
   spreadsheetId: string,
@@ -1099,11 +1150,9 @@ async function migrateTabIfNeeded(
   const headerRow = currentHeaders[0] || [];
   if (headerRow.length === 0) return;
 
-  const existingSet = new Set(headerRow.map((h) => h.trim()));
-  const missingHeaders = SHEET_HEADERS.filter((h) => !existingSet.has(h));
+  const { missingHeaders, appendStartCol, colMap } = planMigration(headerRow);
 
   if (missingHeaders.length === 0) {
-    const colMap = buildColMap(headerRow);
     await repairFormulas(token, spreadsheetId, tabTitle, colMap);
     return;
   }
@@ -1112,13 +1161,11 @@ async function migrateTabIfNeeded(
     { appendDimension: { sheetId, dimension: "COLUMNS", length: missingHeaders.length } },
   ]);
 
-  const startCol = headerRow.length;
+  // Appended strictly past the last existing column — see planMigration.
+  const startCol = appendStartCol!;
   const endCol = startCol + missingHeaders.length;
   const range = `'${tabTitle}'!${colLetter(startCol)}1:${colLetter(endCol - 1)}1`;
   await sheetsValuesUpdate(token, spreadsheetId, range, [missingHeaders]);
-
-  const fullHeader = [...headerRow, ...missingHeaders];
-  const colMap = buildColMap(fullHeader);
 
   await repairFormulas(token, spreadsheetId, tabTitle, colMap);
   await applyFormatting(token, spreadsheetId, sheetId, colMap);
@@ -1170,9 +1217,25 @@ function buildFormulas(rowIndex: number, colMap: ColMap): { stop: string; pnlR: 
     ? `=IF(${risk}${R}="","",${pnl}${R}/${risk}${R})`
     : "";
 
-  const stop = risk && shares && side && entry
-    ? `=IF(OR(${risk}${R}="",${shares}${R}=""),"",IF(${side}${R}="Long",${entry}${R}-${risk}${R}/${shares}${R},${entry}${R}+${risk}${R}/${shares}${R}))`
-    : "";
+  // Stop prefers the REAL protective level recovered from the order ladder, and only
+  // falls back to the old derivation when there is no ladder for the row.
+  //
+  // The fallback is circular: it back-derives the stop from the R the trader typed, so
+  // it reports whatever number was entered rather than the level actually worked. On a
+  // scaled-in position it is also measured off the blended Avg Entry, which is not a
+  // price any order ever rested at — that is how MRNA read 121.76 when the real stop
+  // was 114.19. Keep it only so a row with no DAS export still shows something.
+  //
+  // Identical to the formula scripts/review/auto-risk.ts already wrote onto the live
+  // tab; regenerating the OLD form here would have silently clobbered that on the next
+  // upload, which is the one genuinely destructive path found in the section-5 audit.
+  const initialStop = cl("Initial Stop");
+  const derivedStop = risk && shares && side && entry
+    ? `IF(OR(${risk}${R}="",${shares}${R}=""),"",IF(${side}${R}="Long",${entry}${R}-${risk}${R}/${shares}${R},${entry}${R}+${risk}${R}/${shares}${R}))`
+    : `""`;
+  const stop = initialStop
+    ? `=IF(${initialStop}${R}<>"",${initialStop}${R},${derivedStop})`
+    : (risk && shares && side && entry ? `=${derivedStop}` : "");
 
   const rMultiples: string[] = [];
   for (let n = 1; n <= 6; n++) {

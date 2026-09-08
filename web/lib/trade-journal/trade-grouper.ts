@@ -1,4 +1,4 @@
-import { RawExecution } from "./csv-parser";
+import type { RawExecution } from "./csv-parser";
 
 export interface GroupedTrade {
   date: string; // YYYY-MM-DD
