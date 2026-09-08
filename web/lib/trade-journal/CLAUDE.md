@@ -5,10 +5,32 @@ Processes DAS Trader CSV exports into round-trip trades and writes them to Googl
 
 ## CSV format (DAS Trader)
 Headers: `Event,B/S,Symbol,Shares,Price,Route,Time,Account,Note`
-Only rows where `Event === "Execute"` are processed. Everything else (Accept, Cancel, etc.) is filtered out.
+`validateAndParse()` keeps only rows where `Event === "Execute"` — everything the round-trip grouper needs. `parseFullExport()` is a **parallel** export over the same text that keeps every event, because the bracket lifecycle (`Accept`/`Sending`/`Replaced`/`Canceled`) is what the order-ladder reconstruction reads. Do not change `validateAndParse`'s return shape; the upload route and grouper depend on it.
+
+The `Note` column carries rejection reasons, not order IDs. **There is no order ID in the DAS export**, which is why fill clustering is a 3-second heuristic — corroborated by every bracket placement timestamp coinciding exactly with an entry fill. Don't "improve" it without re-checking that.
 
 ## Trade grouping algorithm
-Position tracking: Buy = +shares, Sell/Shrt = -shares. When cumulative position returns to 0, that's one complete round-trip trade. The grouper handles multiple partial fills and computes volume-weighted average entry/exit prices.
+Position tracking: Buy = +shares, Sell/Shrt = -shares. When cumulative position returns to 0, that's one complete round-trip trade. The grouper handles multiple partial fills and computes volume-weighted average entry/exit prices. DAS labels some long exits `Shrt`; `positionDelta` already handles that (Sell and Shrt are both negative) — do not "fix" it.
+
+`attachLadders(trades, logRows)` then joins the reconstructed ladder onto each trade by `symbol` + normalised entry time. `buildLadders()` does its own round-trip splitting with the same position rule, so the two agree; joining rather than duplicating the position logic is deliberate — two copies would drift. Each ladder is consumed at most once, and when an account has no rows in the log it falls back to an unfiltered read (2026-07-30's fills were executed under the old practice account but recorded against the live one).
+
+## Order ladder
+`order-ladder.ts` — pure, import-free by design so it runs on the Cloudflare edge AND under `node --experimental-strip-types`. Keep it that way. It recovers the **actual protective stop the trader worked**, so `Initial Risk ($)` is measured rather than typed; `R (Risk)` is auto-filled from it (fill-if-blank) and `Risk Source` records `auto (ladder)` vs `manual`.
+
+- Trading model: pyramiding at constant risk — each add is sized so its own risk is ~1 unit and the whole-position stop is re-set at the same instant.
+- `initialStop` is the stop still standing `SETTLE_SECS` (30s) after entry, taken from the build phase only and never past the second entry — stops get nudged in the first seconds.
+- `riskBasis` records where risk was measured: normally `first-entry`, but a **token starter** (a first lot under a tenth of the final position) falls back to `max-at-stake`, because the first lot's risk is a meaningless denominator (2026-06-24 WEN opened with 1 share: $0.35 risk turned a -$13 loss into -33.7R).
+- `Peak Position Value ($)` runs to 16:00 and ignores the exit — a loose ceiling. Use `Peak In-Window ($)` for anything about exit quality.
+- `# Partials` counts entries AND exits, so "2 partials" means zero partials taken. Deprecated in favour of `# Entries` / `# Exits`; kept for back-compat.
+- `parseFills()` is the inverse of `fmtFills()` — read stored ladder cells back with it rather than re-deriving the format.
+
+## Migration safety (98-column tabs)
+The live tab carries 96 managed columns plus two hand-added unmanaged ones (`RightTheory?`, `EOD Screenshot`). Migration is **additive-only by construction**, and that is asserted rather than assumed:
+
+- `planMigration(headerRow)` is a pure function holding the whole decision: a set difference for `missingHeaders`, an append at `headerRow.length` (strictly past every existing column), a name-keyed `colMap`, and `formulaWriteCols` — the complete set of columns any migration writes into. The header row is never rewritten, so existing column ORDER survives.
+- `FORMULA_HEADERS` is the set of columns this module OWNS and regenerates in full on every migration. Nothing outside it is ever written. Adding a column to it is a **transfer of ownership** — check first that no row holds a hand-typed literal there.
+- `scripts/review/migration-safety.ts` asserts all of the above against the live tabs (read-only), including that the archive `OLD-U16632046-GURI` is unreachable by `findTabByAccountPrefix` (its `OLD-` prefix shields it) and that no hand-typed literal sits in an owned formula column (read with `valueRenderOption=FORMULA`).
+- **New headers go at the END of `SHEET_HEADERS`, never mid-array** — the positional `COL` map breaks otherwise.
 
 ## Google Sheets API (edge-compatible)
 No `googleapis` SDK. All calls use `fetch` directly against `https://sheets.googleapis.com/v4/spreadsheets`.
@@ -30,6 +52,8 @@ Key functions:
 - `applyRowFilter()` — shared row filter used by `computeStats`, `extractTradesForAnalysis`, and `getDailyCalendar` so all three sections filter identically (no drift)
 - `parseStatsFilter()` — parses a `StatsFilter` from URL query params; shared by the stats, analysis, and calendar routes (`includeDates: false` for the calendar, which uses month nav for time)
 - `getDailyPlan(date)` / `upsertDailyPlan(date, entries, daily)` / `ensureDailyPlanTab()` — read/replace the pre-market `Daily Plan` tab; upsert is replace-by-date and dedups entries by uppercased symbol; `daily` is the day-level psych check-in (returned alongside `entries` from `getDailyPlan`)
+- `planMigration(headerRow)` — pure: the whole migration decision, asserted read-only by `scripts/review/migration-safety.ts`
+- `tradeToRow(trade, rowIndex, colMap, enrichment?)` — builds one sheet row (exported so the upload path can be exercised offline)
 - `backfillVixForTab(tabName)` — one-shot per-date pass that fills every blank VIX cell (no per-symbol Polygon calls; never overwrites existing values); route: `POST /api/trade-journal/backfill-vix`
 
 ## Morning Plan (pre-market watchlist + conviction)
@@ -68,13 +92,14 @@ Filename convention:
 - Entry: `YYYY-MM-DD SYMBOL <more details>.png`
 - EOD: `YYYY-MM-DD SYMBOL EOD <more details>.png`
 
-## Column layout (74 columns)
+## Column layout (96 managed columns; 98 on the live tab with two unmanaged hand-added ones)
 Auto-filled from CSV: Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L.
-Formula columns: Stop (Entry ± R/Shares), P&L(R) (P&L/R), 1R-6R (Y/N whether Max R Before Stop reached each R-multiple).
+Formula columns: Stop (real Initial Stop, else Entry ± R/Shares), P&L(R) (P&L/R), Position MFE (R), Capture %, In-Window MFE (R), In-Window Capture %, 1R-6R (Y/N whether Max R Before Stop reached each R-multiple).
 Max R Before Stop: Order-aware enrichment — walks 1-min bars from entry to 16:00 ET, tracks max favorable R-multiple, stops if stop-loss hit. Skips adverse check on the entry bar (intra-bar order unknown — low may be pre-entry). Requires R filled. Farthest Price is the stock price at that point.
 MAE (R): enrichment — walks 1-min bars over the ACTUAL holding window (entry → exit), max adverse R-multiple stored negative (e.g. -0.62; 0 = never adverse). Skips the entry bar's adverse check like Max R; does NOT stop at the stop level (it measures heat actually taken). Requires R filled. In the analysis + trades-for-review payloads as `maeR`; MAE badge in Screenshot Review.
 PDC/PDH/PDL: Prior Day Close/High/Low from daily bars — stored for pivot point analysis.
-Per-trade manual: R (Risk), Setup (dropdown), Process Followed? (dropdown), Notes, Conviction 1-3 (dropdown), Catalyst (comma-separated), Tags (comma-separated, editable from Screenshot Review page).
+Per-trade manual: Setup (dropdown), Process Followed? (dropdown), Notes, Conviction 1-3 (dropdown), Catalyst (comma-separated), Tags (comma-separated, editable from Screenshot Review page). R (Risk) used to be manual and is now auto-filled from the measured Initial Risk ($) — fill-if-blank, so a hand correction survives; Risk Source records which.
+Order ladder (auto from the DAS log at upload — see "Order ladder" above): Entry Ladder, Exit Ladder, Stop Ladder, # Entries, # Exits, First Entry, Initial Stop, Initial Risk ($), Max Risk At Stake ($), Stop Raises, Stopped Out?, MFE (R), Risk Source, Peak Position Value ($), Trough Position Value ($), Position MFE (R), Capture %, Risk Basis, Peak In-Window ($), In-Window MFE (R), In-Window Capture %. The four R/capture columns are live formulas over Initial Risk ($) and the peak values.
 Daily manual (fill once on first trade of the day): Emotional State (dropdown — legacy, kept for history), Market Bias (dropdown).
 Daily psych check-in (auto-filled from the Morning Plan onto every trade of the date): Energy (1-5), Tension (1-5), Urge to Trade Fast? (Yes/No) — dropdown-validated, flipped manual headers — plus Sleep Score (0-100), Readiness Score (0-100), Sleep (hrs) (hours slept, decimals; new column appended to the end of SHEET_HEADERS). Sleep Score/Readiness Score are the same trade-sheet columns that used to be hand-filled dailies, now auto-filled fill-if-blank from the plan.
 Origin (manual dropdown, auto-filled from the Daily Plan at upload): Watchlist / Callout / Intraday discovery — idea source, kept separate from Process Followed?.
@@ -92,6 +117,7 @@ Trade-date daily candle + volatility (auto from Polygon; live-sheet headers `O H
 - Also computed server-side in `computeStats` on the already-filtered `dataRows` (so it respects the shared filter bar), returned as `AggregateStats.disciplinePct` / `disciplineN`, rendered in Performance Overview (`AggregateStats.tsx`) as a filter-aware card with a denominator + tooltip. **Discipline %** = trades marked `Process Followed?` = `Yes` ÷ trades labeled `Yes` or `No` (blank/unlabeled trades excluded from the denominator). `null` when nothing is labeled.
 
 ### Enrichment semantics
+- **`entryRef` is the true entry**, recovered from the ladder columns: `{ price, riskPerShare, entries[], initialRisk }` with `riskPerShare = Initial Risk ($) / first-entry shares`. `R / totalShares` spread the whole trade's risk across lots that were not open yet when the stop was set, understating risk per share on every pyramid. `entries[]` also makes the excursion position-aware, so `Peak Position Value ($)` actually bounds realised P&L on a scaled-in trade. Built in `getTradesForBackfill` (from the sheet) and by `ladderEntryRef()` (from a fresh upload), threaded through `/api/trade-journal/enrich` → `enrichSymbol`. **Without it the code falls back to the old blended-average behaviour — preserve that**, so rows with no ladder keep working.
 - **VIX** is per-date, not per-symbol. Polygon `I:VIX` requires an Indices plan (the current stocks key gets NOT_AUTHORIZED — verified); `fetchVixMap()` tries it once per isolate, then falls back to CBOE's free daily VIX history CSV (no auth, 1990→yesterday, memoized). Two fill paths: `backfillVixForTab()` (fast per-date pass, run first by the Backfill button) and `enrichSymbol()` (covers new uploads).
 - **"N/A"** is written for daily-history fields (%Gap, %ATR, OR %ATR, Prior Close Loc, Dist 20/50 SMA, Avg $ Vol, PDC/PDH/PDL) when the ticker is a young listing: daily bars begin >21 days after the requested 250-day window start AND the trade date's bar index is below the field's lookback. Blank = "not enriched yet"; `N/A` = "impossible, don't retry". Parsers use `parseNullableNum()` which maps `N/A`/blank → null.
 - The daily fetch window is 250 calendar days: sparsely traded tickers (e.g. SPAC SPCX trades well under half of sessions) need the margin for the 50-day SMA — this is why SPCX gets real values while genuinely young SSPC/SKHY get `N/A`.
@@ -101,7 +127,9 @@ Trade-date daily candle + volatility (auto from Polygon; live-sheet headers `O H
 
 All formulas are generated by `buildFormulas()` and used by both `tradeToRow()` (new trades) and `migrateTabIfNeeded()` (existing rows).
 `repairFormulas()` regenerates all formula columns on every migration call, fixing #REF! errors from column reordering/deletion.
-Sheet read range uses `READ_RANGE_END` (TOTAL_COLS + 10 buffer) instead of hardcoded column letters — handles old columns not yet removed.
+Sheet read range uses `READ_RANGE_END` (`TOTAL_COLS + READ_BUFFER_COLS`, 26) instead of hardcoded column letters. The buffer is deliberately generous: a read that stops at `TOTAL_COLS` silently drops unmanaged columns from every `colMap` built downstream — that is how `resolveMfe()` could never see `Position MFE (R)`. Reading past the last real column is free.
+
+`Stop` prefers the real `Initial Stop` and falls back to the old `Avg Entry ± R/Shares` derivation only when there is no ladder. That fallback is circular (it back-derives the stop from the number the trader typed) and is measured off the blended average, a price no order ever rested at — that is how MRNA read 121.76 when the real stop was 114.19.
 
 ## Tags
 Retrospective pattern labels applied during screenshot review. Stored as comma-separated values in the Tags column.

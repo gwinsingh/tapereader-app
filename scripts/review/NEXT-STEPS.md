@@ -2,7 +2,8 @@
 
 ## The August 2026 cycle is COMPLETE
 
-- Both books corrected: `WIP-U16632046-GURI` (71 trades / 19 sessions / **+19.4R**) and
+- Both books corrected (the live one has since been swapped in as `U16632046-GURI`):
+  `WIP-U16632046-GURI` (71 trades / 19 sessions / **+19.4R**) and
   `WIP-TRPCT1541-GURI` (248 / 54 / **+7.3R**), both passing `verify.ts` with zero failures.
 - Report published as an Artifact and rendered at `/pct-bootcamp/reviews/2026-08`; the frozen
   snapshot is `web/data/reviews/2026-08.json`, narrative in `scripts/review/narrative-2026-08.json`,
@@ -11,8 +12,12 @@
 
 ## To run the next cycle
 
+Since 2026-09-08 the app writes the ladder at upload, so `backfill-ladders` / `re-enrich` /
+`auto-risk` are only needed for historical rows that predate that (or a day whose DAS export
+arrived late). New uploads land correct on the first try; `verify.ts` still gates the cycle.
+
 ```bash
-node scripts/review/fetch.js                                    # snapshot the WIP tabs
+node scripts/review/fetch.js                                    # snapshot the live + practice tabs
 node --experimental-strip-types scripts/review/backfill-ladders.ts --tab=<TAB> --acct=<ACCT> --write
 node --experimental-strip-types scripts/review/re-enrich.ts      --tab=<TAB> --write
 node --experimental-strip-types scripts/review/auto-risk.ts      --tab=<TAB> --write
@@ -22,12 +27,28 @@ node --experimental-strip-types scripts/review/metrics.ts        --tab=<TAB>
 node --experimental-strip-types scripts/review/build-report.ts --month=<YYYY-MM>
 ```
 
-## OPEN — the sheet swap
-The app still reads the un-prefixed tabs. When satisfied, delete `U16632046-GURI` /
-`TRPCT1541-GURI` and rename the `WIP-` tabs to those names. `resolveMfe()` in google-sheets.ts
-already prefers `Position MFE (R)` and falls back, so the app works before AND after the swap.
-Deprecate `# Partials` at the same time — it counts entries AND exits, so "2 partials" means zero
-partials taken; `# Entries` / `# Exits` replace it.
+## DONE — the sheet swap (2026-09-08)
+Done by hand for the live book: `U16632046-GURI` is the corrected 98-column tab, and the
+original is archived as `OLD-U16632046-GURI`. The `OLD-` prefix is load-bearing —
+`findTabByAccountPrefix` matches `<account>` or `<account>-`, so the archive is unreachable
+and uploads cannot land in it. **Do not rename or delete either tab.**
+The practice swap was deliberately skipped (`TRPCT1541-GURI` is still the 77-column original,
+`WIP-TRPCT1541-GURI` the corrected one) — low value, he trades the live account now. Note that
+`TRPCT1541-GURI` will gain the 21 ladder columns on its next migration, empty; that is additive
+and harmless, but the values only arrive if the practice backfill is ever run.
+
+## DONE — the upload path is wired (2026-09-08)
+`order-ladder.ts` is no longer script-only. A CSV uploaded through the app now produces rows
+carrying the ladder, a measured `R (Risk)` (`Risk Source` = `auto (ladder)`), a non-circular
+`Stop`, and ladder-aware enrichment via `entryRef`. `# Partials` is deprecated in the docs and
+the upload response in favour of `# Entries` / `# Exits`; the column stays for back-compat.
+Two read-only checks guard it, both currently green:
+```bash
+node --import ./scripts/review/ts-resolve.mjs --experimental-strip-types \
+     scripts/review/migration-safety.ts          # migration is additive-only
+node --import ./scripts/review/ts-resolve.mjs --experimental-strip-types \
+     scripts/review/verify-upload-pipeline.ts    # upload path == the reviewed backfill
+```
 
 ## OPEN — carried forward
 - **H11** skip conviction-1 (1 winner in 24 pooled, p=0.019). Needs 100% Conviction coverage to test.
@@ -36,6 +57,8 @@ partials taken; `# Entries` / `# Exits` replace it.
 - Re-test the pyramid's profitability at ~200 adding trades. The add RULE improved (0/27 underwater
   adds vs 7/76); the RETURN is not separable from variance.
 - 2026-08-24 (1 trade) and 16 practice trades have no DAS export, so no ladder; risk stays manual.
+  The upload path handles this the same way: no ladder means no `entryRef`, `Risk Source` =
+  `manual`, and the row falls back to the old blended-average behaviour. Preserve that fallback.
 
 ## Quirks encoded — do not "fix" without re-reading
 - `2026-07-30` fills are logged under the OLD practice account `TRPCT1541` but recorded in the live
@@ -52,12 +75,16 @@ partials taken; `# Entries` / `# Exits` replace it.
   build-phase exposure (`Risk Basis` records which).
 - `Peak Position Value ($)` runs to 16:00 and ignores the exit — a loose ceiling. Use
   `Peak In-Window ($)` for anything about exit quality.
-## Follow-up 2 — app wiring
-`CaptureTracker`, `ProfitabilityAnalysis`, `TradingCalendar` (the `B` bracket column),
-`AggregateStats` and `ScreenshotReview` all read `maxR` directly and are wrong for this account
-today. Capture should use the trader's real target definition (2.5R **of the last entry**). Add
-`Half R ($)` to `Calendar Config`. Deprecate `# Partials` (it counts entries AND exits — "2 partials"
-means zero partials taken) in favour of `# Entries` / `# Exits`.
+## Follow-up 2 — app wiring (PARTIALLY DONE)
+Done: the upload path writes the ladder, and `READ_RANGE_END` was widened so the ladder columns
+are actually visible to the app at all (at 75 managed columns, reads stopped at column 85 and
+silently truncated 13 of the tab's 98 — which is why `resolveMfe()` could never see
+`Position MFE (R)` even though it prefers it).
+
+Still open: `CaptureTracker`, `ProfitabilityAnalysis`, `TradingCalendar` (the `B` bracket column),
+`AggregateStats` and `ScreenshotReview` all read `maxR` directly and are still wrong for this
+account. Capture should use the trader's real target definition (2.5R **of the last entry**).
+Add `Half R ($)` to `Calendar Config`.
 
 ## Follow-up 3 — practice book
 Same backfill over `TRPCT1541-GURI` (248 trades). 51 of 54 sessions have logs; missing 2026-06-26 and
