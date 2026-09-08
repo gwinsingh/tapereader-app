@@ -1347,7 +1347,12 @@ function buildFormulas(rowIndex: number, colMap: ColMap): RowFormulas {
   };
 }
 
-function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enrichment?: MarketEnrichment): (string | number)[] {
+/**
+ * Build the sheet row for one trade. Exported so the upload path can be exercised
+ * end-to-end offline against a real header row — see scripts/review/verify-upload-pipeline.ts.
+ * `appendTrades` layers the Daily Plan and psych auto-fills on top of what this returns.
+ */
+export function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enrichment?: MarketEnrichment): (string | number)[] {
   const size = Math.max(...Object.values(colMap)) + 1;
   const row: (string | number)[] = new Array(size).fill("");
 
