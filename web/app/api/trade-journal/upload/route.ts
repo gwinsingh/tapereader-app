@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAndParse } from "@/lib/trade-journal/csv-parser";
-import { groupExecutionsIntoTrades } from "@/lib/trade-journal/trade-grouper";
+import { parseFullExport, validateAndParse } from "@/lib/trade-journal/csv-parser";
+import { attachLadders, groupExecutionsIntoTrades, ladderEntryRef } from "@/lib/trade-journal/trade-grouper";
 import { appendTrades } from "@/lib/trade-journal/google-sheets";
 
 export const runtime = "edge";
@@ -47,6 +47,12 @@ export async function POST(req: NextRequest) {
     const { executions } = validateAndParse(csvText);
     const trades = groupExecutionsIntoTrades(executions, date);
 
+    // Second pass over the SAME text, this time keeping the bracket lifecycle, so each
+    // trade carries the stop actually worked and a measured R instead of a typed one.
+    // Fails soft by design: an export with no bracket rows (or one that matches nothing)
+    // leaves `ladder` undefined and the row behaves exactly as it did before.
+    attachLadders(trades, parseFullExport(csvText));
+
     const result = await appendTrades(trades, sheetSuffix);
 
     return NextResponse.json({
@@ -71,6 +77,15 @@ export async function POST(req: NextRequest) {
         entryTime: t.entryTime,
         exitTime: t.exitTime,
         date: t.date,
+        // `# Entries` / `# Exits` are the meaningful pair; numPartials above counts both.
+        numEntries: t.ladder?.numEntries ?? null,
+        numExits: t.ladder?.numExits ?? null,
+        initialStop: t.ladder?.initialStop ?? null,
+        initialRisk: t.ladder?.initialRisk ?? null,
+        riskSource: t.ladder ? "auto (ladder)" : "manual",
+        // Passed straight back into /enrich by the client's post-upload pass, so a fresh
+        // upload gets ladder-aware excursion immediately and never needs a Backfill run.
+        entryRef: ladderEntryRef(t.ladder),
       })),
     });
   } catch (err: unknown) {

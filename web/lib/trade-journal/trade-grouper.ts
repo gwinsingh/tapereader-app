@@ -1,4 +1,32 @@
 import type { RawExecution } from "./csv-parser";
+import {
+  buildLadders, fmtBrackets, fmtFills, normTime, parseFills,
+  type LogRow, type TradeLadder,
+} from "./order-ladder";
+import type { EntryRef } from "./market-data";
+
+/**
+ * The order ladder for one trade, flattened to the shapes the sheet stores.
+ *
+ * Reconstructed from the FULL DAS log (not just fills) by `order-ladder.ts`, which
+ * recovers the protective stop the trader actually worked. That makes `initialRisk` a
+ * measured number rather than a hand-typed one, and `initialStop` a real price rather
+ * than one back-derived from that typed number.
+ */
+export interface TradeLadderFields {
+  entryLadder: string;             // "09:32:46@119.65x3 | 09:38:08@123.09x3"
+  exitLadder: string;
+  stopLadder: string;              // "09:32:49@117.9 | 09:41:02@120.1"
+  numEntries: number;
+  numExits: number;
+  firstEntry: number | null;
+  initialStop: number | null;
+  initialRisk: number | null;
+  maxRiskAtStake: number | null;
+  stopRaises: number;
+  stoppedOut: "Y" | "N";
+  riskBasis: TradeLadder["riskBasis"];
+}
 
 export interface GroupedTrade {
   date: string; // YYYY-MM-DD
@@ -8,11 +36,23 @@ export interface GroupedTrade {
   side: "Long" | "Short";
   totalShares: number;
   avgEntry: number;
+  /**
+   * Volume-weighted across every entry fill. NOT a price any order rested at once the
+   * position was scaled into — use `ladder.firstEntry` for anything measured from the
+   * entry (excursion, risk per share).
+   */
   avgExit: number;
+  /**
+   * Counts entry fills AND exit fills, so "2 partials" means zero partials were taken.
+   * Kept for back-compat with existing sheet rows; `ladder.numEntries` / `numExits` are
+   * the meaningful pair.
+   */
   numPartials: number;
   pnl: number;
   durationMins: number;
   account: string;
+  /** Present only when the upload carried a full DAS log that matched this trade. */
+  ladder?: TradeLadderFields;
 }
 
 interface Fill {
@@ -172,5 +212,99 @@ function finalizeTrade(
     pnl: Math.round(pnl * 100) / 100,
     durationMins: Math.max(0, durationMins),
     account,
+  };
+}
+
+const round2 = (n: number | null): number | null =>
+  n == null || isNaN(n) ? null : Math.round(n * 100) / 100;
+
+function toLadderFields(l: TradeLadder): TradeLadderFields {
+  return {
+    entryLadder: fmtFills(l.entries),
+    exitLadder: fmtFills(l.exits),
+    stopLadder: fmtBrackets(l.stops),
+    numEntries: l.entries.length,
+    numExits: l.exits.length,
+    firstEntry: round2(l.entries[0]?.price ?? null),
+    initialStop: round2(l.initialStop),
+    initialRisk: round2(l.initialRisk),
+    maxRiskAtStake: round2(l.maxRiskAtStake),
+    stopRaises: l.stopRaises,
+    stoppedOut: l.everStoppedOut ? "Y" : "N",
+    riskBasis: l.riskBasis,
+  };
+}
+
+/**
+ * Attach the reconstructed order ladder to trades already built by
+ * `groupExecutionsIntoTrades`.
+ *
+ * `buildLadders()` does its own round-trip splitting with the same position-tracking
+ * rule as `buildRoundTrips` above, so the two agree on where one trade ends and the
+ * next begins. Joining on `symbol` + normalised entry time is deliberate: duplicating
+ * the position logic in a second place is exactly how the two would drift.
+ *
+ * Every trade keeps its ladder or keeps nothing — a trade with no matching ladder is
+ * returned untouched, and the sheet then falls back to the manual R. That matters for
+ * days with no DAS export at all, and for the mixed-account day noted below.
+ *
+ * Ported from `scripts/review/backfill-ladders.ts`, which ran this against the whole
+ * book. Two behaviours come from that run and are load-bearing:
+ *  - Each ladder is consumed at most once, so two trades in the same symbol at
+ *    different times cannot both claim the first one.
+ *  - When an account has no rows in the log, fall back to an unfiltered read. On
+ *    2026-07-30 the fills were executed under the old practice account but recorded
+ *    against the live one; filtering strictly would silently drop the whole day.
+ */
+export function attachLadders(trades: GroupedTrade[], logRows: LogRow[]): GroupedTrade[] {
+  if (!logRows.length) return trades;
+
+  const byAccount = new Map<string, GroupedTrade[]>();
+  for (const t of trades) {
+    if (!byAccount.has(t.account)) byAccount.set(t.account, []);
+    byAccount.get(t.account)!.push(t);
+  }
+
+  for (const [account, group] of byAccount) {
+    let ladders = buildLadders(logRows, account);
+    if (!ladders.length) ladders = buildLadders(logRows);
+    if (!ladders.length) continue;
+
+    const used = new Set<TradeLadder>();
+    for (const t of group) {
+      const want = normTime(t.entryTime);
+      const hit = ladders.find(
+        (l) => !used.has(l) && l.symbol === t.symbol && normTime(l.entryTime) === want
+      );
+      if (!hit) continue;
+      used.add(hit);
+      t.ladder = toLadderFields(hit);
+    }
+  }
+
+  return trades;
+}
+
+/**
+ * The enrichment entry reference for a trade, from its ladder.
+ *
+ * `riskPerShare` is measured off the REAL initial stop over the FIRST entry's shares.
+ * The old `R / totalShares` spread the whole trade's risk across lots that were not
+ * open yet when that stop was set, which understates risk per share on every pyramid
+ * and inflates every R-multiple derived from it.
+ *
+ * Returns null when the ladder is too incomplete to measure from, so the caller falls
+ * back to the previous blended-average behaviour rather than enriching off a guess.
+ */
+export function ladderEntryRef(lad: TradeLadderFields | undefined): EntryRef | null {
+  if (!lad || lad.firstEntry == null || lad.initialRisk == null || lad.initialRisk <= 0) return null;
+  const lots = parseFills(lad.entryLadder);
+  const firstLotShares = lots[0]?.shares ?? 0;
+  if (firstLotShares <= 0) return null;
+  return {
+    price: lad.firstEntry,
+    riskPerShare: lad.initialRisk / firstLotShares,
+    entries: lots,
+    initialRisk: lad.initialRisk,
   };
 }

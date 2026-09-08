@@ -8,6 +8,13 @@ import ProfitabilityAnalysis from "@/components/trade-journal/ProfitabilityAnaly
 import CaptureTracker from "@/components/trade-journal/CaptureTracker";
 import TradingCalendar from "@/components/trade-journal/TradingCalendar";
 
+interface EntryRef {
+  price: number;
+  riskPerShare: number;
+  entries?: { minute: number; price: number; shares: number }[];
+  initialRisk?: number;
+}
+
 interface TradeRow {
   index: number;
   symbol: string;
@@ -16,11 +23,20 @@ interface TradeRow {
   avgEntry: number;
   avgExit: number;
   pnl: number;
+  /** Counts entries AND exits — `numEntries` / `numExits` are the meaningful pair. */
   numPartials: number;
   durationMins: number;
   entryTime: string;
   exitTime: string;
   date: string;
+  // Order-ladder fields, present when the upload carried a full DAS log.
+  numEntries?: number | null;
+  numExits?: number | null;
+  initialStop?: number | null;
+  initialRisk?: number | null;
+  riskSource?: string;
+  /** Built server-side from the ladder; passed through to /enrich unchanged. */
+  entryRef?: EntryRef | null;
 }
 
 interface SegmentStats {
@@ -211,6 +227,11 @@ export default function TradeJournalPage() {
               side: t.side,
               avgEntry: t.avgEntry,
               index: t.index,
+              // The measured entry reference, so this first pass already walks bars from
+              // the real first entry against the real stop. Without it enrichment falls
+              // back to blended Avg Entry with R/totalShares.
+              riskPerShare: t.entryRef?.riskPerShare,
+              entryRef: t.entryRef ?? undefined,
             })),
           }),
         });
@@ -416,7 +437,9 @@ export default function TradeJournalPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch trades for backfill.");
 
-      interface BackfillTrade { date: string; entryTime: string; exitTime: string; side: string; symbol: string; avgEntry: number; index: number; riskPerShare?: number }
+      // entryRef is passed straight through to /enrich rather than being rebuilt here —
+      // it is derived from the sheet's ladder columns server-side (getTradesForBackfill).
+      interface BackfillTrade { date: string; entryTime: string; exitTime: string; side: string; symbol: string; avgEntry: number; index: number; riskPerShare?: number; entryRef?: EntryRef }
       const trades = data.trades as BackfillTrade[];
       if (trades.length === 0) {
         setError("All trades already have market data — nothing to backfill.");
@@ -456,7 +479,7 @@ export default function TradeJournalPage() {
               trades: symbolTrades.map((t) => ({
                 date: t.date, entryTime: t.entryTime, exitTime: t.exitTime,
                 side: t.side, avgEntry: t.avgEntry, index: t.index,
-                riskPerShare: t.riskPerShare,
+                riskPerShare: t.riskPerShare, entryRef: t.entryRef,
               })),
             }),
           });

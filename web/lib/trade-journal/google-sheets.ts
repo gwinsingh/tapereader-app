@@ -1,5 +1,6 @@
 import type { GroupedTrade } from "./trade-grouper";
-import type { MarketEnrichment } from "./market-data";
+import type { EntryRef, MarketEnrichment } from "./market-data";
+import { parseFills } from "./order-ladder";
 import { fetchVixMap } from "./market-data";
 
 export const SHEET_HEADERS = [
@@ -93,6 +94,33 @@ export const SHEET_HEADERS = [
   // Prediction metric. Appended at the very end like everything above so the
   // positional COL map stays valid. (Column already added to the live sheet.)
   "ADR",
+  // --- Order ladder (see order-ladder.ts) ---
+  // Reconstructed from the FULL DAS log at upload, so the sheet records the stop the
+  // trader actually worked instead of one back-derived from the R he typed. Appended at
+  // the very end like everything above — NEVER inserted mid-list, which would break the
+  // positional COL map. This order matches the block already present on the live tab
+  // (BZ..CT), so migration sees them as already there and adds nothing.
+  "Entry Ladder",
+  "Exit Ladder",
+  "Stop Ladder",
+  "# Entries",
+  "# Exits",
+  "First Entry",
+  "Initial Stop",
+  "Initial Risk ($)",
+  "Max Risk At Stake ($)",
+  "Stop Raises",
+  "Stopped Out?",
+  "MFE (R)",
+  "Risk Source",
+  "Peak Position Value ($)",
+  "Trough Position Value ($)",
+  "Position MFE (R)",
+  "Capture %",
+  "Risk Basis",
+  "Peak In-Window ($)",
+  "In-Window MFE (R)",
+  "In-Window Capture %",
 ];
 
 const COL = {
@@ -535,6 +563,13 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "Daily Trend": 95, "Daily Conv": 80, "1H Trend": 90, "1H Conv": 75, "5m Trend": 90, "5m Conv": 75,
     "MAE (R)": 80, "Energy (1-5)": 95, "Tension (1-5)": 95, "Urge to Trade Fast?": 130,
     "O": 80, "H": 80, "L": 80, "C": 80, "V": 100, "ATR": 75, "30mATR": 80, "ADR": 75,
+    "Entry Ladder": 260, "Exit Ladder": 260, "Stop Ladder": 220,
+    "# Entries": 80, "# Exits": 75, "First Entry": 95, "Initial Stop": 100,
+    "Initial Risk ($)": 110, "Max Risk At Stake ($)": 135, "Stop Raises": 95,
+    "Stopped Out?": 100, "MFE (R)": 80, "Risk Source": 110,
+    "Peak Position Value ($)": 145, "Trough Position Value ($)": 155,
+    "Position MFE (R)": 120, "Capture %": 90, "Risk Basis": 110,
+    "Peak In-Window ($)": 130, "In-Window MFE (R)": 130, "In-Window Capture %": 140,
   };
   for (const [header, width] of Object.entries(colWidths)) {
     const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
@@ -557,7 +592,9 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   });
 
   // Currency formatting
-  for (const h of ["P&L", "R (Risk)", "OR Size ($)", "OR High", "OR Low", "Avg Entry", "Avg Exit", "Stop", "Farthest Price", "PDC", "PDH", "PDL", "O", "H", "L", "C"]) {
+  for (const h of ["P&L", "R (Risk)", "OR Size ($)", "OR High", "OR Low", "Avg Entry", "Avg Exit", "Stop", "Farthest Price", "PDC", "PDH", "PDL", "O", "H", "L", "C",
+                   "First Entry", "Initial Stop", "Initial Risk ($)", "Max Risk At Stake ($)",
+                   "Peak Position Value ($)", "Trough Position Value ($)", "Peak In-Window ($)"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -569,13 +606,27 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
-  for (const h of ["Duration (mins)", "P&L (R)", "Sleep (hrs)"]) {
+  for (const h of ["Duration (mins)", "P&L (R)", "Sleep (hrs)",
+                   "MFE (R)", "Position MFE (R)", "In-Window MFE (R)"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
       repeatCell: {
         range: colRange(col),
         cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+
+  // Capture columns store a raw ratio (realised / peak), so display them as percentages.
+  for (const h of ["Capture %", "In-Window Capture %"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
+    requests.push({
+      repeatCell: {
+        range: colRange(col),
+        cell: { userEnteredFormat: { numberFormat: { type: "PERCENT", pattern: "0%" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
@@ -1046,7 +1097,13 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   await sheetsBatchUpdate(token, spreadsheetId, requests);
 }
 
-const FORMULA_HEADERS = new Set(["Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R"]);
+// Columns this module OWNS: regenerated in full on every migration, so nothing else may
+// write a literal into them. Everything outside this set is left exactly as found — see
+// planMigration() and scripts/review/migration-safety.ts.
+const FORMULA_HEADERS = new Set([
+  "Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R",
+  "Position MFE (R)", "Capture %", "In-Window MFE (R)", "In-Window Capture %",
+]);
 
 async function repairFormulas(
   token: string,
@@ -1070,6 +1127,10 @@ async function repairFormulas(
       let value = "";
       if (h === "Stop") value = formulas.stop;
       else if (h === "P&L (R)") value = formulas.pnlR;
+      else if (h === "Position MFE (R)") value = formulas.positionMfeR;
+      else if (h === "Capture %") value = formulas.capturePct;
+      else if (h === "In-Window MFE (R)") value = formulas.inWindowMfeR;
+      else if (h === "In-Window Capture %") value = formulas.inWindowCapturePct;
       else if (h.match(/^[1-6]R$/)) {
         const n = parseInt(h[0], 10);
         value = formulas.rMultiples[n - 1];
@@ -1200,7 +1261,17 @@ async function ensureSheetTab(
   return { tabName, gid: sheetId };
 }
 
-function buildFormulas(rowIndex: number, colMap: ColMap): { stop: string; pnlR: string; rMultiples: string[] } {
+interface RowFormulas {
+  stop: string;
+  pnlR: string;
+  rMultiples: string[];
+  positionMfeR: string;
+  capturePct: string;
+  inWindowMfeR: string;
+  inWindowCapturePct: string;
+}
+
+function buildFormulas(rowIndex: number, colMap: ColMap): RowFormulas {
   const cl = (header: string) => {
     const idx = colMap[header];
     return idx !== undefined ? colLetter(idx) : null;
@@ -1248,7 +1319,32 @@ function buildFormulas(rowIndex: number, colMap: ColMap): { stop: string; pnlR: 
     }
   }
 
-  return { stop, pnlR, rMultiples };
+  // Ladder-derived R and capture, as LIVE formulas so they follow any later correction
+  // to Initial Risk instead of freezing a value computed at enrichment time.
+  //
+  // These are position-aware: `Peak Position Value ($)` is the peak dollar value of the
+  // position AS BUILT (only lots already bought are credited at each bar), so unlike a
+  // first-lot excursion it actually bounds the realised P&L of a scaled-in trade. That
+  // bound is the integrity check — realised R above Position MFE means something is wrong.
+  //
+  // Both guards are needed. `IF(peak="")` alone would let a blank Initial Risk divide by
+  // zero; `IF(risk="")` alone would render a blank peak as 0R rather than blank.
+  const initialRisk = cl("Initial Risk ($)");
+  const peak = cl("Peak Position Value ($)");
+  const peakWin = cl("Peak In-Window ($)");
+  const ratio = (num: string | null, den: string | null) =>
+    num && den ? `=IF(OR(${den}${R}="",${num}${R}=""),"",${num}${R}/${den}${R})` : "";
+  // Capture is undefined when the position never showed a gain, hence <=0 rather than "".
+  const capture = (den: string | null) =>
+    den && pnl ? `=IF(OR(${den}${R}="",${den}${R}<=0),"",${pnl}${R}/${den}${R})` : "";
+
+  return {
+    stop, pnlR, rMultiples,
+    positionMfeR: ratio(peak, initialRisk),
+    capturePct: capture(peak),
+    inWindowMfeR: ratio(peakWin, initialRisk),
+    inWindowCapturePct: capture(peakWin),
+  };
 }
 
 function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enrichment?: MarketEnrichment): (string | number)[] {
@@ -1262,6 +1358,41 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
 
   const formulas = buildFormulas(rowIndex, colMap);
 
+  // The reconstructed order ladder. Written before anything derived from it so the
+  // measured risk below is reading the same numbers the sheet will show.
+  const lad = trade.ladder;
+  if (lad) {
+    set("Entry Ladder", lad.entryLadder);
+    set("Exit Ladder", lad.exitLadder);
+    set("Stop Ladder", lad.stopLadder);
+    set("# Entries", lad.numEntries);
+    set("# Exits", lad.numExits);
+    set("First Entry", lad.firstEntry ?? "");
+    set("Initial Stop", lad.initialStop ?? "");
+    set("Initial Risk ($)", lad.initialRisk ?? "");
+    set("Max Risk At Stake ($)", lad.maxRiskAtStake ?? "");
+    set("Stop Raises", lad.stopRaises);
+    set("Stopped Out?", lad.stoppedOut);
+    set("Risk Basis", lad.riskBasis);
+  }
+
+  // R (Risk) is now MEASURED, not typed: the trader sets the stop first and lets the
+  // platform size the entry, so (first entry - real initial stop) x first-entry shares
+  // is the risk he actually committed. Hand-typing it produced size-preset errors — two
+  // deliberate full-size entries on 2026-08-13 were logged as half, which overstated
+  // every R-multiple on his best session.
+  //
+  // Fill-if-blank, matching PLAN_FILL_COLS semantics: this is a brand-new row so the
+  // cell is always blank here, and a later manual correction on the sheet is never
+  // revisited (dedup skips rows that already exist). A day with no DAS export simply
+  // gets no ladder, leaves R blank, and stays a manual entry — Risk Source records which.
+  const riskIdx = colMap["R (Risk)"];
+  const measuredRisk = lad?.initialRisk ?? null;
+  if (riskIdx !== undefined && measuredRisk != null && (row[riskIdx] === "" || row[riskIdx] == null)) {
+    row[riskIdx] = measuredRisk;
+  }
+  set("Risk Source", measuredRisk != null ? "auto (ladder)" : "manual");
+
   set("Date", trade.date);
   set("Entry Time", trade.entryTime);
   set("Exit Time", trade.exitTime);
@@ -1272,6 +1403,10 @@ function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap, enric
   set("Avg Entry", trade.avgEntry);
   set("Avg Exit", trade.avgExit);
   set("Stop", formulas.stop);
+  set("Position MFE (R)", formulas.positionMfeR);
+  set("Capture %", formulas.capturePct);
+  set("In-Window MFE (R)", formulas.inWindowMfeR);
+  set("In-Window Capture %", formulas.inWindowCapturePct);
   set("# Partials", trade.numPartials);
   set("P&L", trade.pnl);
   set("P&L (R)", formulas.pnlR);
@@ -1894,6 +2029,12 @@ export interface BackfillTrade {
   avgEntry: number;
   index: number;
   riskPerShare?: number;
+  /**
+   * The true entry, recovered from the row's ladder columns. Present only for rows that
+   * carry a ladder; without it enrichment falls back to blended Avg Entry with
+   * R/totalShares, which is wrong for every trade that was scaled into.
+   */
+  entryRef?: EntryRef;
 }
 
 export async function getTradesForBackfill(tabName: string): Promise<BackfillTrade[]> {
@@ -1923,6 +2064,10 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
   const maeIdx = cm(colMap, "MAE (R)");
   const dayOpenIdx = cm(colMap, "O");
   const adrIdx = cm(colMap, "ADR");
+  const entryLadderIdx = cm(colMap, "Entry Ladder");
+  const firstEntryIdx = cm(colMap, "First Entry");
+  const initialRiskIdx = cm(colMap, "Initial Risk ($)");
+  const peakIdx = cm(colMap, "Peak Position Value ($)");
 
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, "")) || 0;
   const hasValue = (idx: number, row: string[]) => idx >= 0 && row[idx] !== undefined && row[idx] !== "";
@@ -1943,6 +2088,7 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
     // marks the row as processed by the OHLCV enrichment (avoids re-triggering
     // forever on genuinely-uncomputable ATR values).
     const hasCandle = hasValue(dayOpenIdx, row);
+    const hasPeak = hasValue(peakIdx, row);
     // ADR was added after OHLCV/ATR/30mATR, so rows enriched before it exist with
     // a candle but no ADR — treat a missing ADR as needing work so one Backfill
     // pass fills it. ADR is computable whenever the daily history is (else "N/A"),
@@ -1955,7 +2101,30 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
     // A row needs enrichment if it lacks the basic market data, the daily candle
     // group, or has R filled but is missing an R-dependent field (Max R Before
     // Stop, MAE). VIX is handled separately by the per-date backfillVixForTab pass.
-    const needsWork = !hasBasicEnrichment || !hasCandle || !hasAdr || (hasRisk && (!hasMaxR || !hasMae));
+    // The true entry, from the ladder columns. riskPerShare is measured off the REAL
+    // initial stop and the FIRST entry's shares — not R/totalShares, which spreads the
+    // whole trade's risk across lots that were not open yet when the stop was set.
+    const lots = entryLadderIdx >= 0 ? parseFills(String(row[entryLadderIdx] || "")) : [];
+    const firstEntryPx = firstEntryIdx >= 0 ? parseNum(row[firstEntryIdx]) : 0;
+    const initialRisk = initialRiskIdx >= 0 ? parseNum(row[initialRiskIdx]) : 0;
+    const firstLotShares = lots[0]?.shares ?? 0;
+    const entryRef: EntryRef | undefined =
+      firstEntryPx > 0 && initialRisk > 0 && firstLotShares > 0
+        ? {
+            price: firstEntryPx,
+            riskPerShare: initialRisk / firstLotShares,
+            entries: lots,
+            initialRisk,
+          }
+        : undefined;
+
+    // A laddered row also needs work when the position-aware excursion is missing:
+    // Peak Position Value is what bounds a scaled-in trade's realised P&L, and it can
+    // only be computed once the ladder is there. Gated on the ladder so rows that will
+    // never have one don't re-trigger forever.
+    const needsPeak = !!entryRef && !hasPeak;
+    const needsWork = !hasBasicEnrichment || !hasCandle || !hasAdr || needsPeak
+      || (hasRisk && (!hasMaxR || !hasMae));
     if (!needsWork) continue;
 
     const riskPerShare = hasRisk ? riskVal / sharesVal : undefined;
@@ -1969,6 +2138,7 @@ export async function getTradesForBackfill(tabName: string): Promise<BackfillTra
       avgEntry: avgEntryIdx >= 0 ? parseNum(row[avgEntryIdx]) : 0,
       index: r - 1,
       riskPerShare,
+      entryRef,
     });
   }
   return trades;
@@ -2832,6 +3002,15 @@ export async function updateEnrichment(
     ["ATR", (d) => d.atr14],
     ["30mATR", (d) => d.atr30m],
     ["ADR", (d) => d.adr14],
+    // Ladder-derived excursion. Only computable when an entryRef was supplied, so on a
+    // row with no ladder these stay null and the null-skip above keeps the cell as-is.
+    // The R and capture columns beside them are FORMULAS over these values (see
+    // buildFormulas) and are deliberately absent from this map — writing a literal
+    // there would replace the formula with a frozen number.
+    ["MFE (R)", (d) => d.mfeR],
+    ["Peak Position Value ($)", (d) => d.peakPositionValue],
+    ["Trough Position Value ($)", (d) => d.troughPositionValue],
+    ["Peak In-Window ($)", (d) => d.peakInWindow],
   ];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

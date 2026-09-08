@@ -313,6 +313,27 @@ function assemble(
 /** Google Sheets strips leading zeros from times; normalise before matching. */
 export const normTime = (t: string) => (t || "").replace(/^0/, "").trim();
 
+/**
+ * Inverse of `fmtFills`: read a stored `Entry Ladder` cell back into lots.
+ *
+ * `minute` is minute-of-day, which is the unit the intraday bar walk indexes on — the
+ * seconds in the stored timestamp are deliberately dropped here rather than at each call
+ * site. Unparseable segments are skipped, so a hand-edited cell degrades to the lots it
+ * can still read instead of throwing mid-enrichment.
+ */
+export function parseFills(s: string): { minute: number; price: number; shares: number }[] {
+  return (s || "")
+    .split("|")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const m = p.match(/^(\d+):(\d+):(\d+)@([\d.]+)x(\d+)$/);
+      if (!m) return null;
+      return { minute: +m[1] * 60 + +m[2], price: parseFloat(m[4]), shares: parseInt(m[5], 10) };
+    })
+    .filter((x): x is { minute: number; price: number; shares: number } => x !== null);
+}
+
 /** Compact one-cell encodings for the sheet. */
 export const fmtFills = (f: FillEvent[]) =>
   f.map((e) => `${e.time}@${e.price}x${e.shares}`).join(" | ");

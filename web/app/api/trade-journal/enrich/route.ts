@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { enrichSymbol } from "@/lib/trade-journal/market-data";
+import { enrichSymbol, type EntryRef } from "@/lib/trade-journal/market-data";
 import { updateEnrichment } from "@/lib/trade-journal/google-sheets";
 
 export const runtime = "edge";
@@ -15,6 +15,11 @@ interface EnrichRequest {
     avgEntry: number;
     index: number;
     riskPerShare?: number;
+    /**
+     * True entry recovered from the order ladder. When absent, enrichment falls back to
+     * blended Avg Entry with R/totalShares — correct only for a single-entry trade.
+     */
+    entryRef?: EntryRef;
   }[];
 }
 

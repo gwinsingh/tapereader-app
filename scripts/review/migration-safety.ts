@@ -14,17 +14,34 @@ const require = createRequire(import.meta.url);
 const { parseEnvLocal, getAccessToken, ENV_PATH } = require("./env.js");
 import { planMigration, SHEET_HEADERS } from "../../web/lib/trade-journal/google-sheets.ts";
 
-/** Columns the app must never write into: the ladder block plus hand-added manual columns. */
+/**
+ * Columns the app must never write a value into. The ladder block holds the
+ * reconstruction from broker logs; `RightTheory?` and `EOD Screenshot` are hand-added
+ * and unmanaged (the standing precedent that unmanaged columns are ignored).
+ */
 const PROTECTED = [
   "Entry Ladder", "Exit Ladder", "Stop Ladder", "# Entries", "# Exits", "First Entry",
   "Initial Stop", "Initial Risk ($)", "Max Risk At Stake ($)", "Stop Raises",
   "Stopped Out?", "MFE (R)", "Risk Source", "Peak Position Value ($)",
-  "Trough Position Value ($)", "Position MFE (R)", "Capture %", "Risk Basis",
-  "Peak In-Window ($)", "In-Window MFE (R)", "In-Window Capture %",
+  "Trough Position Value ($)", "Risk Basis", "Peak In-Window ($)",
   "RightTheory?", "EOD Screenshot",
 ];
-/** Formula columns the app DOES own and is expected to regenerate. */
-const OWNED_FORMULAS = new Set(["Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R"]);
+
+/**
+ * Formula columns the app OWNS and regenerates in full on every migration.
+ *
+ * The four ladder-derived ones moved here from PROTECTED when the app took over writing
+ * them, so that a newly uploaded row carries them without a manual backfill. That is a
+ * transfer of ownership, so it gets its own assertion below: every non-empty cell in
+ * these columns must already BE a formula. A literal would mean someone typed a value
+ * in by hand, and regenerating over it would destroy it.
+ */
+const OWNED_FORMULAS = new Set([
+  "Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R",
+  "Position MFE (R)", "Capture %", "In-Window MFE (R)", "In-Window Capture %",
+]);
+
+const a1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
 
 const fails: string[] = [];
 const check = (ok: boolean, msg: string) => {
@@ -90,6 +107,27 @@ const check = (ok: boolean, msg: string) => {
     // 4. Existing column order and identity survive migration untouched.
     const orderKept = hdr.every((h, i) => plan.colMap[h.trim()] === i || hdr.findIndex((x) => x.trim() === h.trim()) !== i);
     check(orderKept, `existing column order is preserved (colMap is name-keyed, header row never rewritten)`);
+
+    // 4b. Nothing hand-typed sits in a column the app regenerates. Read with
+    //     valueRenderOption=FORMULA so a formula comes back as its "=..." source
+    //     rather than its computed value.
+    if (plan.formulaWriteCols.length) {
+      const lastCol = Math.max(...plan.formulaWriteCols);
+      const vals: any = await (await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SS}/values/${encodeURIComponent(`'${tab}'!A2:${a1(lastCol)}1000`)}?valueRenderOption=FORMULA`,
+        { headers: H })).json();
+      const literals: string[] = [];
+      for (const [r, rowVals] of ((vals.values || []) as any[][]).entries()) {
+        for (const c of plan.formulaWriteCols) {
+          const v = rowVals[c];
+          if (v === undefined || v === "" || v === null) continue;
+          if (typeof v === "string" && v.startsWith("=")) continue;
+          literals.push(`${fullHdr[c]}!row${r + 2}=${JSON.stringify(v)}`);
+        }
+      }
+      check(literals.length === 0,
+        `no hand-typed literal sits in an app-owned formula column${literals.length ? ` — ${literals.length} found: ${literals.slice(0, 5).join(", ")}` : ""}`);
+    }
 
     // 5. The read range actually reaches the last column — a truncated read drops
     //    columns from every colMap built downstream.
