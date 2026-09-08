@@ -1,0 +1,367 @@
+<title>ORB Trading Playbook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Public+Sans:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+:root{
+  --ground:#FAF9F7; --panel:#FFFFFF; --panel-2:#F2EFEA; --sunk:#EDE9E2;
+  --ink:#1C1A16; --ink-2:#403B33; --muted:#6B655B;
+  --rule:#E2DED6; --rule-2:#CFC9BE;
+  --accent:#9A6714; --accent-soft:#F6EDDC;
+  --pos:#2D6A4A; --neg:#A33B2E; --pos-soft:#E6EFE9; --neg-soft:#F7E8E5;
+}
+:root:not([data-theme="light"]){ @media (prefers-color-scheme: dark){
+  --ground:#14130F; --panel:#1B1A15; --panel-2:#22201A; --sunk:#100F0C;
+  --ink:#EDEAE3; --ink-2:#C4BEB2; --muted:#948D80;
+  --rule:#2A2721; --rule-2:#3A362E;
+  --accent:#D9A14A; --accent-soft:#2A2116;
+  --pos:#5FB587; --neg:#DE7A68; --pos-soft:#17251E; --neg-soft:#2B1C19;
+}}
+:root[data-theme="dark"]{
+  --ground:#14130F; --panel:#1B1A15; --panel-2:#22201A; --sunk:#100F0C;
+  --ink:#EDEAE3; --ink-2:#C4BEB2; --muted:#948D80;
+  --rule:#2A2721; --rule-2:#3A362E;
+  --accent:#D9A14A; --accent-soft:#2A2116;
+  --pos:#5FB587; --neg:#DE7A68; --pos-soft:#17251E; --neg-soft:#2B1C19;
+}
+*{box-sizing:border-box}
+body{background:var(--ground); color:var(--ink); margin:0;
+  font-family:"Public Sans",-apple-system,Segoe UI,sans-serif; font-size:16px; line-height:1.62;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1020px; margin:0 auto; padding:0 22px 88px}
+h1,h2,h3,h4,.disp{font-family:Archivo,Arial,sans-serif; text-wrap:balance}
+.m{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums}
+
+header{padding:40px 0 20px; border-bottom:3px solid var(--ink); margin-bottom:8px}
+.tag{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--accent); font-weight:700}
+h1{font-size:clamp(34px,5.4vw,50px); line-height:1.02; font-weight:700; margin:12px 0 12px; letter-spacing:-.02em}
+.dek{font-size:18px; color:var(--ink-2); max-width:62ch; margin:0 0 6px}
+.meta{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:16px}
+
+h2{font-family:Archivo,sans-serif; font-size:12px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--accent); font-weight:700; margin:52px 0 4px;
+  display:flex; align-items:baseline; gap:12px}
+h2::before{content:attr(data-n); font-family:"JetBrains Mono",monospace; font-size:11px;
+  color:var(--rule-2); font-weight:700}
+h2+.sub{color:var(--muted); font-size:15px; margin:0 0 20px; max-width:66ch}
+h3{font-size:19px; margin:30px 0 8px; font-weight:600; letter-spacing:-.01em}
+p{margin:0 0 14px; max-width:70ch}
+strong{font-weight:600}
+.col{max-width:68ch}
+
+/* spec table */
+.spec{width:100%; border-collapse:collapse; font-size:15px; margin:6px 0}
+.spec th{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); text-align:left; font-weight:500;
+  padding:0 12px 7px 0; border-bottom:1px solid var(--rule-2); white-space:nowrap}
+.spec th.n,.spec td.n{text-align:right}
+.spec td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top}
+.spec td.k{font-weight:600; white-space:nowrap}
+.spec td.n{font-family:"JetBrains Mono",monospace; font-size:14px}
+.spec .note{color:var(--muted); font-size:13px}
+.pos{color:var(--pos)} .neg{color:var(--neg)} .acc{color:var(--accent)}
+
+/* rule cards */
+.rules{display:grid; gap:10px; margin:8px 0}
+.rule{border:1px solid var(--rule); border-left:4px solid var(--rule-2); border-radius:2px;
+  background:var(--panel); padding:15px 18px}
+.rule.no{border-left-color:var(--neg)}
+.rule.yes{border-left-color:var(--pos)}
+.rule.watch{border-left-color:var(--accent)}
+.rule .rh{font-family:Archivo,sans-serif; font-weight:700; font-size:16.5px; display:flex;
+  flex-wrap:wrap; gap:10px; align-items:baseline; margin-bottom:5px}
+.chip{font-family:"JetBrains Mono",monospace; font-size:9.5px; letter-spacing:.1em;
+  text-transform:uppercase; font-weight:700; padding:3px 7px; border-radius:2px; white-space:nowrap}
+.rule.no .chip{background:var(--neg-soft); color:var(--neg)}
+.rule.yes .chip{background:var(--pos-soft); color:var(--pos)}
+.rule.watch .chip{background:var(--accent-soft); color:var(--accent)}
+.rule .rb{font-size:14.5px; color:var(--ink-2)}
+.rule .ev{font-family:"JetBrains Mono",monospace; font-size:12.5px; color:var(--muted);
+  margin-top:7px; padding-top:7px; border-top:1px solid var(--rule)}
+
+.callout{background:var(--panel-2); border:1px solid var(--rule); border-radius:2px;
+  padding:20px 22px; margin:20px 0}
+.callout.strong{border-left:4px solid var(--accent)}
+.callout p:last-child{margin-bottom:0}
+
+figure{margin:22px 0 6px; background:var(--panel); border:1px solid var(--rule);
+  border-radius:2px; padding:18px 18px 12px; overflow-x:auto}
+figcaption{font-size:13.5px; color:var(--muted); margin-top:10px; max-width:72ch}
+figcaption b{color:var(--ink-2); font-weight:600}
+svg{display:block; width:100%; height:auto}
+.ct{font-family:"JetBrains Mono",monospace; font-size:10px; fill:var(--muted)}
+.ct-b{font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:700}
+.chart-title{font-family:Archivo,sans-serif; font-size:15px; font-weight:700; margin:0 0 12px}
+
+/* paste block */
+pre.paste{background:var(--sunk); border:1px solid var(--rule-2); border-radius:2px;
+  padding:20px 22px; overflow-x:auto; font-family:"JetBrains Mono",monospace;
+  font-size:12.5px; line-height:1.72; color:var(--ink); margin:16px 0; white-space:pre-wrap}
+ul.tight{margin:0 0 14px; padding-left:20px}
+ul.tight li{margin-bottom:7px}
+footer{margin-top:60px; padding-top:16px; border-top:1px solid var(--rule);
+  font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:6px 22px}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="tag">Briefing document &middot; for the morning watchlist chat</div>
+  <h1>ORB Trading Playbook</h1>
+  <p class="dek">How this trader actually trades, what he can physically size, and which pre-market conditions the data says are negative. Written to be read by another assistant as much as by a human.</p>
+  <div class="meta">
+    <span>319 trades &middot; 72 sessions</span><span>May&ndash;Aug 2026</span>
+    <span>Risk measured from the broker order ladder</span><span>All figures in R</span>
+  </div>
+</header>
+
+<h2 data-n="00">How to use this</h2>
+<div class="col">
+  <p>This document has one job: help build a morning watchlist that fits this trader. It is <strong>descriptive first, prescriptive second</strong>, and that ordering is deliberate.</p>
+  <div class="callout strong">
+    <p><strong>The single most important thing to know before filtering anything.</strong> Across 53 statistical tests on 28 pre-trade variables &mdash; gap, RVOL, float, dollar volume, ATR, ADR, opening-range size, distance to the moving averages, prior-close location, VWAP position &mdash; <strong>not one separates his winning trades from his losing ones.</strong> Comparing his top 25 trades against his bottom 25 directly, every p-value exceeds 0.05.</p>
+    <p>So do not try to predict outcome from stock characteristics. It does not work in this trader&rsquo;s data, and a filter built that way will be fitting noise. What the sections below give you instead is an <em>envelope</em> &mdash; the names he can physically trade and size &mdash; plus a small number of conditions that are reliably <em>negative</em>, which is a different and better-supported kind of claim.</p>
+  </div>
+</div>
+
+<h2 data-n="01">The strategy in one page</h2>
+<table class="spec">
+  <tbody>
+    <tr><td class="k">Setup</td><td>Opening Range Breakout, and only that. 197 of 248 practice trades and 58 of 71 live trades. Everything else he tried &mdash; mean reversion, break of high-of-day, ABCD, VWAP bounce &mdash; lost money and has been dropped.</td></tr>
+    <tr><td class="k">Opening range</td><td class="m">09:30&ndash;09:35 ET (5 minutes)</td></tr>
+    <tr><td class="k">Direction</td><td>Long only. <span class="m">13 of 319</span> trades were short, and that ended in August: all 71 live trades were long.</td></tr>
+    <tr><td class="k">Entry style</td><td><strong>Anticipation, not confirmation.</strong> 67% of entries are placed <em>inside</em> the opening range, before the break completes. He deliberately does not wait for volume confirmation &mdash; in an ORB the volume arrives after the break, and waiting is too late.</td></tr>
+    <tr><td class="k">Sizing</td><td>Constant dollar risk. He marks the invalidation level on the chart, and the platform back-solves the share count. Currently <span class="m">$18</span> for a starter and <span class="m">$28</span> full size; was <span class="m">$14</span> earlier.</td></tr>
+    <tr><td class="k">Scaling in</td><td>Pyramids on strength. Each add is another ~1 unit of risk, and the whole-position stop is re-set at the same instant, so <strong>total exposure stays near one unit while size grows</strong>. He never adds while the position is underwater.</td></tr>
+    <tr><td class="k">Target</td><td>Nominally 2.5R, discretionary in practice. He met it on 4 of 70 live trades &mdash; each add raises the reference risk, so the target inflates as the position builds.</td></tr>
+    <tr><td class="k">Risk rule</td><td>A max-loss rule, not a trade-count cap. Tested and correct: trades taken after a bad start are a coin flip, not a bleed.</td></tr>
+    <tr><td class="k">Shape</td><td class="m">26% win rate &middot; avg winner +2.56R &middot; avg loser &minus;0.74R &middot; payoff 3.5&times;</td></tr>
+  </tbody>
+</table>
+<p class="col" style="margin-top:14px"><strong>The consequence for stock selection:</strong> a low win rate with a fat right tail means the watchlist&rsquo;s job is not to find likely winners. It is to find names capable of a <em>large</em> move that he can size correctly and add into. A name that can only ever travel 1R is useless to him even if it goes his way.</p>
+
+<h2 data-n="02">The tradeable universe</h2>
+<p class="sub">Percentiles from 319 actual trades. Treat p10&ndash;p90 as the working range, not a hard filter.</p>
+<table class="spec">
+  <thead><tr><th>Attribute</th><th class="n">p10</th><th class="n">p25</th><th class="n">median</th><th class="n">p75</th><th class="n">p90</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td class="k">Price</td><td class="n">$95</td><td class="n">$156</td><td class="n">$341</td><td class="n">$728</td><td class="n">$751</td><td class="note">bimodal &mdash; SPY/QQQ at the top end</td></tr>
+    <tr><td class="k">ADR $</td><td class="n">3.97</td><td class="n">6.86</td><td class="n">9.33</td><td class="n">14.14</td><td class="n">23.24</td><td class="note">gap-free average daily range</td></tr>
+    <tr><td class="k">ADR % of price</td><td class="n">1.05</td><td class="n">1.46</td><td class="n">2.84</td><td class="n">6.50</td><td class="n">9.53</td><td class="note">very wide &mdash; ETFs to high-beta names</td></tr>
+    <tr><td class="k">30-min ATR $</td><td class="n">2.07</td><td class="n">3.39</td><td class="n">4.83</td><td class="n">7.25</td><td class="n">14.21</td><td class="note acc">the number that sets his share count</td></tr>
+    <tr><td class="k">Float (M sh)</td><td class="n">146</td><td class="n">457</td><td class="n">681</td><td class="n">1,129</td><td class="n">12,230</td><td class="note">no small floats &mdash; not a low-float trader</td></tr>
+    <tr><td class="k">Avg $ volume</td><td class="n">$2.1B</td><td class="n">$5.2B</td><td class="n">$16.9B</td><td class="n">$34B</td><td class="n">$40B</td><td class="note">mega-liquid only</td></tr>
+    <tr><td class="k">RVOL</td><td class="n">0.64</td><td class="n">0.84</td><td class="n">1.08</td><td class="n">1.58</td><td class="n">3.92</td><td class="note">does <em>not</em> require elevated volume</td></tr>
+    <tr><td class="k">Opening range $</td><td class="n">1.18</td><td class="n">1.81</td><td class="n">3.27</td><td class="n">5.49</td><td class="n">10.06</td><td class="note">= 26% of ATR at the median</td></tr>
+    <tr><td class="k">Stop distance</td><td class="n">$0.50</td><td class="n">$0.90</td><td class="n">$1.40</td><td class="n">$2.60</td><td class="n">$4.60</td><td class="note">0.57% of price; 0.27&times; the 30m ATR</td></tr>
+    <tr><td class="k">Shares</td><td class="n">5</td><td class="n">9</td><td class="n">15</td><td class="n">27</td><td class="n">44</td><td class="note acc">small &mdash; see the sizing constraint</td></tr>
+  </tbody>
+</table>
+
+<div class="rules" style="margin-top:22px">
+  <div class="rule yes"><div class="rh">Liquidity floor <span class="chip">Hard</span></div>
+    <div class="rb">Nothing below roughly <span class="m">$2B</span> average dollar volume. His 10th percentile is $2.1B, and he has never traded a genuinely thin name. Float is essentially unconstrained above ~150M shares.</div></div>
+  <div class="rule watch"><div class="rh">Instrument classes he actually trades <span class="chip">Descriptive</span></div>
+    <div class="rb">Index ETFs (SPY, QQQ) are 39% of his book and his largest contributor at +17.7R. Single names 28%, mega-caps 24%, leveraged ETFs 9%. Mega-caps are the only class flat-to-negative (&minus;1.6R over 75 trades), but the confidence interval crosses zero &mdash; this is not a reason to exclude them.</div>
+    <div class="ev">SPY 56 trades &middot; QQQ 68 &middot; SOXL 26 &middot; NBIS 15 &middot; NVDA 10 &middot; MRVL 9</div></div>
+</div>
+
+<h2 data-n="03">The sizing constraint &mdash; the real universe filter</h2>
+<p class="sub">This is mechanical, not statistical, and it is the strongest reason to exclude a name.</p>
+<div class="col">
+  <p>He risks about <strong>0.27&times; the 30-minute ATR</strong> per share and buys whole shares only, so his share count is roughly <span class="m">66 &divide; 30mATR</span> at an $18 unit. On a very volatile or very expensive name that collapses to a handful of shares, and two things break at once: whole-share rounding pushes realised risk well off the intended unit, and <strong>a 3-share position cannot be pyramided</strong> &mdash; which is the mechanism his entire edge runs through.</p>
+</div>
+<figure>
+  <p class="chart-title">Performance by resulting share count</p>
+  <div id="c-shares"></div>
+  <figcaption>Trades where he could only buy <b>1&ndash;4 shares</b> run &minus;0.44R with a confidence interval that excludes zero &mdash; the only share bucket that does. Their median 30-minute ATR is <b>$15.20</b>. Everything from 5 shares upward is positive.</figcaption>
+</figure>
+<div class="rules">
+  <div class="rule no"><div class="rh">Exclude names whose 30-min ATR exceeds ~$13 <span class="chip">Recommended</span></div>
+    <div class="rb">At an $18 unit that is fewer than 5 shares. Rounding error on risk becomes severe, and he cannot add &mdash; so the trade cannot become the kind of trade that pays him.</div>
+    <div class="ev">1&ndash;4 shares: n=29, win 14%, expR &minus;0.44 [&minus;0.75, &minus;0.06], sumR &minus;12.9</div></div>
+</div>
+
+<h2 data-n="04">Entry timing</h2>
+<p class="sub">He is early. Median entry is 09:35; the median first trade of the day is 09:31.</p>
+<figure>
+  <p class="chart-title">Expectancy by entry window (both books, n=319)</p>
+  <div id="c-time"></div>
+  <figcaption>The <b>09:35&ndash;09:40</b> window is the strongest single result in the entire dataset: 52 trades, 10% win rate, &minus;0.58R expectancy, confidence interval <b>[&minus;0.84, &minus;0.30]</b>, permutation p&nbsp;=&nbsp;0.0034. It replicates independently in both books and survives dropping its three worst trades.</figcaption>
+</figure>
+<div class="rules">
+  <div class="rule no"><div class="rh">09:35&ndash;09:40 is the dead zone <span class="chip">Strong</span></div>
+    <div class="rb">This is exactly the &ldquo;chasing the fifth-minute candle&rdquo; he says he avoids &mdash; the window where a failed opening-range break gets bought. It is where the range has just completed and the obvious move has already been made. <strong>A watchlist should push him to be positioned before 09:35 or to wait until 09:40.</strong></div>
+    <div class="ev">live &minus;0.52R (n=12) &middot; practice &minus;0.59R (n=40) &middot; every other window +0.21R</div></div>
+  <div class="rule yes"><div class="rh">09:30&ndash;09:35 and 09:40&ndash;09:45 carry the book <span class="chip">Descriptive</span></div>
+    <div class="rb">43% of trades happen while the range is still forming (+30.1R), and the 09:40&ndash;09:45 window is his best at +0.69R over 34 trades. After 10:00 he is flat to slightly negative and rarely trades at all.</div></div>
+</div>
+
+<h2 data-n="05">Gap and VWAP &mdash; the one real interaction</h2>
+<p class="sub">Neither variable predicts anything on its own. Together they do.</p>
+<figure>
+  <p class="chart-title">Gap size &times; distance above VWAP at entry</p>
+  <div id="c-gv"></div>
+  <figcaption><b>A large gap only works when he enters near VWAP.</b> Gapping more than 3% and entering half a percent or more above VWAP is the single worst combination in the book &mdash; 60 trades, a 13% win rate, &minus;19.4R. That is 19% of everything he trades. The same large gaps entered near VWAP run +0.52R.</figcaption>
+</figure>
+<table class="spec">
+  <thead><tr><th>Condition</th><th class="n">n</th><th class="n">win%</th><th class="n">expR</th><th class="n">sumR</th></tr></thead>
+  <tbody>
+    <tr><td class="k">Gap &gt;3%, entry &ge;0.5% above VWAP</td><td class="n">60</td><td class="n neg">13%</td><td class="n neg">&minus;0.32</td><td class="n neg">&minus;19.4</td></tr>
+    <tr><td class="k">Gap &gt;3%, entry near VWAP</td><td class="n">17</td><td class="n">29%</td><td class="n pos">+0.52</td><td class="n pos">+8.9</td></tr>
+    <tr><td class="k">Gap &le;1%, entry near VWAP</td><td class="n">133</td><td class="n">27%</td><td class="n pos">+0.09</td><td class="n pos">+11.4</td></tr>
+    <tr><td class="k">Gap &le;1%, entry &ge;0.5% above VWAP</td><td class="n">57</td><td class="n">28%</td><td class="n pos">+0.26</td><td class="n pos">+14.9</td></tr>
+  </tbody>
+</table>
+<div class="rules" style="margin-top:18px">
+  <div class="rule watch"><div class="rh">Flag big gappers, don&rsquo;t exclude them <span class="chip">Moderate</span></div>
+    <div class="rb">A name gapping over 3% is worth putting on the list &mdash; but the note against it should be <em>&ldquo;only near VWAP&rdquo;</em>, because the failure mode is chasing it once it has run. Pooled across both books, gaps above 3% are negative overall (&minus;10.5R over 77 trades); the live month reverses on 11 trades, so the effect is real but not stable enough to be a hard exclusion.</div>
+    <div class="ev">85% of all his entries are above VWAP; the median is only +0.37% above it</div></div>
+</div>
+
+<h2 data-n="06">Market context</h2>
+<table class="spec">
+  <thead><tr><th>Condition</th><th class="n">n</th><th class="n">expR</th><th class="n">sumR</th><th>Read</th></tr></thead>
+  <tbody>
+    <tr><td class="k">SPY up on the day</td><td class="n">175</td><td class="n">+0.08</td><td class="n pos">+14.3</td><td class="note">he is long-only; direction matters</td></tr>
+    <tr><td class="k">SPY flat</td><td class="n">41</td><td class="n">+0.31</td><td class="n pos">+12.4</td><td class="note">his best tape</td></tr>
+    <tr><td class="k">SPY down</td><td class="n">103</td><td class="n">&minus;0.00</td><td class="n">&minus;0.0</td><td class="note">exactly break-even &mdash; a third of his trades for nothing</td></tr>
+    <tr><td class="k">Earnings / news catalyst</td><td class="n">28</td><td class="n pos">+0.57</td><td class="n pos">+16.1</td><td class="note">recorded pre-market, so usable</td></tr>
+    <tr><td class="k">&ldquo;Day 2&rdquo; continuation</td><td class="n">24</td><td class="n pos">+0.62</td><td class="n pos">+15.0</td><td class="note">second day of an established move</td></tr>
+    <tr><td class="k">&ldquo;Key daily level&rdquo;</td><td class="n">19</td><td class="n neg">&minus;0.43</td><td class="n neg">&minus;8.2</td><td class="note">his worst logged catalyst</td></tr>
+    <tr><td class="k">No catalyst logged</td><td class="n">223</td><td class="n">+0.01</td><td class="n">+1.9</td><td class="note">70% of trades &mdash; coverage is the problem</td></tr>
+  </tbody>
+</table>
+<p class="col" style="margin-top:14px">Catalyst is filled from his pre-market plan, so unlike most fields it is genuinely known before the trade. The confidence intervals are wide at these sample sizes, but <strong>&ldquo;is there a real reason this moves today&rdquo; is the one qualitative screen worth spending effort on</strong> &mdash; and a watchlist entry should name it explicitly.</p>
+
+<h2 data-n="07">How he manages, so you know what &ldquo;a good candidate&rdquo; means</h2>
+<table class="spec">
+  <tbody>
+    <tr><td class="k">Median hold</td><td class="m">winners 13.2 min &middot; losers 2.5 min</td></tr>
+    <tr><td class="k">Add rate</td><td class="m">34%</td> </tr>
+    <tr><td class="k">Scaling out</td><td>Almost never &mdash; <span class="m">8 of 302</span> trades. He exits all-out.</td></tr>
+    <tr><td class="k">Stopped out</td><td class="m">34%</td></tr>
+    <tr><td class="k">Stop trailing</td><td>He raises stops (median 1 per trade) but <strong>has never once trailed one to breakeven</strong> in 296 trades. Every winning exit is a discretionary decision.</td></tr>
+    <tr><td class="k">A typical session</td><td class="m">4 trades &middot; 3 distinct symbols &middot; first entry 09:31 &middot; 46% of sessions green</td></tr>
+    <tr><td class="k">Session R</td><td class="m">p10 &minus;3.7R &middot; median &minus;0.2R &middot; p90 +6.1R</td></tr>
+  </tbody>
+</table>
+<div class="callout" style="margin-top:18px">
+  <p><strong>What this means for the watchlist.</strong> The median session is slightly negative and the profit comes from a handful of sessions where a name trends for 15&ndash;40 minutes and he can add into it two or three times. So the candidate you want is not &ldquo;likely to pop&rdquo; &mdash; it is <strong>a name with a credible reason to trend for half an hour</strong>, liquid enough to add into, and volatile enough to matter but not so volatile that $18 buys four shares.</p>
+</div>
+
+<h2 data-n="08">What does not predict anything</h2>
+<p class="sub">Do not build filters on these. Each was tested on 319 trades across two independent books.</p>
+<div class="rules">
+  <div class="rule no"><div class="rh">Any single pre-trade market variable <span class="chip">Well-powered null</span></div>
+    <div class="rb">Gap, RVOL, float, dollar volume, ATR, ADR, ADR%, opening-range size, OR-as-%-of-ATR, prior-close location, distance to the 20 and 50 SMA, %VWAP, distance to prior-day high/close/low, breakout volume ratio, VIX. Top 25 trades versus bottom 25: every p-value above 0.05.</div>
+    <div class="ev">53 median-split tests &middot; excluding known-broken columns, 2 of 49 reached p&lt;0.05 &mdash; exactly chance</div></div>
+  <div class="rule no"><div class="rh">Entry extension beyond the opening range <span class="chip">Null</span></div>
+    <div class="rb">Twelve different ways of measuring &ldquo;how extended was the entry&rdquo;, two definitions of entry price, both books: nothing. He already enters conservatively &mdash; median entry is <em>below</em> the opening-range high.</div></div>
+  <div class="rule no"><div class="rh">Breakout volume ratio <span class="chip">Not knowable</span></div>
+    <div class="rb">It is measured on the first bar after 09:35 that breaks the range. It is a property of the day, not of his trade, and it does not exist yet when he enters in anticipation.</div></div>
+  <div class="rule no"><div class="rh">Consecutive-candle counts <span class="chip">Broken</span></div>
+    <div class="rb">The <span class="m">#1m</span>, <span class="m">#5m</span> and <span class="m">#1H</span> columns in his sheet counted the entry bar&rsquo;s close, which prints after the entry. Ignore any historical values. Corrected and lagged, all three are a clean null.</div></div>
+</div>
+
+<h2 data-n="09">Watchlist output specification</h2>
+<p class="sub">What a morning session should hand him, and in what form.</p>
+<div class="col">
+  <p>Five to eight names, ranked, each carrying the fields below. He grades them pre-market and logs a conviction score &mdash; which matters, because <strong>conviction-1 setups he took anyway produced one winner in 24 trades</strong> across both books. Anything you can do to make a weak candidate <em>legible as weak</em> is worth more than another filter.</p>
+</div>
+<table class="spec">
+  <thead><tr><th>Field</th><th>Why it earns its place</th></tr></thead>
+  <tbody>
+    <tr><td class="k">Symbol &amp; price</td><td class="note">nothing under ~$2B average dollar volume</td></tr>
+    <tr><td class="k">30-min ATR, and implied shares at $18</td><td class="note acc">the hard constraint &mdash; flag anything under 5 shares</td></tr>
+    <tr><td class="k">Gap %, and prior-day close</td><td class="note">over 3% carries a &ldquo;near VWAP only&rdquo; warning</td></tr>
+    <tr><td class="k">ADR $ and ADR % of price</td><td class="note">can this travel far enough to be worth an add?</td></tr>
+    <tr><td class="k">The catalyst, named</td><td class="note">earnings, news, day-2 continuation, sector move &mdash; or say there isn&rsquo;t one</td></tr>
+    <tr><td class="k">Higher-timeframe read</td><td class="note">his own rule: the setup must look right on the daily and hourly, not just the 5-minute</td></tr>
+    <tr><td class="k">Proposed invalidation level</td><td class="note">he sizes from the stop, so a level is worth more to him than a target</td></tr>
+    <tr><td class="k">Conviction 1&ndash;3</td><td class="note">and a plain sentence on why it isn&rsquo;t higher</td></tr>
+  </tbody>
+</table>
+
+<h3>Paste this into the morning chat</h3>
+<pre class="paste">TRADER PROFILE — 5-min Opening Range Breakout, long only.
+Sizes from the stop: shares = risk / (entry - invalidation level).
+Risk unit $18 starter / $28 full. Pyramids on strength, never adds underwater.
+26% win rate, avg winner +2.56R, avg loser -0.74R. Profit comes from a few
+trades that trend 15-40 min and get added into two or three times.
+
+UNIVERSE
+  avg dollar volume  >= $2B          (hard)
+  30-min ATR         <= ~$13         (hard - below that $18 buys <5 shares
+                                      and he cannot pyramid, which is his edge)
+  float              >= ~150M        (soft; he is not a low-float trader)
+  price              $90 - $760      (working range; ETFs sit at the top)
+  RVOL               no constraint   (median 1.08 - does not need elevated volume)
+
+TIMING
+  he is usually positioned before 09:35 ET
+  AVOID proposing anything that implies a 09:35-09:40 entry
+    -> 52 trades, 10% win rate, -0.58R, p = 0.0034, replicates in both books
+  09:40-09:45 is his best window; after 10:00 he rarely trades
+
+GAP / VWAP
+  gap > 3% is fine ONLY if he can enter near VWAP (within 0.5%)
+    -> gap >3% + entry >=0.5% above VWAP: 60 trades, 13% win, -19.4R
+    -> same gaps entered near VWAP: +0.52R
+  flag big gappers with "near VWAP only", do not exclude them
+
+WHAT TO RANK ON
+  1. a real, nameable catalyst (earnings / news / day-2 continuation)
+  2. room to travel - ADR large enough that 2.5R is a plausible move
+  3. clean higher-timeframe structure (daily + hourly, not just 5-min)
+  4. a specific invalidation level he can size from
+
+DO NOT rank on gap size, RVOL, float, ATR, OR size, distance to VWAP or the
+moving averages. All were tested on 319 trades across two books; none separates
+his winners from his losers. Ranking on them fits noise.
+
+OUTPUT
+  5-8 names, ranked, each with: price, 30mATR + implied shares at $18, gap %,
+  ADR $ and %, the catalyst named, higher-timeframe read, a proposed
+  invalidation level, and conviction 1-3 with one sentence on why not higher.
+  Mark conviction-1 clearly - those produced 1 winner in 24 trades.</pre>
+
+<footer>
+  <span>Derived from 319 trades, May&ndash;Aug 2026</span>
+  <span>Companion to the monthly performance review</span>
+  <span>Refresh after each monthly cycle</span>
+</footer>
+</div>
+
+<script>
+const $=(id)=>document.getElementById(id);
+const cv=(n)=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SHARES=[["1-4",29,-0.44,"30mATR $15.20"],["5-9",61,0.14,"$7.56"],["10-19",94,0.24,"$5.31"],["20-49",93,0.07,"$3.73"],["50+",19,0.43,"$2.46"]];
+const TIME=[["09:30-09:35",136,0.22],["09:35-09:40",52,-0.58],["09:40-09:45",34,0.69],["09:45-10:00",53,0.09],["10:00-10:30",33,-0.11],["10:30+",11,0.16]];
+const GV=[["gap>3%\nextended",60,-0.32],["gap>3%\nnear VWAP",17,0.52],["gap≤1%\nnear VWAP",133,0.09],["gap≤1%\nextended",57,0.26]];
+
+function bars(data,{W=880,H=230,lo,hi,ticks,hl=-1,sub=true}={}){
+  const L=60,R=22,T=18,B=sub?52:34, pos=cv('--pos'), neg=cv('--neg'), rule=cv('--rule-2'), muted=cv('--muted'), acc=cv('--accent');
+  const sp=hi-lo, bw=(W-L-R)/data.length, y=v=>H-B-(v-lo)/sp*(H-T-B);
+  let o=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  ticks.forEach(v=>{o+=`<line x1="${L}" y1="${y(v)}" x2="${W-R}" y2="${y(v)}" stroke="${rule}" ${v?'stroke-dasharray="2 4"':'stroke-width="1.4"'}/>`+
+    `<text class="ct" x="${L-9}" y="${y(v)+3.5}" text-anchor="end">${v>0?'+':''}${v}R</text>`;});
+  data.forEach((d,i)=>{const [lab,n,v,note]=d, c=v>=0?pos:neg, x0=L+i*bw+bw*.19, w=bw*.62;
+    const yt=v>=0?y(v):y(0), h=Math.abs(y(v)-y(0));
+    if(i===hl) o+=`<rect x="${(L+i*bw+2).toFixed(1)}" width="${(bw-4).toFixed(1)}" y="${T}" height="${H-T-B+4}" fill="${acc}" opacity=".10" rx="2"/>`;
+    o+=`<rect x="${x0.toFixed(1)}" width="${w.toFixed(1)}" y="${yt.toFixed(1)}" height="${Math.max(2,h).toFixed(1)}" fill="${c}" opacity=".9" rx="1"><title>${lab.replace(/\n/g,' ')}: ${v>0?'+':''}${v}R over ${n} trades</title></rect>`;
+    o+=`<text class="ct-b" x="${(x0+w/2).toFixed(1)}" y="${(v>=0?yt-7:yt+h+14).toFixed(1)}" text-anchor="middle" fill="${c}">${v>0?'+':''}${v}</text>`;
+    lab.split("\n").forEach((ln,k)=>{o+=`<text class="ct" x="${(L+i*bw+bw/2).toFixed(1)}" y="${H-B+16+k*12}" text-anchor="middle" fill="${i===hl?acc:muted}" ${i===hl?'font-weight="700"':''}>${ln}</text>`;});
+    if(sub) o+=`<text class="ct" x="${(L+i*bw+bw/2).toFixed(1)}" y="${H-B+16+lab.split("\n").length*12}" text-anchor="middle" fill="${muted}" opacity=".8">${note?note:'n='+n}</text>`;
+  });
+  return o+`</svg>`;
+}
+function draw(){
+  $('c-shares').innerHTML=bars(SHARES,{lo:-0.6,hi:0.6,ticks:[-0.4,0,0.4],hl:0,H:220});
+  $('c-time').innerHTML=bars(TIME,{lo:-0.75,hi:0.85,ticks:[-0.5,0,0.5],hl:1,H:230});
+  $('c-gv').innerHTML=bars(GV,{lo:-0.5,hi:0.65,ticks:[-0.25,0,0.25,0.5],hl:0,H:230});
+}
+draw();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+</script>
