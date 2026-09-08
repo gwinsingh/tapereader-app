@@ -84,16 +84,29 @@ every scaled-in trade.
 - Without `entryRef` the code falls back to the old behaviour, so rows with no ladder keep
   working. Preserve that.
 
-## 5. Sheet swap (do this too, or none of the above reaches the UI)
+## 5. Sheet swap — ALREADY DONE for the live account (2026-09-08)
 
-The app writes to the tab matching the account name. Until the swap, new uploads land on
-the uncorrected `U16632046-GURI`.
+**Do not swap or delete anything.** The trader did it by hand:
 
-- Delete `U16632046-GURI` and `TRPCT1541-GURI`; rename `WIP-U16632046-GURI` and
-  `WIP-TRPCT1541-GURI` to those names.
-- `resolveMfe()` already prefers `Position MFE (R)` and falls back to `Max R Before Stop`,
-  so the app works before and after.
-- Do this when no upload is in flight, and confirm with the user first — it deletes tabs.
+| tab | cols | state |
+|---|---|---|
+| `U16632046-GURI` | 98 | **live, corrected** — carries the ladder columns. The app already writes here. |
+| `OLD-U16632046-GURI` | 77 | archived original, deliberately renamed out of the way |
+| `TRPCT1541-GURI` | 77 | practice, NOT swapped |
+| `WIP-TRPCT1541-GURI` | 98 | corrected practice, still prefixed |
+
+The practice swap is optional and low value — he trades the live account now. Leave it.
+
+### RISK TO CHECK FIRST, BEFORE ANY UPLOAD RUNS
+
+`SHEET_HEADERS` has 77 entries; the live tab now has **98 columns**. Trace
+`migrateTabIfNeeded`, `repairFormulas` and `ensureSheetTab` against a 98-column tab and
+confirm they cannot truncate, reorder or clobber columns 78-98. `web/lib/trade-journal/CLAUDE.md`
+says unmanaged columns are ignored (precedent: `RightTheory?` and `EOD Screenshot` are
+hand-added and unmanaged), so this *should* be safe — but the ladder data is an expensive
+reconstruction from broker logs and re-deriving it costs a long Polygon backfill. Verify
+before trusting it, and if migration is destructive, fix that before anything else in
+this spec.
 
 ## 6. Verify before declaring done
 
