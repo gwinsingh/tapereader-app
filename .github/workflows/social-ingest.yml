@@ -30,6 +30,13 @@ on:
         default: false
 
   # ---- ENABLE BY UNCOMMENTING -------------------------------------------
+  # ⚠️ GitHub fires `schedule:` triggers ONLY from the repository's DEFAULT
+  # branch. Uncommenting these on `social-sentiment-research` produces zero
+  # runs and NO error — it fails silently, which is the worst failure mode
+  # for a collector whose whole purpose is not missing days. Merge to the
+  # default branch first, then confirm four runs in the Actions tab the
+  # next day rather than assuming.
+  #
   # Four slots per day, in UTC. These track the trading day, and the 13:15 UTC
   # (09:15 ET) cut is the important one: it captures pre-market attention state
   # at setup time, which is the H5 signal. Weekends included on purpose —
