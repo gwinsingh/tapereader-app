@@ -63,3 +63,43 @@ accumulates through the run; each entry carries its own measured-on date.
   stability across time are unverified; a change in their scoring model would
   create a silent discontinuity in any long time series. Worth a periodic
   spot-check.
+
+---
+
+## Polygon tier + a docs/measurement discrepancy — measured 2026-09-08
+
+Track B established from Massive's own docs that `/v2/reference/news` sits on
+the **free Stocks Basic tier**, and that Basic's documented 5 req/min matches
+the limit measured here exactly — so **the project's key is Basic tier** `[V]`.
+
+**Discrepancy worth carrying forward:** those docs state Basic is limited to
+**2 years** of news history. Measured against the live key on 2026-09-08, the
+endpoint returned articles from **2023-03** (38 results) and **2024-01** (122
+results) — roughly 3.5 years back, well beyond the documented window. Either
+the limit is not enforced on this endpoint, or the documentation is stale.
+
+This does not change any recommendation — the `insights` boundary (mid-2024)
+binds long before the tier's history limit does, and the journal sits entirely
+inside both. It is recorded because **the run's rule is measured beats
+documented**, and because a backfill plan built on the documented 2-year figure
+would be needlessly conservative.
+
+## Reddit primary terms — unreachable, 2026-09-08
+
+Attempted through three independent network paths: the in-app browser
+(navigation denied), WebFetch against `redditinc.com` (fetch refused) and
+against `support.reddithelp.com` (HTTP 403). This is an **environmental
+limitation, not an agent failure** — no path available to this run can read
+Reddit's primary terms.
+
+Secondary sources `[R]` indicate: the **Responsible Builder Policy (updated
+2026-06-05)** requires every developer to request access and be explicitly
+approved; commercial use requires express written approval; retaining content
+after deletion is prohibited even when anonymised (≈48h compliance window); and
+redistribution at scale requires attribution and a link back.
+
+**A refinement to Track H's framing:** the prohibition on *deriving* is aimed at
+inferring sensitive personal characteristics about users, not at aggregate
+mention counts. Whether aggregate counts are restricted is therefore **not
+settled** by anything read in this run — it remains genuinely open, and the
+pessimistic reading should not be treated as established.
