@@ -1,0 +1,87 @@
+# Social-attention ingest.  See docs/social-sentiment/00-brief.md §5.
+#
+# ---------------------------------------------------------------------------
+# THE SCHEDULE IS DELIBERATELY COMMENTED OUT.
+# Turning it on is a reviewed, waking decision — not one made at 3am mid-run.
+# To enable: uncomment the `schedule` block below and push.
+# ---------------------------------------------------------------------------
+#
+# Why a committed NDJSON archive and not D1: `market_db` does not exist yet
+# (wrangler.toml still carries a TODO database_id), D1's free tier caps writes
+# at 100k rows/day, and a committed snapshot is free, permanently historical,
+# and imports into D1 later in one pass.
+#
+# Why this must run at all: ApeWisdom exposes no retrievable history. Data not
+# captured on the day is gone permanently and cannot be bought back.
+
+name: social-ingest
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Which source to ingest'
+        type: choice
+        options: [apewisdom, tradestie, all]
+        default: apewisdom
+      backfill:
+        description: 'Tradestie one-shot history backfill (~2000 days, ~100 min)'
+        type: boolean
+        default: false
+
+  # ---- ENABLE BY UNCOMMENTING -------------------------------------------
+  # Four slots per day, in UTC. These track the trading day, and the 13:15 UTC
+  # (09:15 ET) cut is the important one: it captures pre-market attention state
+  # at setup time, which is the H5 signal. Weekends included on purpose —
+  # weekend chatter is part of the Monday-gap story.
+  #
+  # NOTE: these UTC times are correct for EDT (Mar–Nov). During EST they land
+  # one hour early. Either accept the drift or split into two schedule blocks.
+  #
+  # schedule:
+  #   - cron: '15 13 * * *'   # 09:15 ET  premarket   <- the signal-bearing slot
+  #   - cron: '30 16 * * *'   # 12:30 ET  midday
+  #   - cron: '5  20 * * *'   # 16:05 ET  prior_close
+  #   - cron: '0  0  * * *'   # 20:00 ET  evening
+  # -----------------------------------------------------------------------
+
+concurrency:
+  group: social-ingest
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Ingest
+        run: |
+          node scripts/social-ingest.mjs \
+            --source "${{ inputs.source || 'apewisdom' }}" \
+            ${{ inputs.backfill && '--backfill' || '' }}
+
+      - name: Commit snapshots
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          # Scoped on purpose: this job must never pick up anything but its own
+          # snapshots. Never `git add -A` here.
+          git add data/social
+          if git diff --staged --quiet; then
+            echo 'no new snapshots'
+            exit 0
+          fi
+          git commit -m "Add social attention snapshots ($(date -u +%Y-%m-%dT%H:%MZ))"
+          # Rebase before pushing: four scheduled runs a day will eventually
+          # race a human push.
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
