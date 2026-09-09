@@ -197,10 +197,15 @@ export default function TradeJournalPage() {
 
   const [filters, setFilters] = useState<Filters>(() => ({
     ...EMPTY_FILTERS,
-    // Default start date to first of current month
+    // Default to the trailing 90 days rather than month-to-date. Month-to-date renders
+    // an empty Performance Overview on any morning before the first trade of the month
+    // (and all of a quiet month), which reads as a broken page rather than an empty
+    // filter — the Calendar sits right below it showing data, because it ignores the
+    // date range and uses month navigation instead.
     startDate: (() => {
-      const now = new Date();
-      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const d = new Date();
+      d.setDate(d.getDate() - 90);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     })(),
   }));
 

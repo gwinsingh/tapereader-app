@@ -117,6 +117,10 @@ on it before that book is used for anything.
   while actually risking ~$27 (full size): 2026-07-31 GOOGL, 2026-08-13 SPY, 2026-08-13 QQQ,
   2026-08-14 GOOGL, 2026-08-18 QQQ. If real, R-multiples on those trades are overstated — and
   2026-08-13 is his best session (+10.1R).
-- 13/70 trades whose build-phase risk-at-stake exceeded ~1.5 units. Worst: 2026-08-28 CRM at $105.54
-  against an $18 unit. Needs a manual read against the chart before being called a rule violation —
-  a mis-classified target order would produce the same signature.
+- ~~13/70 trades whose build-phase risk-at-stake exceeded ~1.5 units. Worst: 2026-08-28 CRM at
+  $105.54 against an $18 unit.~~ **RESOLVED 2026-09-08 — and the caveat was right.** "A
+  mis-classified order would produce the same signature" is exactly what happened, twice: refused
+  exit orders read as stops, and brackets charged against more shares than they covered. Corrected:
+  **9/70 above 1.5 units, 2/70 above 2.0** (08-07 SPY 2.64x, 08-13 SMCI 2.14x — both verified by
+  hand against the raw log and both genuine pyramid expansions where the add was sized above the
+  unit and the stop did not tighten with it). CRM's true peak was $20.82 (1.37x). Median 1.00x.

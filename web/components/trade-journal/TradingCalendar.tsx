@@ -70,13 +70,18 @@ const TARGET_KEY = "pct-capture-target";
 const DEFAULT_TARGET = 2.5;
 
 // "No-management" bracket counterfactual for a set of trades: entry with a
-// fixed stop (−1R) and a fixed target, untouched after entry. MFE (Max R
-// Before Stop) is order-aware — it stops accruing once the stop is hit — so
-// MFE ≥ target means the target genuinely printed before the stop. Trades
-// that reach neither by EOD are counted as −1R (pessimistic; same assumption
-// as the Capture Tracker). Only trades with R + MFE data participate, and
-// the actual side is summed over those same trades so the gap is
-// apples-to-apples.
+// fixed stop (−1R) and a fixed target, untouched after entry. MFE here is
+// `Max R Before Stop`, which is order-aware — it stops accruing the moment the
+// stop level trades — so MFE ≥ target means the target genuinely printed FIRST.
+// Trades that reach neither by EOD are counted as −1R (pessimistic).
+//
+// This is the one consumer that must NOT use the position-aware or in-window
+// MFE. Position MFE ignores the stop and grows with adds the hypothetical
+// bracket never made, so it would credit the bracket with moves it would have
+// been stopped out of; In-Window MFE is capped by the exit he actually took,
+// which a set-and-forget bracket would not have taken. Only trades with R + MFE
+// data participate, and the actual side is summed over those same trades so the
+// gap is apples-to-apples.
 interface BracketAgg {
   covered: number; // trades with R + MFE data
   total: number;   // all trades seen

@@ -2731,7 +2731,21 @@ export interface DailyTrade {
   realizedR: number | null; // P&L vs its own risk
   standardR: number | null; // P&L ÷ Full R target for the date
   risk: number | null; // deployed $ risk
-  maxRBeforeStop: number | null; // MFE — used for the weekly bracket counterfactual
+  /**
+   * `Max R Before Stop` — deliberately NOT `resolveMfe`.
+   *
+   * This feeds the weekly set-and-forget bracket counterfactual, which asks: had a fixed
+   * -1R stop and a fixed target been left alone, would the target have printed first?
+   * Only `Max R Before Stop` answers that — it walks bars from entry to 16:00 and stops
+   * accruing the moment the stop level trades, on the first lot's risk.
+   *
+   * The other two MFEs both break the counterfactual:
+   *  - `Position MFE (R)` ignores the stop AND grows with adds the hypothetical bracket
+   *    never made, so it credits the bracket with moves it would have been stopped out of.
+   *  - `In-Window MFE (R)` is bounded by the exit he actually took, and a set-and-forget
+   *    bracket does not exit when he did.
+   */
+  maxRBeforeStop: number | null;
   conviction: string;
   processFollowed: string; // "Yes" | "No" | "" — for drill-down badge
   hasNote: boolean;
@@ -2833,7 +2847,7 @@ export async function getDailyCalendar(tabName: string, filter?: StatsFilter): P
       pnl: Math.round(pnl * 100) / 100,
       realizedR: !isNaN(pnlR) ? pnlR : (!isNaN(risk) && risk > 0 ? Math.round((pnl / risk) * 100) / 100 : null),
       risk: !isNaN(risk) && risk > 0 ? risk : null,
-      maxRBeforeStop: resolveMfe(r, posMfeIdx, maxRIdx),
+      maxRBeforeStop: (maxRIdx >= 0 ? parseNullableNum(r[maxRIdx]) : null),
       symbol: symbolIdx >= 0 ? (r[symbolIdx] || "").trim() : "",
       setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
       side: sideIdx >= 0 ? (r[sideIdx] || "").trim() : "",
