@@ -53,6 +53,7 @@ incremental capability per dollar and stop.
 |---|---|
 | **No account creation. No credentials entered anywhere.** | Sources are evaluated from public docs, pricing pages, and unauthenticated endpoints. Anything needing a key is researched, spec'd, and built against a stub, then listed in the morning signup checklist (Track K). |
 | **No spending.** | Zero purchases, zero trials that require a card, even free ones. |
+| **Work in the dedicated worktree, never the main checkout.** | All work happens in `.claude/worktrees/social-sentiment` on branch `social-sentiment-research`. **A second Claude session is active in this repo and switches the main checkout's branch without warning** — that is not hypothetical, it happened at 21:42 on 2026-09-08 and misrouted a commit onto `main`. The worktree is immune. Verify with `git branch --show-current` before every commit. |
 | **Branch only, scoped `git add`.** | Only `docs/social-sentiment/**` and new social-collector files. The tree has uncommitted market-scans work — never `git add -A`, never `git add .`, never touch `main`. |
 | **Nothing deployed, nothing public.** | tapereader.us is a public site. No page ships tonight. Redistribution rights are a research question (Track H), not an assumption. |
 | **Edge runtime.** | Every API route is `export const runtime = 'edge'`. No Node built-ins. Collectors that need Node run in GitHub Actions, not in a route. See `CLAUDE.md`. |
