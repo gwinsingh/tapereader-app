@@ -171,8 +171,52 @@ a hypothesis rather than a result. Track D2's pre-registration must inherit
 that discipline — an n=14 gradient is exactly the shape of thing that becomes a
 "finding" if nobody guards it.
 
-### 6. ⚠️ CROSS-TRACK CONTRADICTION — StockTwits (the FINRA pattern, again)
-**Track A1–A3 says it is the find of the run. Track H says blocked. Unresolved.**
+### 6. ❌ RESOLVED AGAINST US — StockTwits is not usable. Track H was right.
+**Unlike FINRA, there is no second channel.** Detail in
+`.wip/stocktwits-terms-resolution.md`.
+
+**The framing question dissolved on a fact.** The v2 API is **not documented
+today** — `/developers/docs`, `/developers/docs/api`, `/developers/api-terms`
+and `/developers/docs/rate_limiting` all return **404** live `[V]`. The
+developer portal is a single frozen page (footer **"© 2021"**) saying
+registration is shut, while the ToS was revised **2026-07-10** `[V]`. So these
+are the site's own undocumented backend endpoints — the weakest of the three
+possible framings, not the strongest.
+
+**All three framings land restrictive, which is why it resolves cleanly:**
+- **Scraping?** ToS §5 bans automated extraction "except … through an
+  **approved** API, widget, developer offering" `[V]`. Nothing today is approved.
+- **Ordinary API use?** Then the only API terms ever published apply — the API
+  License Agreement (2019-07-03, now 404), which is **worse** than the site ToS:
+  a 30-day retention cap, no redistribution whole or in part, and an express ban
+  on creating **or displaying** "message trend information, **sentiment
+  information** … or any summaries". **The closed door is not hiding a better
+  deal.**
+- **Internal backend?** ToS §1 scope names APIs explicitly, and forms by access.
+
+The FINRA-shaped precedence clause *exists* (§1: additional API terms control) —
+but it points at a document that was **withdrawn, not replaced**.
+
+**Answers:** (a) private journal — **AMBER**, not clean. The current ToS has no
+retention cap, no non-commercial limit and no derived-analysis ban, so the *use*
+is fine and the *collection method* is the exposure. (b) public aggregates —
+**NO, unconditionally**: ToS §8 states Stocktwits licenses derived sentiment
+products to financial institutions, so a free public bull/bear page is directly
+adverse to a live revenue line. (c) automated collector — **NO**.
+
+**Two corrections to Track A1–A3's measurements:**
+1. `api.stocktwits.com` **does** serve a robots.txt (301 → `api-gw-prd`) carrying
+   **`Disallow: /*?` for all agents** `[V]` — every `?max=` pagination call, which
+   is the entire backfill mechanism, is robots-disallowed.
+2. Archived docs recorded **200 requests/hour unauthenticated per IP** with
+   `X-RateLimit-*` headers. The measured 8.9 req/s is **~160× that**. The absent
+   rate-limit headers are a gateway change, **not a grant**.
+
+**Only open doors:** the display-only widget, and `stocktwits.com/enterprise`
+("Talk to Sales", no published price). Recommended free action: email
+`developers@stocktwits.com`.
+
+#### Original contradiction, for the record
 
 - **A1–A3 measured** the documented v2 endpoints serving public data with **no
   key at all**: 0.14s latency, 8.9 req/s across 60 consecutive requests with
@@ -195,7 +239,19 @@ answer decides whether the best social source in the run is usable.
 Until resolved: **do not add StockTwits to the collector.** Treat it as a
 private-journal candidate at most.
 
-### 7. 🔴 Track D2's power analysis may be too pessimistic — StockTwits history is WALKABLE
+### 7. ❌ WITHDRAWN — this item depended on StockTwits being usable. It is not.
+**Do not relax the pre-registration on this.** §6 resolved against us, so the
+walkable history is not available on any licensed basis. **Track D2's power
+analysis and its 2027+ horizons stand unchanged.** The counter really does start
+at 2026-09-08 with no social backfill.
+
+The consequence worth naming: **the ticker-resolution problem now has no free
+licensed solution.** StockTwits was the only source with structurally pre-parsed
+cashtags. The realistic fallback is a **small hand-curated watchlist universe**
+rather than full-universe coverage — which is a significant scope reduction and
+must flow into Tracks D, F and I.
+
+#### Original claim, now withdrawn
 D2 assumed social features exist only from 2026-09-08 forward, so "the counter
 starts at zero" and no discovery/replication split is possible on social data.
 
