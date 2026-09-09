@@ -337,6 +337,55 @@ Three traps recorded so they are not rediscovered:
 - **TikTok** — Research API is eligibility-gated to academics, commercial users
   explicitly ineligible. A gate, not a price.
 
+### 13. 🔴 BLOCKING, WITH A DATE — the confirmatory test needs a daily-bar store that does not exist
+Track D found the real blocking dependency, and it is **not social data**.
+
+The only confirmatory test in the study (H5) needs a daily-bar store for two
+separate things: its outcome variable (`|gap| ÷ ADR`) and the
+`apdv_resid` metric's dollar-volume denominator. **`market_db` does not exist** —
+`web/wrangler.toml` still carries `database_id = "TODO_RUN_WRANGLER_D1_CREATE"`.
+
+**To hold the pre-registration's ~December 2026 answer date for H5, daily-bar
+collection must start by roughly 2026-09-15.** That is the only hard deadline
+produced by this entire run. Everything else can slip.
+
+Note this is the same `market_db` the market-scans phase-1 spec needs, and
+`scripts/market-ingest.mjs` already exists — so this is largely a
+create-the-database-and-run-it task, not new engineering. **But see §1: the
+public market-scans product cannot ship on Polygon data. Collecting bars into a
+private store for private analysis is a different question from publishing them,
+and is not blocked.**
+
+### 14. Corrections Track D makes to the pre-registration's arithmetic
+Both dated before any data, and both make the picture slightly worse:
+- **The H5 panel is ~70,800 ticker-days over 90 days, not ~360,000.** ApeWisdom
+  lists ~787 names/day, not the ~4,000 of the liquid universe. Still ample for
+  H5, but the margin is 5× smaller than D2 assumed.
+- **H1's accrual clock starts ~2026-10-06, not 2026-09-08** — `mentions_z20`
+  needs 20 prior sessions of baseline before it computes at all.
+- **⚑A2, the one that matters most:** the `Surging ≥ 1.00` cut is crossed by a
+  move from **1 → 5 mentions**. 604 of 787 tickers sit at exactly 1 mention. So
+  H5's real risk is **not underpower — it is a well-powered test of a
+  noise-dominated predictor.** A precise answer about nothing. This deserves the
+  trader's attention more than the power arithmetic does.
+- **⚑A3: H6 is not computable from any currently-collecting source.** ApeWisdom
+  has no sentiment field, and H6's predictor needs polarity on ~100 names/day.
+  With StockTwits ruled out, H6 has no data path at all.
+
+### 15. The bot detector cannot be built, so a substitute was designed
+`author_diversity` requires author identity, which no collecting source exposes.
+For ApeWisdom the pre-registration's RVOL gate is therefore **the only** line of
+defence, not the second.
+
+Track D specifies a **reflexivity test** that works without authors: if
+`|r(feature, return(d−1))| > |r(feature, outcome(d))|`, the feature is labelled a
+**price echo** and is not reportable. That is the structural guard against §10's
+scanner-bot problem. It should be treated as mandatory, not optional.
+
+Also newly excluded: **ApeWisdom `upvotes`** is maturity-confounded exactly like
+Arctic Shift's `score` — it accrues after posting under undisclosed aggregation.
+Store it, never feature it.
+
 ---
 
 ## Run incidents (affect trust, not conclusions)
