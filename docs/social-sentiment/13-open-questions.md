@@ -201,10 +201,31 @@ to run or decline. It is a docs-only addition and harmless to leave.
 
 ---
 
-## Questions for the trader (not researchable)
+## Questions for the trader
 
-- The capture target used by the journal defaults to 2.5R. Should the sentiment
-  hypotheses be evaluated against that same target, or against realised R?
-  Affects Track D2's primary outcome variable.
-- How many trades per month, currently? Track D2's power analysis needs a real
-  accrual rate to say when H1–H5 become answerable rather than guessing.
+### ✅ Both original questions answered by Track D2
+- **Primary outcome** is `Max R Before Stop` (MFE), not the 2.5R capture target.
+  H1–H5 are claims about *opportunity*; realised R folds in the trader's own
+  exits, so a null on realised R would be uninterpretable.
+- **Accrual rate** is measured at 36 trades over 12 traded dates, but the
+  governing number is **~18 analyzable trades/month** — see below.
+
+### 🔴 NEW, and it reshapes the product
+**Half the trades are index/sector ETFs** — QQQ 7, SPY 6, SOXL 5 of 36 `[V]` —
+which carry no usable ticker-level retail-attention signal and are excluded by
+construction. Within the surviving half NVDA is 6 of 18, and NVDA sits pinned at
+the top of every mention list, so percentile features have almost no variance
+on it.
+
+**Question for the trader:** is that ETF-heavy May sample representative of how
+you trade now? If yes, the trade-level correlation study is close to hopeless on
+any useful horizon and the effort belongs in the universe-level scan instead. If
+May was unusual and you now trade mostly single names, the arithmetic improves —
+but not by enough to rescue small effects.
+
+### 🔴 `Catalyst` is 100% blank across the whole export
+Not a caveat — a blocker for any catalyst-conditioned analysis, and it makes the
+EDGAR auto-population from Track B considerably more valuable than it looked.
+
+### 🔴 `Conviction (1-3)` is 61% blank
+Usable as a covariate, never as a stratifier.
