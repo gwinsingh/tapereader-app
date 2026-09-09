@@ -337,7 +337,32 @@ Three traps recorded so they are not rediscovered:
 - **TikTok** — Research API is eligibility-gated to academics, commercial users
   explicitly ineligible. A gate, not a price.
 
-### 13. 🔴 BLOCKING, WITH A DATE — the confirmatory test needs a daily-bar store that does not exist
+### 13. ⚠️ AMENDED BY TRACK I — the deadline is real, but it is a different deadline
+**Track I verified this against the actual code and the framing below is wrong
+in an important way.**
+
+- **Bars are backfillable, so bar collection is NOT the deadline.** The
+  market-scans spec's ~11-day backfill pacing is imposed by **D1's
+  100k-rows/day cap, not by Polygon**. Take D1 out of the write path and it
+  evaporates: Polygon is 5 req/min and **one call returns a full session**
+  (12,424 tickers), so **252 sessions ≈ 55 minutes — a year of bars is one
+  GitHub Actions run**, not eleven days. Clearing this is a `--sink file` mode
+  on a script that already exists: 4–6 hours of work. `market_db`, migrations
+  and Cloudflare secrets are all **off** the critical path.
+- **The real deadline is social snapshot continuity, and it has already
+  started.** Bars slipping by weeks costs nothing. **A two-week social outage in
+  October pushes H5 past its own window**, because that history cannot be
+  bought.
+
+### 13b. 🔴 `market-ingest` has never run once
+Verifying the "the script already exists" claim exposed something larger:
+`scripts/market-ingest.mjs`, `web/app/api/scan/ingest/route.ts`,
+`web/migrations/market/0001_init.sql` and `.github/workflows/market-ingest.yml`
+are all **untracked** in the main checkout. Only `web/lib/market/*` is
+committed. Combined with GitHub firing `schedule:` only from the default
+branch, **the market-scans ingest has never executed**. Critical-path item.
+
+#### Original framing, for the record — the daily-bar dependency
 Track D found the real blocking dependency, and it is **not social data**.
 
 The only confirmatory test in the study (H5) needs a daily-bar store for two

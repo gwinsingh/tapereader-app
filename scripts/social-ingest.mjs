@@ -47,6 +47,16 @@ const UA = 'tapereader-social-ingest/1.0 (+https://tapereader.us)';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Every guard in this file detects a failure and then must make it VISIBLE.
+ * A collector that logs an error and exits 0 is worse than one that crashes:
+ * GitHub reports a green tick, no email is sent, and the hole is only found
+ * later by someone reconciling row counts. Guards record here; the process
+ * exits non-zero at the end so Actions marks the run failed and emails.
+ */
+const failures = [];
+const fail = (msg) => { failures.push(msg); console.error(`  FAIL: ${msg}`); };
+
 /** Current time in the US Eastern trading day, as {date:'YYYY-MM-DD', hhmm:'HH:MM'}. */
 function nowET() {
   const f = new Intl.DateTimeFormat('en-CA', {
@@ -155,7 +165,7 @@ async function apewisdom({ dryRun }) {
       const url = `https://apewisdom.io/api/v1.0/filter/${filter}/page/${page}`;
       const res = await getJSON(url);
       if (!res.ok) {
-        console.error(`  ${filter} p${page}: FAILED (${res.status}) -- scope DISCARDED`);
+        fail(`apewisdom/${filter} p${page}: HTTP ${res.status} -- scope DISCARDED`);
         complete = false;
         break;
       }
@@ -166,7 +176,7 @@ async function apewisdom({ dryRun }) {
       // A typo'd filter returns count:0 with HTTP 200 rather than a 404, so an
       // empty first page is a failure signal, not an empty result.
       if (page === 1 && rows.length === 0) {
-        console.error(`  ${filter}: empty first page (count=${declared}) -- scope DISCARDED`);
+        fail(`apewisdom/${filter}: empty first page (count=${declared}) -- scope DISCARDED`);
         complete = false;
         break;
       }
@@ -195,7 +205,7 @@ async function apewisdom({ dryRun }) {
     // Cross-check against the count the API declared for itself.  This is the
     // only automatic guard against a short walk that returned 200 on every page.
     if (complete && declared !== null && buffered.length !== declared) {
-      console.error(`  ${filter}: got ${buffered.length} rows, API declared ${declared} -- scope DISCARDED`);
+      fail(`apewisdom/${filter}: got ${buffered.length} rows, API declared ${declared} -- scope DISCARDED`);
       complete = false;
     }
 
@@ -206,7 +216,7 @@ async function apewisdom({ dryRun }) {
   }
 
   if (!records.length) {
-    console.error('apewisdom: NO complete scope this run -- writing nothing');
+    fail('apewisdom: NO complete scope this run -- wrote nothing');
     return;
   }
 
@@ -250,7 +260,7 @@ async function tradestie({ dryRun, backfill, start }) {
     const [y, m, d] = iso.split('-');
     const url = `https://tradestie.com/api/v1/apps/reddit?date=${m}-${d}-${y}`;
     const res = await getJSON(url);
-    if (!res.ok) { console.error(`  ${iso}: FAILED (${res.status})`); await sleep(3200); continue; }
+    if (!res.ok) { fail(`tradestie ${iso}: HTTP ${res.status}`); await sleep(3200); continue; }
 
     const rows = Array.isArray(res.body) ? res.body : [];
     const records = rows.map((row, i) => ({
@@ -294,3 +304,12 @@ const opts = {
 
 if (source === 'apewisdom' || source === 'all') await apewisdom(opts);
 if (source === 'tradestie' || source === 'all') await tradestie(opts);
+
+// Make failures visible. GitHub Actions emails on a failed run; it says nothing
+// about a green run that quietly collected half a snapshot.
+if (failures.length) {
+  console.error(`\n${failures.length} failure(s):`);
+  for (const f of failures) console.error(`  - ${f}`);
+  process.exit(1);
+}
+console.log('OK');
