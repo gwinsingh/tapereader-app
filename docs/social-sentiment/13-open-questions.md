@@ -40,6 +40,40 @@ whole study, so its terms being unverified is a real gap, not a footnote.
 Marketaux (HTTP 403) and X's consumer ToS (HTTP 402) could not be fetched.
 Claims resting on them are `[R]` at best.
 
+### 4. ⚠️ CROSS-TRACK CONTRADICTION — FINRA short-sale volume files
+**Track C says adopt. Track H says blocked. Both are probably right, and the
+run must not ship a recommendation that ignores one of them.**
+
+- **Track C** measured the daily short-sale volume flat files as keyless, with
+  **8.1 years of history** (boundary measured at 2018-08-01), 12,217
+  symbols/day, same-day availability at 17:18 ET, and 82 files pulled
+  concurrently with zero 429s. It is the strongest free historical
+  crowd-positioning series found anywhere in the run.
+- **Track H** read FINRA's Terms of Use as separately prohibiting automated
+  retrieval, database-building, redistribution, and non-personal use.
+
+**Technically open and contractually restricted are not mutually exclusive** —
+that combination is common, and it is exactly the trap this run is supposed to
+catch. Resolution needed before Track I builds a collector against it:
+1. Which FINRA property's ToU actually governs the **short-sale volume flat
+   files** specifically? FINRA's site-wide terms may not be the operative
+   document for a published regulatory data file.
+2. Does the split hold that the private journal may use it while the public
+   page may not — the same split that applies to Polygon?
+3. Is there an official redistribution or bulk-data path?
+
+Until resolved, treat FINRA short-sale volume as **private-journal-use
+candidate, not a public-surface source**, and do not let its excellent
+measured properties smuggle it past the licensing question.
+
+### 5. The empirical result on short-volume was honestly null — keep it that way
+Track C found short-volume ratio vs next-day return **r = −0.0035**: no
+univariate edge. It also found a monotone breakout-day tercile gradient
+(+1.41% / +3.54% / +6.37%) on **n=14 per bucket**, and correctly reported it as
+a hypothesis rather than a result. Track D2's pre-registration must inherit
+that discipline — an n=14 gradient is exactly the shape of thing that becomes a
+"finding" if nobody guards it.
+
 ---
 
 ## Run incidents (affect trust, not conclusions)
