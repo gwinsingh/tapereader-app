@@ -171,6 +171,64 @@ a hypothesis rather than a result. Track D2's pre-registration must inherit
 that discipline — an n=14 gradient is exactly the shape of thing that becomes a
 "finding" if nobody guards it.
 
+### 6. ⚠️ CROSS-TRACK CONTRADICTION — StockTwits (the FINRA pattern, again)
+**Track A1–A3 says it is the find of the run. Track H says blocked. Unresolved.**
+
+- **A1–A3 measured** the documented v2 endpoints serving public data with **no
+  key at all**: 0.14s latency, 8.9 req/s across 60 consecutive requests with
+  zero throttling and no rate-limit headers, no pagination wall at 120 pages.
+  The **human-declared Bullish/Bearish tag is live** in
+  `entities.sentiment.basic` on 45.4% of messages and persists retrospectively
+  (47.9% on a 900-message walk back a month). Cashtags are **structurally
+  pre-parsed** in `tokenized_body`, so ticker resolution is free and exact —
+  which is the single hardest problem in every other social source.
+- **Track H read** the StockTwits ToS as expressly naming and banning scraping,
+  with developer registration closed pending review.
+
+**This is the FINRA shape again: technically open, contractually questionable.**
+The specific unresolved question is narrower than "is scraping allowed" — it is
+whether **unauthenticated requests to documented public v2 API endpoints**
+constitute scraping under those terms, or ordinary API use that merely lacks a
+key because registration is shut. Those are genuinely different things and the
+answer decides whether the best social source in the run is usable.
+
+Until resolved: **do not add StockTwits to the collector.** Treat it as a
+private-journal candidate at most.
+
+### 7. 🔴 Track D2's power analysis may be too pessimistic — StockTwits history is WALKABLE
+D2 assumed social features exist only from 2026-09-08 forward, so "the counter
+starts at zero" and no discovery/replication split is possible on social data.
+
+**A1–A3 measured otherwise:** message history is walkable backwards — AAPL 14
+days, **AUPH 4 months (3,590 messages) at ~30s per ticker**. Depth is inversely
+related to message volume, so thin single-name breakout candidates reach back
+*further* than megacaps — which is exactly the population the study cares about.
+
+If StockTwits clears §6, **existing journal trades could be scored
+retroactively**, and D2's central constraint changes. That would not rescue the
+small-effect arithmetic, but it could bring the large-effect horizon forward
+substantially and enable the locked discovery/replication design on social as
+well as news. **Track D2 needs a revision pass once §6 is settled.**
+
+### 8. Two operational facts that would have broken the collector silently
+- **Reddit blocks datacenter IPs.** Every keyless route — `.json`, RSS,
+  old.reddit, the oauth host — returns 403. **GitHub Actions will be blocked
+  too.** Any Reddit collection must go through Arctic Shift, which is keyless,
+  free, and measured at **~4 minutes behind live** while also serving 2021 data
+  (contradicting third-party claims of a 4–6 week lag).
+- **Arctic Shift archives at post time**, so `score` and `num_comments` read 0–1
+  for roughly 36 hours. A live collector and a later backfill of the same day
+  **will disagree**. Any model using score would train on values unavailable in
+  real time — a clean look-ahead trap. Pre-registration must exclude
+  score-derived features or window them past 36h.
+
+### 9. Reddit ticker resolution is the real blocker, now quantified
+Only **0.6%** of WSB comments use a cashtag, so bare-token extraction is
+forced — and **39 of 51** common English words tested are real US tickers
+(`$OPEN`, `$NOW`, `$ALL`, `$LOVE`, `$WORK`, `$BULL`). A stoplist and a complete
+ticker universe are in direct conflict; one of them has to lose. This is why
+StockTwits' pre-parsed cashtags matter so much.
+
 ---
 
 ## Run incidents (affect trust, not conclusions)
