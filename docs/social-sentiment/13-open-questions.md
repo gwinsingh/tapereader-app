@@ -40,9 +40,43 @@ whole study, so its terms being unverified is a real gap, not a footnote.
 Marketaux (HTTP 403) and X's consumer ToS (HTTP 402) could not be fetched.
 Claims resting on them are `[R]` at best.
 
-### 4. ⚠️ CROSS-TRACK CONTRADICTION — FINRA short-sale volume files
-**Track C says adopt. Track H says blocked. Both are probably right, and the
-run must not ship a recommendation that ignores one of them.**
+### 4. ✅ RESOLVED — FINRA short-sale volume files
+**Both tracks were right, about different channels to the same bytes.** Neither
+knew about the other's route. Full detail in `.wip/finra-terms-resolution.md`.
+
+- **`cdn.finra.org` flat files** (what Track C measured, 8.1 years) are governed
+  by the site Terms of Use, which ban harvesting, database-building, display and
+  redistribution — and include a clause prohibiting use with predictive
+  analytics models, which describes this study's hypotheses almost verbatim.
+  **Track H's BLOCKED verdict stands, unmodified.**
+- **The Query API** (`api.finra.org/data/group/otcMarket/...`) is governed by the
+  *Specific Terms for Equity Data*, which expressly permit derivative data,
+  permit redistribution of derived data to end users with attribution, impose
+  **no retention limit**, and explicitly contemplate publishing on a website.
+  The site ToU defers to it by its own conflict clause. **Cost: $0.**
+
+**Practical answers:** private journal use — yes via API. Public derived
+metrics — yes via API with attribution and no charge, no via CDN. Automated
+collection — yes against the API (1,200 req/min), no against the CDN.
+
+**The catch that decides the build: the API is a 365-day rolling window.** The
+8.1 years exist only on the blocked CDN. So the licensed route accrues forward
+with no backfill, which puts FINRA in the same accrual-urgency class as
+ApeWisdom, just with a year of runway instead of none.
+
+**Two items genuinely warrant legal review** before anything public ships:
+whether a free public site counts as redistribution "to End Users for
+non-commercial personal or professional use", and whether the Specific Terms'
+"Exceptions to Terms of Use — Not applicable" means no exceptions attach (our
+reading) or reimports the site ToU (which would flip the public answer back to
+blocked). That second one is the likeliest place this is wrong.
+
+**Also for Track F:** the "no charge" condition is the one most likely to break
+later — ads or a paid tier anywhere near this data reopens the non-commercial
+limit. And do not build a public endpoint that dumps the raw panel; that reads
+as bulk distribution.
+
+#### Original contradiction, for the record
 
 - **Track C** measured the daily short-sale volume flat files as keyless, with
   **8.1 years of history** (boundary measured at 2018-08-01), 12,217
@@ -62,9 +96,8 @@ catch. Resolution needed before Track I builds a collector against it:
    page may not — the same split that applies to Polygon?
 3. Is there an official redistribution or bulk-data path?
 
-Until resolved, treat FINRA short-sale volume as **private-journal-use
-candidate, not a public-surface source**, and do not let its excellent
-measured properties smuggle it past the licensing question.
+~~Until resolved, treat FINRA short-sale volume as private-journal-use
+candidate.~~ **Resolved above: use the Query API, not the CDN.**
 
 ### 5. The empirical result on short-volume was honestly null — keep it that way
 Track C found short-volume ratio vs next-day return **r = −0.0035**: no

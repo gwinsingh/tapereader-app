@@ -16,6 +16,28 @@ One source (Stooq) was abandoned rather than proceed, because it now gates acces
 behind a proof-of-work bot check — solving that is bot-detection bypass and is
 out of bounds.
 
+
+> ## ⚠️ CORRECTION — read before acting on the FINRA recommendation
+>
+> This track recommends adopting FINRA daily short-sale volume via the
+> **`cdn.finra.org` flat files**, on measured grounds that remain accurate.
+> **That specific access route is not licensed for this use.** The site Terms of
+> Use ban harvesting, database-building and redistribution.
+>
+> The dataset is still adopted — but through the **Query API**
+> (`api.finra.org/data/group/otcMarket/name/regShoDaily`), which is free, is
+> governed by the permissive *Specific Terms for Equity Data*, and expressly
+> permits derived data and redistribution with attribution.
+>
+> **Consequence for the numbers below:** the 8.1 years of history measured here
+> exist only on the blocked CDN. The licensed API is a **365-day rolling
+> window**, so treat every historical claim in this file as demonstrating the
+> data's properties, not as a backfill that may actually be performed.
+>
+> See `13-open-questions.md` §4 and `.wip/finra-terms-resolution.md`.
+
+---
+
 ---
 
 ## 1. The bar every source has to clear
