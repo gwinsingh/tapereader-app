@@ -1529,6 +1529,40 @@ export interface AggregateStats {
   // labeled Yes or No (blanks excluded). null when no trade is labeled.
   disciplinePct: number | null;
   disciplineN: number;
+  /** Weekly Discipline % (Monday-keyed), for the trend chart. */
+  disciplineTrend: TrendPoint[];
+  /**
+   * The R-denominated headline. Dollars are not comparable across this book — the risk
+   * unit moved $14 -> $18 -> $28 inside a single month — so R is the only honest total.
+   */
+  sumR: number | null;
+  expR: number | null;
+  /** Bootstrap 95% CI on expR. Crossing zero means the sample cannot establish an edge. */
+  expRLo: number | null;
+  expRHi: number | null;
+  rTradeCount: number;
+  /**
+   * sumR with the three largest winners removed. A right-tail strategy's total is carried
+   * by a handful of trades, and the difference between these two numbers is the single
+   * most important thing to know before drawing any conclusion from a month.
+   */
+  sumRExclTop3: number | null;
+  top3Labels: string[];
+  /**
+   * Leading indicator: among positions whose in-window peak reached +1R, the share that
+   * still closed green. It moves BEFORE P&L does — when it halves, stop trading.
+   */
+  heldGreenPct: number | null;
+  heldGreenN: number;
+  heldGreenTrend: TrendPoint[];
+}
+
+/** One point on a weekly trend line. `weekStart` is the Monday, ISO date. */
+export interface TrendPoint {
+  weekStart: string;
+  pct: number | null;
+  hits: number;
+  n: number;
 }
 
 export interface StatsFilter {
@@ -1706,7 +1740,7 @@ function computeSkillMetrics(dataRows: string[][], colMap: ColMap, captureTarget
   const adrIdx = cm(colMap, "ADR");
   const atr30Idx = cm(colMap, "30mATR");
   const maxRIdx = cm(colMap, "Max R Before Stop");
-  const posMfeIdx = cm(colMap, "Position MFE (R)");
+  const inWinMfeIdx = cm(colMap, "In-Window MFE (R)");
   const pnlRIdx = cm(colMap, "P&L (R)");
   const riskIdx = cm(colMap, "R (Risk)");
 
@@ -1748,10 +1782,16 @@ function computeSkillMetrics(dataRows: string[][], colMap: ColMap, captureTarget
 
     // Execution / Target Capture: among trades whose MFE reached the target,
     // mean(min(realizedR, target)) / target — isolates the trail leak.
-    const maxR = numCell(r[maxRIdx]);
+    //
+    // Benchmarked on In-Window MFE (the peak while the position was actually HELD), not
+    // Position MFE (which runs to 16:00 and ignores both the exit and the stop) and not
+    // Max R Before Stop (first-lot only, so it cannot bound a scaled-in trade). Only the
+    // in-window peak is a level he could have converted; the other two answer "what did
+    // the tape do", which is a prediction question, not an execution one.
+    const mfe = numCell(r[inWinMfeIdx]) ?? numCell(r[maxRIdx]);
     const realizedR = numCell(r[pnlRIdx]);
     const risk = numCell(r[riskIdx]);
-    if (maxR !== null && realizedR !== null && risk !== null && risk > 0 && maxR >= captureTarget) {
+    if (mfe !== null && realizedR !== null && risk !== null && risk > 0 && mfe >= captureTarget) {
       captureVals.push(Math.min(realizedR, captureTarget));
     }
   }
@@ -1773,6 +1813,61 @@ function computeSkillMetrics(dataRows: string[][], colMap: ColMap, captureTarget
   };
 }
 
+/** Monday of the ISO week containing `date` (YYYY-MM-DD in, YYYY-MM-DD out). */
+function weekStartOf(date: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const d = new Date(`${date}T00:00:00Z`);
+  if (isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Bucket hit/total by ISO week and emit an ordered trend line. */
+function weeklyTrend(points: { date: string; hit: boolean }[]): TrendPoint[] {
+  const by = new Map<string, { hits: number; n: number }>();
+  for (const p of points) {
+    const wk = weekStartOf(p.date);
+    if (!wk) continue;
+    if (!by.has(wk)) by.set(wk, { hits: 0, n: 0 });
+    const o = by.get(wk)!;
+    o.n++;
+    if (p.hit) o.hits++;
+  }
+  return [...by.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([weekStart, o]) => ({
+      weekStart,
+      pct: o.n > 0 ? Math.round((o.hits / o.n) * 1000) / 10 : null,
+      hits: o.hits,
+      n: o.n,
+    }));
+}
+
+/**
+ * Percentile bootstrap 95% CI for the mean. 2000 resamples is plenty at n<500 and keeps
+ * this inside the edge CPU budget. Deterministic seed so the same filter always renders
+ * the same interval — a CI that jitters between refreshes reads as noise in the data.
+ */
+function bootstrapMeanCI(xs: number[]): { lo: number | null; hi: number | null } {
+  const n = xs.length;
+  if (n < 2) return { lo: null, hi: null };
+  let seed = 0x2f6e2b1 ^ n;
+  const rand = () => {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    return ((seed >>> 0) % 1000000) / 1000000;
+  };
+  const means: number[] = [];
+  for (let b = 0; b < 2000; b++) {
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += xs[(rand() * n) | 0];
+    means.push(sum / n);
+  }
+  means.sort((a, b) => a - b);
+  const at = (q: number) =>
+    Math.round(means[Math.min(means.length - 1, Math.max(0, Math.floor(q * means.length)))] * 100) / 100;
+  return { lo: at(0.025), hi: at(0.975) };
+}
+
 export function computeStats(rows: string[][], filter?: StatsFilter, captureTarget: number = DEFAULT_CAPTURE_TARGET): AggregateStats {
   if (rows.length === 0) {
     return {
@@ -1783,7 +1878,10 @@ export function computeStats(rows: string[][], filter?: StatsFilter, captureTarg
       hourlyBreakdown: [], granularHourlyBreakdown: [], setupBreakdown: [],
       convictionBreakdown: [], catalystBreakdown: [],
       skill: emptySkill(captureTarget),
-      disciplinePct: null, disciplineN: 0,
+      disciplinePct: null, disciplineN: 0, disciplineTrend: [],
+      sumR: null, expR: null, expRLo: null, expRHi: null, rTradeCount: 0,
+      sumRExclTop3: null, top3Labels: [],
+      heldGreenPct: null, heldGreenN: 0, heldGreenTrend: [],
     };
   }
 
@@ -1818,7 +1916,10 @@ export function computeStats(rows: string[][], filter?: StatsFilter, captureTarg
     hourlyBreakdown: [], granularHourlyBreakdown: [], setupBreakdown: [],
     convictionBreakdown: [], catalystBreakdown: [],
     skill: emptySkill(captureTarget),
-    disciplinePct: null, disciplineN: 0,
+    disciplinePct: null, disciplineN: 0, disciplineTrend: [],
+    sumR: null, expR: null, expRLo: null, expRHi: null, rTradeCount: 0,
+    sumRExclTop3: null, top3Labels: [],
+    heldGreenPct: null, heldGreenN: 0, heldGreenTrend: [],
   };
 
   if (pnls.length === 0) return emptyStats;
@@ -1904,6 +2005,58 @@ export function computeStats(rows: string[][], filter?: StatsFilter, captureTarg
 
   const durations = parsed.map((r) => r.duration);
 
+  // --- R headline, leading indicator and weekly trends ---
+  // All of this reads dataRows directly (not `parsed`) because it needs the ladder and
+  // date columns, which ParsedRow deliberately does not carry.
+  const dateIdx2 = cm(colMap, "Date");
+  const pnlRIdx2 = cm(colMap, "P&L (R)");
+  const riskIdx2 = cm(colMap, "R (Risk)");
+  const symIdx2 = cm(colMap, "Symbol");
+  const inWinIdx2 = cm(colMap, "In-Window MFE (R)");
+  const maxRIdx2 = cm(colMap, "Max R Before Stop");
+  const processIdx2 = cm(colMap, "Process Followed?");
+
+  const rTrades: { date: string; symbol: string; r: number }[] = [];
+  const heldPoints: { date: string; hit: boolean }[] = [];
+  const discPoints: { date: string; hit: boolean }[] = [];
+
+  for (const r of dataRows) {
+    const date = dateIdx2 >= 0 ? String(r[dateIdx2] || "").trim() : "";
+    const pnl = numCell(r[pnlIdx]);
+    const risk = numCell(r[riskIdx2]);
+    // Prefer the sheet's own P&L (R) formula; fall back to P&L/R so a row whose formula
+    // has not recalculated yet still counts.
+    const realizedR = numCell(r[pnlRIdx2]) ?? (pnl !== null && risk !== null && risk > 0 ? pnl / risk : null);
+    if (realizedR !== null) {
+      rTrades.push({ date, symbol: symIdx2 >= 0 ? String(r[symIdx2] || "").trim() : "", r: realizedR });
+    }
+
+    // Leading indicator: the position reached +1R while HELD, and still closed green.
+    // In-window (not to-16:00) because this is a question about what he converted, not
+    // about what the tape eventually did without him.
+    const mfe = numCell(r[inWinIdx2]) ?? numCell(r[maxRIdx2]);
+    if (mfe !== null && mfe >= 1 && pnl !== null) {
+      heldPoints.push({ date, hit: pnl > 0 });
+    }
+
+    const proc = processIdx2 >= 0 ? String(r[processIdx2] || "").trim().toLowerCase() : "";
+    if (proc === "yes" || proc === "no") discPoints.push({ date, hit: proc === "yes" });
+  }
+
+  const rVals = rTrades.map((t) => t.r);
+  const sumR = rVals.length ? Math.round(rVals.reduce((a, b) => a + b, 0) * 10) / 10 : null;
+  const expR = rVals.length ? Math.round((rVals.reduce((a, b) => a + b, 0) / rVals.length) * 100) / 100 : null;
+  const { lo: expRLo, hi: expRHi } = bootstrapMeanCI(rVals);
+
+  // Drop the three largest winners. On a right-tail strategy the gap between this and
+  // sumR is the difference between "I have an edge" and "I had three good trades".
+  const topThree = [...rTrades].sort((a, b) => b.r - a.r).slice(0, 3);
+  const sumRExclTop3 = rTrades.length > 3
+    ? Math.round((rVals.reduce((a, b) => a + b, 0) - topThree.reduce((a, t) => a + t.r, 0)) * 10) / 10
+    : null;
+
+  const heldGreenHits = heldPoints.filter((p) => p.hit).length;
+
   return {
     totalPnl: Math.round(totalPnl * 100) / 100,
     avgDailyPnl: Math.round((totalPnl / Math.max(uniqueDays, 1)) * 100) / 100,
@@ -1926,6 +2079,17 @@ export function computeStats(rows: string[][], filter?: StatsFilter, captureTarg
     catalystBreakdown,
     skill,
     disciplinePct,
+    disciplineTrend: weeklyTrend(discPoints),
+    sumR,
+    expR,
+    expRLo,
+    expRHi,
+    rTradeCount: rVals.length,
+    sumRExclTop3,
+    top3Labels: topThree.map((t) => `${t.symbol} ${t.date.slice(5)} +${t.r.toFixed(1)}R`),
+    heldGreenPct: heldPoints.length ? Math.round((heldGreenHits / heldPoints.length) * 1000) / 10 : null,
+    heldGreenN: heldPoints.length,
+    heldGreenTrend: weeklyTrend(heldPoints),
     disciplineN,
   };
 }
@@ -1939,10 +2103,50 @@ export interface TradeForAnalysis {
   avgExit: number;
   pnl: number;
   risk: number;
+  /** resolveMfe: Position MFE (R) when present, else Max R Before Stop. Kept for back-compat. */
   maxRBeforeStop: number;
   maeR: number | null; // negative R (heat taken); null when not enriched or N/A
   setup: string;
   entryTime: string;
+
+  // --- Order-ladder derived. Null on rows with no ladder (no DAS export). ---
+  /**
+   * Peak position value ÷ initial risk, measured to 16:00 and ignoring the exit AND the
+   * stop. It bounds realised R, but it is NOT an exit-quality benchmark: a trade that was
+   * flat after 90 seconds still shows whatever the session high was. Use `inWindowMfeR`
+   * for anything about capture.
+   */
+  positionMfeR: number | null;
+  /** Peak position value over the window actually held. The honest capture denominator. */
+  inWindowMfeR: number | null;
+  initialRisk: number | null;
+  /** Peak dollars genuinely at stake during the build phase. Over 2x initial = rule breach. */
+  maxRiskAtStake: number | null;
+  numEntries: number | null;
+  numExits: number | null;
+  firstEntry: number | null;
+  initialStop: number | null;
+  stopRaises: number | null;
+  stoppedOut: string;
+  /**
+   * Best (most favourable) protective stop ever placed. Compared against `avgEntry` — the
+   * blended cost — this is what says whether a stop ever protected a profit. Comparing it
+   * against `firstEntry` instead would falsely score a pyramid as breakeven, since the
+   * first lot is the cheapest.
+   */
+  bestStop: number | null;
+  /**
+   * Starter-only counterfactual: R the trade would have made on the FIRST lot alone, same
+   * exit price. `realisedR - starterR` is what the adds actually contributed. The plain
+   * added-vs-not split is selection-confounded — he only adds once the trade has proved
+   * him right — so this is the honest test of whether the pyramid pays.
+   */
+  starterR: number | null;
+  /** For each add, how far the trade had already run when it was taken, in initial-R. */
+  addRs: number[];
+  conviction: string;
+  processFollowed: string;
+  hasNote: boolean;
 }
 
 // "N/A" (insufficient history) and blank both parse to null.
@@ -1983,28 +2187,99 @@ export function extractTradesForAnalysis(rows: string[][], filter?: StatsFilter)
   const maeIdx = cm(colMap, "MAE (R)");
   const setupIdx = cm(colMap, "Setup");
   const entryTimeIdx = cm(colMap, "Entry Time");
+  const inWinMfeIdx = cm(colMap, "In-Window MFE (R)");
+  const initRiskIdx = cm(colMap, "Initial Risk ($)");
+  const maxStakeIdx = cm(colMap, "Max Risk At Stake ($)");
+  const nEntriesIdx = cm(colMap, "# Entries");
+  const nExitsIdx = cm(colMap, "# Exits");
+  const firstEntryIdx = cm(colMap, "First Entry");
+  const initStopIdx = cm(colMap, "Initial Stop");
+  const stopRaisesIdx = cm(colMap, "Stop Raises");
+  const stoppedOutIdx = cm(colMap, "Stopped Out?");
+  const entryLadderIdx = cm(colMap, "Entry Ladder");
+  const stopLadderIdx = cm(colMap, "Stop Ladder");
+  const convIdx = cm(colMap, "Conviction (1-3)");
+  const processIdx = cm(colMap, "Process Followed?");
+  const notesIdx = cm(colMap, "Notes");
 
   let dataRows = rows.slice(1).filter((r) => pnlIdx >= 0 && r.length > pnlIdx && r[pnlIdx] !== "");
   dataRows = applyRowFilter(dataRows, colMap, filter);
 
   const parseNum = (v: string | undefined) => parseFloat(String(v || "").replace(/[$,]/g, "")) || 0;
+  const nn = (idx: number, r: string[]) => (idx >= 0 ? parseNullableNum(r[idx]) : null);
+  const txt = (idx: number, r: string[]) => (idx >= 0 ? (r[idx] || "").trim() : "");
 
   return dataRows
     .filter((r) => riskIdx >= 0 && r[riskIdx] && r[riskIdx] !== "" && maxRIdx >= 0 && r[maxRIdx] && r[maxRIdx] !== "")
-    .map((r) => ({
-      date: dateIdx >= 0 ? r[dateIdx] || "" : "",
-      symbol: symbolIdx >= 0 ? r[symbolIdx] || "" : "",
-      side: sideIdx >= 0 ? r[sideIdx] || "" : "",
-      shares: sharesIdx >= 0 ? parseNum(r[sharesIdx]) : 0,
-      avgEntry: entryIdx >= 0 ? parseNum(r[entryIdx]) : 0,
-      avgExit: exitIdx >= 0 ? parseNum(r[exitIdx]) : 0,
-      pnl: parseNum(r[pnlIdx]),
-      risk: riskIdx >= 0 ? parseNum(r[riskIdx]) : 0,
-      maxRBeforeStop: resolveMfe(r, posMfeIdx, maxRIdx) ?? 0,
-      maeR: maeIdx >= 0 ? parseNullableNum(r[maeIdx]) : null,
-      setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
-      entryTime: entryTimeIdx >= 0 ? r[entryTimeIdx] || "" : "",
-    }))
+    .map((r) => {
+      const side = sideIdx >= 0 ? r[sideIdx] || "" : "";
+      const isLong = side === "Long";
+      const avgExit = exitIdx >= 0 ? parseNum(r[exitIdx]) : 0;
+      const initialRisk = nn(initRiskIdx, r);
+      const lots = entryLadderIdx >= 0 ? parseFills(txt(entryLadderIdx, r)) : [];
+
+      // Starter-only counterfactual: the first lot alone, exited where he actually exited.
+      let starterR: number | null = null;
+      if (lots.length && initialRisk && initialRisk > 0 && avgExit > 0) {
+        const first = lots[0];
+        const pnlStarter = (isLong ? avgExit - first.price : first.price - avgExit) * first.shares;
+        starterR = Math.round((pnlStarter / initialRisk) * 100) / 100;
+      }
+
+      // How far the trade had already run, in initial-R, when each add went on. Negative
+      // means the add was taken while the position was underwater — the behaviour his add
+      // rule exists to prevent.
+      const addRs: number[] = [];
+      if (lots.length > 1 && initialRisk && initialRisk > 0) {
+        const riskPerShare = initialRisk / lots[0].shares;
+        if (riskPerShare > 0) {
+          for (let i = 1; i < lots.length; i++) {
+            const moved = isLong ? lots[i].price - lots[0].price : lots[0].price - lots[i].price;
+            addRs.push(Math.round((moved / riskPerShare) * 100) / 100);
+          }
+        }
+      }
+
+      // Most favourable protective stop ever placed on the trade.
+      let bestStop: number | null = null;
+      if (stopLadderIdx >= 0) {
+        const prices = txt(stopLadderIdx, r).split("|")
+          .map((p) => parseFloat((p.split("@")[1] || "").trim()))
+          .filter((n) => !isNaN(n));
+        if (prices.length) bestStop = isLong ? Math.max(...prices) : Math.min(...prices);
+      }
+
+      return {
+        date: dateIdx >= 0 ? r[dateIdx] || "" : "",
+        symbol: symbolIdx >= 0 ? r[symbolIdx] || "" : "",
+        side,
+        shares: sharesIdx >= 0 ? parseNum(r[sharesIdx]) : 0,
+        avgEntry: entryIdx >= 0 ? parseNum(r[entryIdx]) : 0,
+        avgExit,
+        pnl: parseNum(r[pnlIdx]),
+        risk: riskIdx >= 0 ? parseNum(r[riskIdx]) : 0,
+        maxRBeforeStop: resolveMfe(r, posMfeIdx, maxRIdx) ?? 0,
+        maeR: maeIdx >= 0 ? parseNullableNum(r[maeIdx]) : null,
+        setup: setupIdx >= 0 ? (r[setupIdx] || "").trim() : "",
+        entryTime: entryTimeIdx >= 0 ? r[entryTimeIdx] || "" : "",
+        positionMfeR: nn(posMfeIdx, r),
+        inWindowMfeR: nn(inWinMfeIdx, r),
+        initialRisk,
+        maxRiskAtStake: nn(maxStakeIdx, r),
+        numEntries: nn(nEntriesIdx, r),
+        numExits: nn(nExitsIdx, r),
+        firstEntry: nn(firstEntryIdx, r),
+        initialStop: nn(initStopIdx, r),
+        stopRaises: nn(stopRaisesIdx, r),
+        stoppedOut: txt(stoppedOutIdx, r),
+        bestStop,
+        starterR,
+        addRs,
+        conviction: txt(convIdx, r),
+        processFollowed: txt(processIdx, r),
+        hasNote: txt(notesIdx, r).length > 0,
+      };
+    })
     .filter((t) => t.shares > 0 && t.risk > 0);
 }
 

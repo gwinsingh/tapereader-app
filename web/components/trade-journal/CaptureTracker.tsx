@@ -12,6 +12,13 @@ interface TradeForAnalysis {
   pnl: number;
   risk: number;
   maxRBeforeStop: number;
+  /**
+   * Peak position value ÷ initial risk over the window actually HELD. This is the right
+   * capture denominator: Position MFE runs to 16:00 and ignores both the exit and the
+   * stop, so it counts levels the trade was never open for (08-04 SOXL was flat after 90
+   * seconds and still shows a 5.48R "peak"). Null on rows with no ladder.
+   */
+  inWindowMfeR: number | null;
   setup: string;
   entryTime: string;
 }
@@ -86,7 +93,9 @@ export default function CaptureTracker({ tabName, filterParams }: Props) {
         date: t.date,
         symbol: t.symbol,
         realizedR: t.pnl / t.risk,
-        mfe: t.maxRBeforeStop,
+        // Fall back only when there is no ladder — an un-laddered row still gets the old
+        // behaviour rather than dropping out of the tracker entirely.
+        mfe: t.inWindowMfeR ?? t.maxRBeforeStop,
       }));
   }, [trades]);
 
@@ -188,7 +197,7 @@ export default function CaptureTracker({ tabName, filterParams }: Props) {
 
           {trades && rows.length === 0 && (
             <p className="text-xs" style={{ color: "var(--color-muted)" }}>
-              No trades with both R (Risk) and Max R Before Stop data. Fill in R values and backfill market data first.
+              No trades with both R (Risk) and MFE data. Fill in R values and backfill market data first.
             </p>
           )}
 
@@ -302,7 +311,7 @@ export default function CaptureTracker({ tabName, filterParams }: Props) {
 
               <p className="text-xs leading-relaxed" style={{ color: "var(--color-muted)" }}>
                 <strong>Target capture</strong> is the fraction of your {fmt(target, 1)}R target you actually
-                bank on trades whose peak open profit (MFE / Max R Before Stop) reached it — it isolates the
+                bank on trades whose peak open profit while HELD (In-Window MFE) reached it — it isolates the
                 trail leak from trades that simply failed early. <strong>R left on table</strong> is how much
                 more you&apos;d have made holding every reacher to target. Watch the weekly bars climb as you
                 loosen the trail.

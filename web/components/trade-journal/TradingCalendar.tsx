@@ -74,7 +74,7 @@ const DEFAULT_TARGET = 2.5;
 // Before Stop) is order-aware — it stops accruing once the stop is hit — so
 // MFE ≥ target means the target genuinely printed before the stop. Trades
 // that reach neither by EOD are counted as −1R (pessimistic; same assumption
-// as Profitability Analysis). Only trades with R + MFE data participate, and
+// as the Capture Tracker). Only trades with R + MFE data participate, and
 // the actual side is summed over those same trades so the gap is
 // apples-to-apples.
 interface BracketAgg {

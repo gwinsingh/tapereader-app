@@ -4,7 +4,8 @@ import { useState, useRef, useCallback, FormEvent, DragEvent } from "react";
 import TradePreview from "@/components/trade-journal/TradePreview";
 import AggregateStats from "@/components/trade-journal/AggregateStats";
 import HowToUse from "@/components/trade-journal/HowToUse";
-import ProfitabilityAnalysis from "@/components/trade-journal/ProfitabilityAnalysis";
+import PyramidAnalysis from "@/components/trade-journal/PyramidAnalysis";
+import RiskDiscipline from "@/components/trade-journal/RiskDiscipline";
 import CaptureTracker from "@/components/trade-journal/CaptureTracker";
 import TradingCalendar from "@/components/trade-journal/TradingCalendar";
 
@@ -71,6 +72,26 @@ interface StatsData {
   setupBreakdown: SegmentStats[];
   convictionBreakdown: SegmentStats[];
   catalystBreakdown: SegmentStats[];
+  disciplinePct?: number | null;
+  disciplineN?: number;
+  disciplineTrend?: TrendPoint[];
+  sumR?: number | null;
+  expR?: number | null;
+  expRLo?: number | null;
+  expRHi?: number | null;
+  rTradeCount?: number;
+  sumRExclTop3?: number | null;
+  top3Labels?: string[];
+  heldGreenPct?: number | null;
+  heldGreenN?: number;
+  heldGreenTrend?: TrendPoint[];
+}
+
+interface TrendPoint {
+  weekStart: string;
+  pct: number | null;
+  hits: number;
+  n: number;
 }
 
 interface UploadResult {
@@ -762,7 +783,7 @@ export default function TradeJournalPage() {
             Filters
           </p>
           <p className="text-xs" style={{ color: "var(--color-muted)", opacity: 0.7 }}>
-            Applies to Performance Overview, Calendar, and Profitability Analysis. (The calendar uses month navigation, so it ignores the date range.)
+            Applies to Performance Overview, Risk &amp; Stop Discipline, Calendar, Capture Tracker and Pyramid Analysis. (The calendar uses month navigation, so it ignores the date range.)
           </p>
           <div className="flex flex-wrap items-end gap-4">
             <div>
@@ -817,6 +838,15 @@ export default function TradeJournalPage() {
       {sheetStats && <AggregateStats stats={sheetStats.stats} />}
 
       {getActiveTabName() && (
+        <RiskDiscipline
+          tabName={getActiveTabName()!}
+          filterParams={buildFilterParams()}
+          disciplineTrend={sheetStats?.stats.disciplineTrend}
+          heldGreenTrend={sheetStats?.stats.heldGreenTrend}
+        />
+      )}
+
+      {getActiveTabName() && (
         <div
           className="rounded-lg border p-4 space-y-3"
           style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-bg)" }}
@@ -834,7 +864,7 @@ export default function TradeJournalPage() {
       )}
 
       {getActiveTabName() && (
-        <ProfitabilityAnalysis
+        <PyramidAnalysis
           tabName={getActiveTabName()!}
           filterParams={buildFilterParams()}
         />
