@@ -7,8 +7,72 @@ that affect how much to trust a given track. Updated as the run proceeds.
 
 ## Blocking-ish, ranked
 
-### 1. ⚖️ Polygon licensing may forbid public display of derived analytics
-**Status: under independent verification.**
+### 1. ⚖️ RESOLVED — Polygon/Massive forbids public display. The planned public market-scans product cannot ship on this data.
+**Status: verified. CONFIRMED on the text, with one material correction.**
+Full detail in `.wip/polygon-licensing-verification.md`.
+
+**This is not a social-sentiment finding.** It lands on
+`docs/market-scans/phase-1-spec.md` — a fully designed, unbuilt product — and it
+predates this study entirely. It surfaced here by accident.
+
+**What was verified:**
+- Massive's pricing pages carry a machine-readable `license_type`. **Every
+  individual plan — free through the $199/mo Advanced tier — is `personal`.**
+  Every business plan is `commercial`. Massive's own KB: any user wishing to
+  redistribute market data must be on a business product. **Paying more on the
+  consumer ladder buys rate limit and history, not licence scope.**
+- Stocks Business, the tier that lifts it, is **$2,499/mo** ($1,599 annualised).
+- polygon.io → massive.com is a **rebrand, not an acquisition** (2025-10-30,
+  same entity). `api.polygon.io` still works; no code change needed.
+
+**Correction to the original claim:** "regardless of plan tier" was wrong as
+stated — it holds for all *individual* plans, and a tier does exist that lifts
+it. The original reached the right conclusion one step short of the reasoning.
+
+**Display vs redistribution does not rescue it.** That distinction was worth
+testing and it fails here: Massive prohibits both across three independent
+clauses, one naming public display and websites explicitly, with no
+reconstruction carve-out. **Breadth aggregates and the movers table fail
+together — there is no licence-safe subset of the current spec to design
+toward.**
+
+**What is NOT affected — three corrections from verifying rather than assuming:**
+1. **The private trade journal is clean.** `/pct-bootcamp/trade-journal` returns
+   302 to Cloudflare Access. It is gated, single-user, and squarely inside the
+   individual licence. The alarming version of this finding is simply false.
+2. **EOD/T-1 genuinely is more permissive** — Databento states anything T+1 or
+   earlier needs no exchange licence, and TapeReader's T-1 target lands on the
+   right side. But that is an exemption from *access* licensing, not
+   *redistribution*, so it helps without self-rescuing.
+3. **The blocker is a vendor contract, not an exchange encumbrance.** This is
+   why changing supplier is a genuine fix rather than a shell game — exchange
+   rights would follow the data to any vendor.
+
+**Routes forward, cheapest first:**
+- **Tiingo** is the one vendor whose terms explicitly permit distributing
+  irreversible derived aggregates — "aggregated statistics calculated across
+  multiple instruments" is a listed permitted example, which describes the
+  breadth page exactly. A movers *table* is still excluded. **But §7.3
+  ("internal consumption only") is in real tension with §1.6(c)'s distribution
+  grant and could not be resolved from the text.** Highest-value free question
+  to ask a vendor.
+- **Databento DBEQ** carries $0 exchange fees with distribution/display rights;
+  only its vendor-side rights at the $199 tier are unclear.
+- **Cheapest CONFIRMED self-serve public-display licence found anywhere in the
+  survey: Twelve Data Venture, $499/mo. Nothing at $0–10 permits it, from any
+  vendor.** That is a direct, evidenced answer to the budget-ladder question.
+
+**Two live exposures that sit outside the repo and could not be checked:**
+- Continuing **Non-Professional status** — Massive retroactively bills the
+  pro/non-pro difference to the card on file.
+- **The shared Google Sheet.** The web app is gated, but the journal writes
+  Polygon-derived columns into a Google Sheet that `CLAUDE.md` describes as
+  *shared*. The exchange schedules bar furnishing Market Data to any other
+  person, and Cloudflare Access does not cover a spreadsheet. **If anyone other
+  than the account holder can open that sheet, that is the one genuinely live
+  exposure found tonight.** Worth checking who it is shared with.
+
+#### Original claim, for the record
 
 Track H reported, incidentally, that Polygon's Market Data ToS grants data
 "exclusively for your personal, non-business, and non-commercial purposes"

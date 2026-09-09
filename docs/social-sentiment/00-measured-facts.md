@@ -46,6 +46,17 @@ accumulates through the run; each entry carries its own measured-on date.
    the brief's Track A7 criterion, that makes it strictly more valuable than an
    opaque vendor sentiment number.
 
+### ⚖️ Licence caveat — added after verification
+
+The endpoint is authorized and the data is excellent, but the project's key is
+an **individual (`personal`) licence**. That permits the gated, single-user
+trade-journal use entirely. It does **not** permit publishing these values, or
+aggregates derived from them, on tapereader.us. See `13-open-questions.md` §1.
+
+So the news-sentiment component of this study is a **journal feature**, not a
+public-site feature, unless the data moves to a vendor whose terms permit
+public display. Design Track E and Track F accordingly.
+
 ### Caveats to carry into the analysis
 
 - This is **news** sentiment, not **social/retail** sentiment. It measures what
