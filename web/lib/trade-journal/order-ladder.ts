@@ -113,6 +113,36 @@ export function parseFullLog(csvText: string): LogRow[] {
 
 const delta = (r: LogRow) => (r.side === "Buy" ? r.shares : -r.shares);
 
+/** Identity for matching an Accept with the Canceled that refers to the same order. */
+const orderKey = (r: LogRow) => `${r.side}|${r.shares}|${r.price.toFixed(4)}`;
+
+/**
+ * Orders the broker REFUSED, which therefore never rested in the book.
+ *
+ * DAS logs a rejection as an ordinary `Accept` followed by a `Canceled` whose Note
+ * carries the reason; a normal cancel's Note is just "Canceled". Without this filter any
+ * refused order on the protective side is read as a stop placement.
+ *
+ * This is what produced the 2026-08-28 CRM reading of $105.54 at stake against $15.18
+ * committed (6.95x). Those were two marketable limit SELLS placed to exit the position,
+ * both refused ("We cannot accept an order at a limit price at or more aggressive
+ * than..."), and the position exited a few seconds later at 258.29. Pricing 15 open
+ * shares against a 249.06 order that could never fill invented $90 of risk on a trade
+ * whose true peak exposure was $20.82 (1.37x). The Note column is the only field that
+ * distinguishes them, which is why it is parsed.
+ */
+function rejectedOrderKeys(rows: LogRow[]): Set<string> {
+  const out = new Set<string>();
+  for (const r of rows) {
+    if (r.event !== "Canceled") continue;
+    const note = (r.note || "").trim();
+    // A bare "Canceled" (or no note at all) is an ordinary cancel — the order was live.
+    if (!note || /^canceled\.?$/i.test(note)) continue;
+    out.add(orderKey(r));
+  }
+  return out;
+}
+
 /** Merge executions that belong to one logical order (same direction, within CLUSTER_SECS). */
 function cluster(fills: LogRow[]): FillEvent[] {
   const out: FillEvent[] = [];
@@ -191,10 +221,13 @@ function assemble(
   // Resting protective orders on the opposite side, live during the trip. DAS sometimes
   // labels a long exit "Shrt", so side alone cannot separate a protective order from a
   // genuine short entry — the trip's own time window does that instead.
+  const rejected = rejectedOrderKeys(all);
   const resting = all.filter(
     (r) => ["Accept", "Replaced"].includes(r.event) &&
       (isLong ? r.side !== "Buy" : r.side === "Buy") &&
-      toSecs(r.time) >= t0 && toSecs(r.time) <= tEnd
+      toSecs(r.time) >= t0 && toSecs(r.time) <= tEnd &&
+      // A refused order never rested, so it is neither a stop nor a target.
+      !rejected.has(orderKey(r))
   );
 
   // A bracket rests one order below and one above. Within each timestamp group the
@@ -237,6 +270,18 @@ function assemble(
     const ts = toSecs(s.time);
     const filled = entries.filter((e) => toSecs(e.time) <= ts);
     let exited = exits.filter((x) => toSecs(x.time) <= ts).reduce((a, x) => a + x.shares, 0);
+    // A bracket only protects the shares it was placed for. Pricing every open share
+    // against a stop that covers fewer of them invents risk during the seconds between
+    // a fill and its re-bracket: on 2026-08-05 AMD a 1-share bracket at 481.27 was
+    // charged against all 3 shares ($30.74, "2.06x") because two fills 3 seconds apart
+    // cluster into one entry stamped at the first fill's time. The order was cancelled
+    // two seconds later and replaced with a 3-share bracket at 486.54 — the real $14.93.
+    //
+    // Shares beyond the bracket's cover are left out rather than counted as risk. They
+    // are momentarily unstopped, which is a different question from "how much did the
+    // working stop have at stake", and folding the two together is what produced the
+    // false positive.
+    let cover = s.shares > 0 ? s.shares : Infinity;
     let risk = 0, open = 0;
     for (const e of filled) {                       // FIFO: earliest lots close first
       const take = Math.min(exited, e.shares);
@@ -244,7 +289,10 @@ function assemble(
       const live = e.shares - take;
       if (live <= 0) continue;
       open += live;
-      risk += (isLong ? e.price - s.price : s.price - e.price) * live;
+      const covered = Math.min(live, cover);
+      cover -= covered;
+      if (covered <= 0) continue;
+      risk += (isLong ? e.price - s.price : s.price - e.price) * covered;
     }
     return { time: s.time, stop: s.price, shares: open, risk: Math.round(risk * 100) / 100 };
   });

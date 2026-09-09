@@ -264,7 +264,7 @@ export default function RiskDiscipline({ tabName, filterParams, disciplineTrend,
                   value={`${m.breaches.length}`}
                   sub={`of ${m.withStake.length} trades exceeded ${RISK_BREACH_MULT}× committed risk`}
                   tone={m.breaches.length > 0 ? "bad" : "good"}
-                  title="Trades whose peak dollars genuinely at stake during the build phase exceeded twice the risk committed at entry. Your stated rule is a max-loss rule; an exposure spike silently voids it, and it is invisible in P&L because it only shows up when it goes wrong."
+                  title="Trades whose peak dollars genuinely at stake during the build phase exceeded twice the risk committed at entry. Your stated rule is a max-loss rule; an exposure spike silently voids it, and it is invisible in P&L because it only shows up when it goes wrong. Counts only shares covered by a resting protective order, and ignores orders the broker refused — both were previously inflating this number."
                 />
                 <Metric
                   label="Worst exposure"
@@ -275,7 +275,7 @@ export default function RiskDiscipline({ tabName, filterParams, disciplineTrend,
                       : "no ladder data"
                   }
                   tone={m.withStake.length && m.withStake[0].mult > RISK_BREACH_MULT ? "bad" : "neutral"}
-                  title="The single largest gap between what you committed at entry and what was actually at stake at the peak of the build. When you add, the stop has to move up enough to keep total risk at one unit."
+                  title="The single largest gap between what you committed at entry and what was actually at stake at the peak of the build. When you add, the stop has to move up enough to keep total risk at one unit. Measured against each lot's own cost, so a lot already in profit reduces the total rather than adding to it."
                 />
                 <Metric
                   label="Stop protected a profit"
@@ -337,6 +337,13 @@ export default function RiskDiscipline({ tabName, filterParams, disciplineTrend,
                   warnBelow={60}
                 />
               </div>
+
+              <p className="text-[11px] leading-relaxed text-[var(--color-muted)]">
+                Exposure is measured lot by lot against the stop actually resting at that moment —
+                a lot already in profit lowers the total, which is why a stop raised past your first
+                entry can leave a large position risking less than the first share did. Orders the
+                broker refused, and shares not covered by the resting bracket, are excluded.
+              </p>
 
               <p className="text-[11px] leading-relaxed text-[var(--color-muted)]">
                 Conviction is the only pre-trade field in this sheet that has ever separated the book, and it

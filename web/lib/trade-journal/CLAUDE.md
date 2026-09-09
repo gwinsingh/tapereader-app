@@ -24,6 +24,16 @@ Position tracking: Buy = +shares, Sell/Shrt = -shares. When cumulative position 
 - `# Partials` counts entries AND exits, so "2 partials" means zero partials taken. Deprecated in favour of `# Entries` / `# Exits`; kept for back-compat.
 - `parseFills()` is the inverse of `fmtFills()` — read stored ladder cells back with it rather than re-deriving the format.
 
+### Two things that are NOT protective stops (both were, and both invented risk)
+DAS logs an ordinary `Accept` on the sell side for a lot of things that are not a resting stop. Two of them corrupted `Max Risk At Stake ($)` badly enough to manufacture a rule breach that never happened. Do not remove either guard.
+
+1. **Broker-refused orders.** A rejection is logged as `Accept` followed by `Canceled` whose **Note carries the reason**; an ordinary cancel's Note is just `Canceled`. `rejectedOrderKeys()` drops them. On 2026-08-28 CRM two marketable limit SELLS placed to *exit* were refused (`We cannot accept an order at a limit price at or more aggressive than…`) at 249.06 and 250.22, and the position exited seconds later at 258.29. Pricing 15 open shares against a 249.06 order that could never fill reported **$105.54 at stake against $15.18 committed (6.95×)** on a trade whose true peak was **$20.82 (1.37×)**. This is the only use of the `Note` column, and the only field that separates the two cases.
+2. **Brackets that cover fewer shares than are open.** The risk curve caps at the resting order's own share count. Fills within `CLUSTER_SECS` merge into one entry stamped at the *first* fill's time, so a bracket placed for the first lot alone would otherwise be charged against the whole cluster: 2026-08-05 AMD's 1-share bracket at 481.27 read **$30.74 (2.06×)** against a real **$14.93 (1.00×)**. Shares beyond the bracket's cover are momentarily unstopped — a different question from "what did the working stop have at stake" — and are deliberately excluded rather than folded in.
+
+Both fixes leave `Initial Stop` and `Initial Risk ($)` untouched on all 70 live rows, so `R (Risk)` and every R-multiple are unaffected. Corrected book-wide: **2 trades over 2× committed risk, median 1.00×** (was 7 over 2× with a 6.95× worst case).
+
+**Exposure is measured lot by lot against its own cost**, so a lot already in profit *reduces* the total. This is why a stop raised past the first entry can leave a large position risking less than the first share did, and why the trader's own account of a trade ("about $20") is the right sanity check on this number.
+
 ## Migration safety (98-column tabs)
 The live tab carries 96 managed columns plus two hand-added unmanaged ones (`RightTheory?`, `EOD Screenshot`). Migration is **additive-only by construction**, and that is asserted rather than assumed:
 

@@ -97,6 +97,21 @@ no add — his notes repeatedly say "Missed to add"); **the starter-only counter
 have made never adding — the number that tests whether the pyramid actually pays); risk creep; stop
 honour.
 
+## RETRACTED — the risk-at-stake finding (2026-09-08)
+`r2-findings-regime.md` ranks **"Your peak risk-at-stake got worse … Fix this before anything else
+in this report"** as its #2 item: 10% of live trades over 2x committed risk, CRM 08-28 at **6.95x**
+($15 committed, $106 at stake), p=0.0089 vs practice. **That finding is an artifact and must not be
+repeated.** Two reconstruction flaws inflated it (see the trade-journal module CLAUDE.md):
+broker-refused exit orders read as stop placements, and brackets charged against more shares than
+they covered. Corrected: CRM's true peak was **$20.82 (1.37x)**, and the book has **2 trades over 2x,
+median 1.00x** — his exposure control is fine, with two genuine pyramid expansions (08-07 SPY 2.64x,
+08-13 SMCI 2.14x, both verified by hand against the raw log).
+
+The trader caught this by reading the number against his own screenshots. `Initial Risk ($)` and
+`Initial Stop` were unaffected on all 70 rows, so the month's +19.4R and every R-multiple stand.
+`WIP-TRPCT1541-GURI` (practice) still carries the uncorrected values — re-run `backfill-ladders.ts`
+on it before that book is used for anything.
+
 ## Open findings needing verification before they are reported as fact
 - 11/70 trades where logged `R (Risk)` differs from true initial risk by >25%. Five logged half-size
   while actually risking ~$27 (full size): 2026-07-31 GOOGL, 2026-08-13 SPY, 2026-08-13 QQQ,
