@@ -142,14 +142,37 @@ async function apewisdom({ dryRun }) {
   const records = [];
 
   for (const filter of APEWISDOM_FILTERS) {
-    let page = 1, pages = 1;
+    // Build each scope into its own buffer and only merge it once the FULL page
+    // walk succeeded.  Without this, a mid-walk failure writes partial rows, and
+    // the (scope, slot) idempotency key then seals that truncated snapshot as
+    // complete forever -- a silent, permanent hole that looks like a real
+    // observation.  A missing scope is recoverable on the next run; a scope
+    // that is silently short is not.
+    const buffered = [];
+    let page = 1, pages = 1, complete = true, declared = null;
+
     do {
       const url = `https://apewisdom.io/api/v1.0/filter/${filter}/page/${page}`;
       const res = await getJSON(url);
-      if (!res.ok) { console.error(`  ${filter} p${page}: FAILED (${res.status})`); break; }
+      if (!res.ok) {
+        console.error(`  ${filter} p${page}: FAILED (${res.status}) -- scope DISCARDED`);
+        complete = false;
+        break;
+      }
       pages = res.body.pages ?? 1;
-      for (const row of res.body.results ?? []) {
-        records.push({
+      if (declared === null) declared = res.body.count ?? null;
+
+      const rows = res.body.results ?? [];
+      // A typo'd filter returns count:0 with HTTP 200 rather than a 404, so an
+      // empty first page is a failure signal, not an empty result.
+      if (page === 1 && rows.length === 0) {
+        console.error(`  ${filter}: empty first page (count=${declared}) -- scope DISCARDED`);
+        complete = false;
+        break;
+      }
+
+      for (const row of rows) {
+        buffered.push({
           source: 'apewisdom',
           scope: filter,
           slot,
@@ -159,7 +182,7 @@ async function apewisdom({ dryRun }) {
           name: row.name,           // stored raw; contains HTML entities (S&amp;P)
           rank: row.rank,
           mentions: row.mentions,
-          upvotes: row.upvotes,
+          upvotes: row.upvotes,     // stored, never featured -- maturity-confounded
           // null, never 0 -- see the note above
           rank_24h_ago: row.rank_24h_ago ?? null,
           mentions_24h_ago: row.mentions_24h_ago ?? null,
@@ -168,7 +191,23 @@ async function apewisdom({ dryRun }) {
       page++;
       await sleep(400);
     } while (page <= pages);
-    console.log(`  ${filter}: ${records.filter((r) => r.scope === filter).length} rows`);
+
+    // Cross-check against the count the API declared for itself.  This is the
+    // only automatic guard against a short walk that returned 200 on every page.
+    if (complete && declared !== null && buffered.length !== declared) {
+      console.error(`  ${filter}: got ${buffered.length} rows, API declared ${declared} -- scope DISCARDED`);
+      complete = false;
+    }
+
+    if (!complete) continue;
+    for (const r of buffered) r.n_scope = buffered.length; // completeness witness
+    records.push(...buffered);
+    console.log(`  ${filter}: ${buffered.length} rows`);
+  }
+
+  if (!records.length) {
+    console.error('apewisdom: NO complete scope this run -- writing nothing');
+    return;
   }
 
   if (dryRun) { console.log(`DRY RUN: ${records.length} rows for ${date} slot=${slot}`); return; }

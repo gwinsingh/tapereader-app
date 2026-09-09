@@ -386,6 +386,51 @@ Also newly excluded: **ApeWisdom `upvotes`** is maturity-confounded exactly like
 Arctic Shift's `score` — it accrues after posting under undisclosed aggregation.
 Store it, never feature it.
 
+### 16. 🔴 H5 — the study's ONLY confirmatory test — is broken in four measurable ways
+The red team measured all four against the snapshot the collector had already
+taken. Because the pre-registration honestly conceded H1–H4 are unanswerable
+until 2029–2041, **H5 carries the entire study — and it cannot.**
+
+1. **Power computed on the wrong universe.** D2 assumed ~4,000 ticker-days/day
+   (the *price* universe). ApeWisdom returns **797 rows/day, only 96 with ≥5
+   mentions** `[M]` — a ~5× overstatement. Worse, zero-filling the missing
+   ~3,380 names converts "Surging vs Flat" into **in-play vs ignored**, a
+   liquidity sort the RVOL gate would not catch.
+2. **The frozen cut point is already miscalibrated.** `Surging ≥ 1.00` was fixed
+   with zero snapshots in hand. On the first snapshot **31 of the top 50 clear
+   it**, median day-over-day ratio 3.67 `[M]`. With 612/797 rows at exactly 1
+   mention, **four extra Reddit comments (1→5) scores 1.10 = "Surging."**
+   D2 §3.7 forbids moving it, so the fix requires an amendment marked post-hoc.
+3. **`mentions_pct_universe` is 77% ties.** CSCO ("76th percentile") and QUBT
+   ("8.3rd") have **identical data — 1 mention each** `[M]`. 68 percentile
+   points of pure array-ordering artifact.
+4. **`overnight_delta` does not measure overnight attention.** The *difference*
+   of two rolling-24h snapshots equals (this overnight − last overnight), but H5
+   uses the *log ratio* — making the predictor an acceleration term divided by
+   an unrelated 24-hour level. **A stock with large but steady overnight chatter
+   reads "Flat"** — i.e. the Morning Plan's actual use case is invisible to it.
+   Cheap fix named: use the difference, z-scored.
+
+**And there is no low-attention bucket to compare against.** His median non-ETF
+traded name sits at the **96.5th attention percentile** (NVDA 99.7, NBIS 99.5).
+The "Normal" cell holds 6 trades, 3 of them at the 1-mention noise floor.
+
+### 17. ✅ THE CHEAP FALSIFIER — run it in October 2026, not July 2027
+Run D2 §8.1's **RVOL gate** after ~20 days of collection. ~1,900 informative
+ticker-days pins *r* to ±0.05. It is **decisive by the study's own pre-registered
+rule** (|r| > 0.5 → drop every attention feature), and §6's stopping rule
+**explicitly permits it** because it reads no outcome column — so it costs
+nothing in type-I error. Paired with the Morning Plan fill-rate check (20
+minutes), it can close this **eight months early**.
+
+### 18. ⚠️ Opportunity cost — the measuring instrument is not calibrated
+The journal pipeline that produces the study's primary outcome
+(`Max R Before Stop`) reportedly has **14 unauthenticated API routes live on
+tapereader.us**, a grouper that corrupts position flips, and **zero tests**
+`[R, red team]`. There is a `security/journal-api-auth` branch already, so this
+is known — but the point stands: **you cannot measure a 0.45 R effect with an
+uncalibrated instrument.** Verify independently; this was not this run's scope.
+
 ---
 
 ## Run incidents (affect trust, not conclusions)
