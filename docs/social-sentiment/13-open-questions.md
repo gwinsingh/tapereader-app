@@ -229,6 +229,58 @@ forced — and **39 of 51** common English words tested are real US tickers
 ticker universe are in direct conflict; one of them has to lose. This is why
 StockTwits' pre-parsed cashtags matter so much.
 
+### 10. 🔴 TRACK D TRAP — other people's breakout scanners echo price action
+A real share of small-cap cashtag volume on Bluesky (and plausibly elsewhere) is
+**automated scanner output**, e.g. an account posting
+`"$SATL breakout, up 13.9% on 4,801,697 volume"`.
+
+That is not crowd attention. **It is a lagging transform of price, wearing the
+costume of sentiment.** Left in, it manufactures a spurious H1 — "attention
+predicts breakouts" would be measuring "breakouts cause bots to post about
+breakouts". Any signal built without a bot denylist is measuring price against
+itself. Track D must specify the denylist and the author-diversity guard, and
+Track D2's RVOL correlation gate is a second line of defence, not a substitute.
+
+### 11. Bluesky measured as too thin — recorded so nobody re-litigates it
+Access is genuinely excellent and keyless; the data is genuinely not there.
+Five independent measurements agree: the names a breakout scan surfaces get
+**0–15 posts/day** (BBAI 0, AEHR 0); a 14,514-post firehose sample contained
+**one** genuine US-equity post, at 672 MB/hour to capture it; the most-liked
+finance feed on the network has **113 likes**; the two largest "finance" feeds
+are newswire RSS bridges, i.e. Track B's data arriving second-hand; and volume
+is trending down with the platform. All of Bluesky's US-equity cashtag output
+across every ticker for a whole day is about **one third of StockTwits' TSLA
+volume alone.**
+
+Verdict: build the keyless collector anyway — it is ~50 lines and free forever —
+but scope it to **H6 (market-wide regime) only**. It cannot produce a per-ticker
+series outside the top ~30 US names at any budget.
+
+Three traps recorded so they are not rediscovered:
+- **`searchPosts` strips the `$` sigil.** `$OPEN` returned 295 hits in a day
+  with **zero** containing the literal string. Naive counts inflate 5–50×.
+- **There is no cashtag in the AT Protocol data model** — it is client-side
+  rendering only, verified against live post records.
+- **Search throttling is silent**: an opaque HTML 403, no 429, no headers,
+  degrading to **1 request per 61 seconds** under load. A collector built on
+  search would quietly write zeros. Use `com.atproto.repo.listRecords`, which
+  returns honest rate-limit headers.
+
+### 12. Discord, Telegram and video: closed, with reasons
+- **Discord** — self-bots are a stated termination offence; the legitimate path
+  needs a room admin's consent, yields single-digit N per ticker, and is biased
+  the wrong way, since the loudest voice is already in the position. The
+  journal's existing `Origin = Callout` tag is the better instrument.
+- **Telegram** — `t.me/s/<channel>` is genuinely keyless and paginates, but six
+  probed finance channels yielded **zero** US-equity content. US day-trading
+  rooms are private groups the keyless path cannot see.
+- **YouTube** — structurally disqualified, not merely expensive: Developer
+  Policies require stored API text to be **deleted or refreshed after 30 days**.
+  A source that must forget faster than a three-month study needs to remember is
+  not a source.
+- **TikTok** — Research API is eligibility-gated to academics, commercial users
+  explicitly ineligible. A gate, not a price.
+
 ---
 
 ## Run incidents (affect trust, not conclusions)
