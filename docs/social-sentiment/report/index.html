@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Social Market Sentiment — Research Report</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#fff; --ink:#1a1a1a; --muted:#5f5f5f; --line:#e2ddd6;
+    --accent:#8a3324; --good:#1f6b3f; --warn:#8a6a12; --bad:#8f2318;
+    --code:#f2efe9;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#14140f; --panel:#1c1c18; --ink:#ece8e0; --muted:#a09a90; --line:#33322c;
+      --accent:#e08b6a; --good:#6dbb8b; --warn:#d3ab4e; --bad:#e0796a;
+      --code:#232320;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14140f; --panel:#1c1c18; --ink:#ece8e0; --muted:#a09a90; --line:#33322c;
+    --accent:#e08b6a; --good:#6dbb8b; --warn:#d3ab4e; --bad:#e0796a; --code:#232320;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);
+    font:16px/1.65 ui-serif,Georgia,"Times New Roman",serif;
+    margin:0;padding:0 20px 100px}
+  .wrap{max-width:820px;margin:0 auto}
+  header{padding:60px 0 28px;border-bottom:2px solid var(--ink)}
+  h1{font-size:2.3rem;line-height:1.15;margin:0 0 10px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:.95rem}
+  h2{font-size:1.45rem;margin:52px 0 14px;padding-bottom:7px;border-bottom:1px solid var(--line);letter-spacing:-.01em}
+  h3{font-size:1.1rem;margin:30px 0 8px}
+  p{margin:0 0 15px}
+  a{color:var(--accent)}
+  .verdict{background:var(--panel);border:2px solid var(--ink);padding:26px 28px;margin:34px 0}
+  .verdict .tag{display:inline-block;background:var(--bad);color:#fff;
+    font:600 .72rem/1 ui-sans-serif,system-ui;letter-spacing:.09em;
+    padding:7px 11px;text-transform:uppercase;margin-bottom:14px}
+  .verdict h2{border:0;margin:0 0 10px;font-size:1.5rem}
+  .verdict p:last-child{margin-bottom:0}
+  .keep{border-left:4px solid var(--good);background:var(--code);padding:14px 18px;margin:18px 0}
+  table{width:100%;border-collapse:collapse;margin:20px 0;
+    font:14px/1.5 ui-sans-serif,system-ui}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:600;border-bottom:2px solid var(--ink)}
+  .scroll{overflow-x:auto}
+  code{background:var(--code);padding:1.5px 5px;border-radius:3px;
+    font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .num{color:var(--accent);font-weight:600}
+  .g{color:var(--good);font-weight:600}
+  .w{color:var(--warn);font-weight:600}
+  .b{color:var(--bad);font-weight:600}
+  ol,ul{margin:0 0 15px;padding-left:22px}
+  li{margin-bottom:9px}
+  .note{color:var(--muted);font-size:.88rem;font-style:italic}
+  footer{margin-top:70px;padding-top:22px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:.85rem}
+  @media(max-width:600px){h1{font-size:1.7rem}body{padding:0 15px 60px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Social Market Sentiment</h1>
+  <p class="sub">Research report · TapeReader · overnight run, 8 September 2026<br>
+  16 tracks · ~9,500 lines · no accounts created, no money spent</p>
+</header>
+
+<div class="verdict">
+  <span class="tag">Verdict — Don't build it</span>
+  <p>The red team's verdict is <strong>don't build it</strong>, and the rest of
+  the research supports it. No journal columns, no Morning Plan panel, no public
+  page, no signup, no multi-quarter analysis programme.</p>
+  <div class="keep">
+    <strong>But keep collecting.</strong> That is an archival decision, not a
+    reduced build. ApeWisdom publishes no history and no vendor sells it, so a
+    day not captured is gone permanently. It costs <span class="num">66 MB/year</span>.
+    The collector is running and took its first capture on 8 September.
+  </div>
+  <p><strong>Spend $0.</strong> Not from thrift — the ≤$10 rung is empty. Every
+  subscription product surveyed starts at $19.99 or above. The only sub-$10
+  option that exists at all is X's pay-per-post, where $10 buys about
+  <span class="num">95 posts a day</span> across an entire watchlist.</p>
+</div>
+
+<h2>The question, and why the answer is no</h2>
+
+<p>The ask was to add crowd sentiment to TapeReader and study how it interacts
+with a discretionary intraday breakout trader's results — on a budget of
+effectively nothing. The research says the study cannot answer that question on
+any useful horizon, for reasons that are arithmetic rather than opinion.</p>
+
+<p>Half the trades in the May journal export are index and sector ETFs — QQQ 7,
+SPY 6, SOXL 5 of 36 — which carry no ticker-level attention signal and drop out
+by construction. That puts analyzable accrual at
+<span class="num">~18 trades/month</span>, not 35.</p>
+
+<div class="scroll">
+<table>
+  <tr><th>Effect size</th><th>Trades needed</th><th>You would know by</th></tr>
+  <tr><td>Large (≈0.75R of MFE)</td><td>188</td><td class="w">July 2027</td></tr>
+  <tr><td>Moderate (≈0.45R)</td><td>523</td><td class="b">February 2029</td></tr>
+  <tr><td>What published social factors report</td><td>1,200–3,100</td><td class="b">2032–2041</td></tr>
+</table>
+</div>
+
+<p>Because those horizons are honest, the whole study came to rest on a single
+confirmatory test measured across the market rather than across trades — and
+that test is broken in four independent, measured ways. The clearest: its
+"surging attention" threshold is crossed by a ticker going from
+<strong>one mention to five</strong>, and 612 of 797 tickers sit at exactly one
+mention. The risk was never too little data. It was a well-powered test of a
+noise-dominated predictor — a precise answer about nothing.</p>
+
+<h2>Do this in October, not July 2027</h2>
+
+<p>The cheapest way to settle this is already written into the pre-registration.
+Run the RVOL gate after about twenty days of collection: if attention correlates
+above 0.5 with relative volume, every attention feature is dropped by the
+study's own frozen rule. It reads no outcome column, so it costs nothing
+statistically and the stopping rule explicitly permits it.</p>
+
+<p><strong>It can close the question eight months early, for about five hours of
+work.</strong></p>
+
+<h2>The five findings that mattered most</h2>
+
+<ol>
+  <li><strong>Polygon's news <code>insights</code> is authorized on the key
+  already held</strong> — per-ticker sentiment plus written reasoning, so it is
+  auditable rather than a black box. Coverage is 100% from mid-2024, which means
+  every trade already journalled backfills for free. This was not expected.</li>
+
+  <li><strong>Ticker resolution, not access, is the binding constraint.</strong>
+  Only 0.6% of Reddit comments carry a cashtag, and 39 of 51 common English
+  words tested are real tickers — <code>$OPEN</code>, <code>$NOW</code>,
+  <code>$ALL</code>, <code>$LOVE</code>. The one source with free, exact,
+  author-declared resolution is contractually closed.</li>
+
+  <li><strong>Tradestie's <code>sentiment_score</code> is a static constant.</strong>
+  Zero within-ticker variation across 480 tickers over 5.4 years, while the docs
+  claim a 15-minute recompute. Using it would have injected silent look-ahead
+  bias into every downstream result.</li>
+
+  <li><strong>The expensive problem is licence, not data.</strong> Private
+  journal use is nearly free. Public display of derived market analytics starts
+  at <span class="num">$499/mo</span> confirmed, and $2,499/mo from the incumbent
+  vendor — whose consumer tiers are machine-readably <code>personal</code> at
+  every rung, so paying more buys rate limit and history, never licence scope.</li>
+
+  <li><strong>A real share of small-cap chatter is other people's breakout
+  scanners</strong> echoing price — "$SATL breakout, up 13.9% on 4,801,697
+  volume". That is a lagging transform of price wearing the costume of
+  sentiment. Left in, it manufactures the headline result out of nothing.</li>
+</ol>
+
+<h2>What escapes the verdict</h2>
+
+<p>Two things survive, and neither is social sentiment — which is its own
+finding about where the value actually was.</p>
+
+<ul>
+  <li><strong>Polygon news sentiment against the <code>Catalyst</code>
+  column</strong>, which is currently <span class="b">100% blank</span> across
+  the entire journal.</li>
+  <li><strong>SEC EDGAR full-text search</strong> — keyless, reaching back to
+  2001, exact ticker resolution, returning 8-K item codes filed under legal
+  liability rather than guessed by a model. It also argues for adding an
+  <code>Offering/Dilution</code> catalyst, absent today and the class most
+  invisible on a chart.</li>
+</ul>
+
+<h2>An unrelated finding worth acting on</h2>
+
+<p>The licensing work surfaced a problem that predates this study: the
+<strong>planned public market-scans product cannot ship on Polygon data.</strong>
+Display and redistribution are prohibited across three independent clauses, with
+no reconstruction carve-out, so breadth aggregates and the movers table fail
+together.</p>
+
+<p>The recommended fix costs nothing: <strong>put it behind Cloudflare Access</strong>,
+as the trade journal already is. Ingesting bars privately was never blocked —
+only publishing them was. That ships the spec whole and unblocks the daily-bar
+work immediately.</p>
+
+<p class="note">One genuinely live exposure: the journal writes Polygon-derived
+columns into a Google Sheet documented as shared, and Cloudflare Access does not
+cover a spreadsheet. Checking who that sheet is shared with outranks every
+design decision in the research.</p>
+
+<h2>What is running right now</h2>
+
+<div class="scroll">
+<table>
+  <tr><th>Component</th><th>State</th></tr>
+  <tr><td><code>scripts/social-ingest.mjs</code></td>
+      <td class="g">Live. First capture 8 Sep: 2,078 rows, 46 KB gzipped. Idempotent by (scope, slot), discards incomplete scopes whole, exits non-zero on failure.</td></tr>
+  <tr><td><code>.github/workflows/social-ingest.yml</code></td>
+      <td class="w">Committed with the cron <strong>commented out on purpose</strong>. Enabling it is a waking decision.</td></tr>
+  <tr><td>Snapshots</td>
+      <td>NDJSON in git at <code>data/social/&lt;source&gt;/&lt;year&gt;/</code>. Not D1 — 3.03M rows/year is ~530 MB, over the free cap before a single price bar.</td></tr>
+</table>
+</div>
+
+<p class="note">GitHub fires scheduled jobs only from the default branch, so
+uncommenting the cron on the research branch would run nothing and report no
+error. That warning sits next to the cron block.</p>
+
+<h2>How much to trust this</h2>
+
+<p>Everything carries an as-of date of 8 September 2026, and this category moves
+fast. Claims are tagged: <code>[M]</code> measured directly against a live
+endpoint, <code>[V]</code> verified on the source's own material,
+<code>[R]</code> reported by third parties, <code>[I]</code> inference.</p>
+
+<p>Two caveats stated plainly. First, <strong>the entire first research wave ran
+without being able to read the governing brief</strong> — a concurrent session
+switched the shared checkout's branch mid-run. Those tracks were written from
+their task prompts, which carried the constraints faithfully, but not against
+the full contract. Second, <strong>Reddit's primary terms were never read</strong>;
+they are unreachable from every network path available to this run, so every
+Reddit claim is second-hand.</p>
+
+<p>Three cross-track contradictions were resolved rather than smoothed —
+FINRA, Polygon and StockTwits each got a dedicated pass. Two of them reversed a
+track's recommendation. Where the research disagrees with itself, the
+disagreement is recorded in <code>13-open-questions.md</code> rather than
+tidied away.</p>
+
+<footer>
+  Full research in <code>docs/social-sentiment/</code>. Start with
+  <code>12-signup-checklist.md</code>, which stands alone. Nothing merged,
+  nothing deployed, nothing purchased.
+</footer>
+
+</div>
+</body>
+</html>

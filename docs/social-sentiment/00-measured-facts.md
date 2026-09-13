@@ -46,6 +46,17 @@ accumulates through the run; each entry carries its own measured-on date.
    the brief's Track A7 criterion, that makes it strictly more valuable than an
    opaque vendor sentiment number.
 
+### ⚖️ Licence caveat — added after verification
+
+The endpoint is authorized and the data is excellent, but the project's key is
+an **individual (`personal`) licence**. That permits the gated, single-user
+trade-journal use entirely. It does **not** permit publishing these values, or
+aggregates derived from them, on tapereader.us. See `13-open-questions.md` §1.
+
+So the news-sentiment component of this study is a **journal feature**, not a
+public-site feature, unless the data moves to a vendor whose terms permit
+public display. Design Track E and Track F accordingly.
+
 ### Caveats to carry into the analysis
 
 - This is **news** sentiment, not **social/retail** sentiment. It measures what
@@ -63,3 +74,75 @@ accumulates through the run; each entry carries its own measured-on date.
   stability across time are unverified; a change in their scoring model would
   create a silent discontinuity in any long time series. Worth a periodic
   spot-check.
+
+---
+
+## Polygon tier + a docs/measurement discrepancy — measured 2026-09-08
+
+Track B established from Massive's own docs that `/v2/reference/news` sits on
+the **free Stocks Basic tier**, and that Basic's documented 5 req/min matches
+the limit measured here exactly — so **the project's key is Basic tier** `[V]`.
+
+**Discrepancy worth carrying forward:** those docs state Basic is limited to
+**2 years** of news history. Measured against the live key on 2026-09-08, the
+endpoint returned articles from **2023-03** (38 results) and **2024-01** (122
+results) — roughly 3.5 years back, well beyond the documented window. Either
+the limit is not enforced on this endpoint, or the documentation is stale.
+
+This does not change any recommendation — the `insights` boundary (mid-2024)
+binds long before the tier's history limit does, and the journal sits entirely
+inside both. It is recorded because **the run's rule is measured beats
+documented**, and because a backfill plan built on the documented 2-year figure
+would be needlessly conservative.
+
+## Reddit primary terms — unreachable, 2026-09-08
+
+Attempted through three independent network paths: the in-app browser
+(navigation denied), WebFetch against `redditinc.com` (fetch refused) and
+against `support.reddithelp.com` (HTTP 403). This is an **environmental
+limitation, not an agent failure** — no path available to this run can read
+Reddit's primary terms.
+
+Secondary sources `[R]` indicate: the **Responsible Builder Policy (updated
+2026-06-05)** requires every developer to request access and be explicitly
+approved; commercial use requires express written approval; retaining content
+after deletion is prohibited even when anonymised (≈48h compliance window); and
+redistribution at scale requires attribution and a link back.
+
+**A refinement to Track H's framing:** the prohibition on *deriving* is aimed at
+inferring sensitive personal characteristics about users, not at aggregate
+mention counts. Whether aggregate counts are restricted is therefore **not
+settled** by anything read in this run — it remains genuinely open, and the
+pessimistic reading should not be treated as established.
+
+---
+
+## Night-zero collector — first capture taken 2026-09-08 21:00 ET
+
+The collector ran for real. **Accrual has started**; it is no longer a plan.
+
+| Measurement | Value |
+|---|---|
+| ApeWisdom rows per snapshot | **2,078** across 6 filters — all-stocks 797, wallstreetbets 594, stocks 267, Daytrading 168, options 102, pennystocks 150 |
+| Snapshot size | **494 KB raw / 46 KB gzipped** |
+| Idempotency | Verified — immediate re-run in the same slot wrote 0, skipped 2,078 |
+| First stored snapshot | `data/social/apewisdom/2026/2026-09-08.ndjson`, slot `evening` |
+
+### Storage budget correction
+
+Track A7 estimated **11 MB/year** at 4×/day. Measured across all six filters it
+is **66 MB/year gzipped (704 MB raw)** — six times higher, because the estimate
+covered a single filter rather than the full set.
+
+66 MB/year in a git repo is acceptable but not free, and it compounds. Options,
+for the build plan to decide rather than assume:
+- Keep only `all-stocks` + `wallstreetbets` (~1,391 of 2,078 rows) — the other
+  four filters overlap heavily with them.
+- Store only rows that changed since the previous slot. Attractive, but note
+  `mentions` is a rolling trailing-24h figure, so "unchanged" is not rare and
+  the diff logic must not be mistaken for a cumulative counter.
+- Accept it. 66 MB/year is small next to the value of history that cannot be
+  repurchased at any price.
+
+**Do not silently pre-filter to `mentions >= 2`.** The single-mention rows are
+the fresh-discovery population that hypothesis H3 is entirely about.
