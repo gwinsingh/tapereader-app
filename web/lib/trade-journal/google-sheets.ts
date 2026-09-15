@@ -631,7 +631,13 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   // picked up CURRENCY and rendered a count of 2 as "$2.00". Writes go through
   // values.update into existing cells, which keeps whatever format is already there, so
   // the only thing that normalises these is declaring them here.
-  for (const h of ["Shares", "# Partials", "# Entries", "# Exits", "Stop Raises"]) {
+  for (const h of [
+    "Shares", "# Partials", "# Entries", "# Exits", "Stop Raises",
+    // 1-5 and 1-3 scales. On a copied tab these had picked up CURRENCY and an explicit
+    // sign, rendering an Energy of 3 as "$3.00" and a Conviction of 2 as "+2.00".
+    "Conviction (1-3)", "Energy (1-5)", "Tension (1-5)",
+    "Daily Conv", "1H Conv", "5m Conv", "Sleep Score", "Readiness Score",
+  ]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -803,6 +809,24 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
         range: colRange(processCol),
         rule: {
           condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "Yes" }, { userEnteredValue: "No" }] },
+          showCustomUi: true,
+          strict: true,
+        },
+      },
+    });
+  }
+
+  // Side gets a dropdown like every other closed-vocabulary column. It is auto-filled
+  // from the CSV, so the list is there to make a hand-correction safe rather than to
+  // prompt an entry — but it was the one such column applyFormatting never declared, so
+  // established tabs only had it where it had been set by hand. Rows appended past that
+  // hand-set range came out bare (rows 72-76 on TRPCT1646-PCT19).
+  if (sideCol >= 0) {
+    requests.push({
+      setDataValidation: {
+        range: colRange(sideCol),
+        rule: {
+          condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "Long" }, { userEnteredValue: "Short" }] },
           showCustomUi: true,
           strict: true,
         },
@@ -3194,11 +3218,33 @@ export async function populateInstructionsSheet(): Promise<void> {
   await sheetsValuesUpdate(token, spreadsheetId, `'${tabName}'!A1`, rows);
 }
 
+/**
+ * Why a row's plan-driven columns came out blank.
+ *
+ * The Daily Plan is joined on the trade DATE — `DAY_FILL_COLS` by date alone,
+ * `PLAN_FILL_COLS` by `date|symbol`. So a CSV uploaded under the wrong date silently
+ * produces a row with no psych check-in, no conviction, no catalyst, no MTF read, and an
+ * Origin of "Intraday discovery" for a name that was on the watchlist. Nothing about the
+ * row looks broken; the columns are simply empty. This reports it instead.
+ */
+export interface PlanMatchReport {
+  /** Trade dates with no Daily Plan at all — the psych check-in cannot fill. */
+  datesWithoutPlan: string[];
+  /** `date SYMBOL` pairs not on that date's plan — conviction/catalyst/MTF cannot fill. */
+  symbolsOffPlan: string[];
+  /**
+   * Dates that have a plan but which nothing was uploaded for. A plan sitting on a date
+   * adjacent to the upload is the signature of the date picker being left on its default
+   * (the previous weekday) when the trades are actually from today.
+   */
+  plannedDatesNotUploaded: string[];
+}
+
 export async function appendTrades(
   trades: GroupedTrade[],
   sheetSuffix: string,
   enrichments?: MarketEnrichment[]
-): Promise<{ appended: number; skipped: number; accounts: string[]; sheetGid: number | null; stats: AggregateStats | null }> {
+): Promise<{ appended: number; skipped: number; accounts: string[]; sheetGid: number | null; stats: AggregateStats | null; planMatch: PlanMatchReport }> {
   const token = await getAccessToken();
   const spreadsheetId = getSpreadsheetId();
 
@@ -3318,13 +3364,32 @@ export async function appendTrades(
     totalSkipped += skipped;
   }
 
+  // --- Plan-match diagnostics (see PlanMatchReport) ---
+  const uploadedDates = [...new Set(trades.map((t) => t.date))].sort();
+  const datesWithoutPlan = uploadedDates.filter((d) => !psychByDate.has(d));
+  const symbolsOffPlan: string[] = [];
+  for (const t of trades) {
+    const sym = (t.symbol || "").toUpperCase();
+    if (ALWAYS_WATCHLIST_SYMBOLS.has(sym)) continue;
+    if (!planMap.has(`${t.date}|${sym}`)) symbolsOffPlan.push(`${t.date} ${sym}`);
+  }
+  const plannedDatesNotUploaded = [...psychByDate.keys()]
+    .filter((d) => !uploadedDates.includes(d))
+    .sort()
+    .slice(-3);
+  const planMatch: PlanMatchReport = {
+    datesWithoutPlan,
+    symbolsOffPlan: [...new Set(symbolsOffPlan)],
+    plannedDatesNotUploaded,
+  };
+
   let stats: AggregateStats | null = null;
   if (usedAccounts.length > 0) {
     const allRows = await sheetsValuesGet(token, spreadsheetId, `'${usedAccounts[0]}'!A:${READ_RANGE_END}`);
     stats = computeStats(allRows);
   }
 
-  return { appended: totalAppended, skipped: totalSkipped, accounts: usedAccounts, sheetGid: firstGid, stats };
+  return { appended: totalAppended, skipped: totalSkipped, accounts: usedAccounts, sheetGid: firstGid, stats, planMatch };
 }
 
 export async function updateEnrichment(

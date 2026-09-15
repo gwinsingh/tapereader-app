@@ -62,6 +62,9 @@ export async function POST(req: NextRequest) {
       rowsAppended: result.appended,
       rowsSkipped: result.skipped,
       accounts: result.accounts,
+      // Why plan-driven columns may be blank — surfaced so a wrong upload date is
+      // visible immediately instead of looking like missing data.
+      planMatch: result.planMatch,
       sheetGid: result.sheetGid,
       stats: result.stats,
       trades: trades.map((t, i) => ({

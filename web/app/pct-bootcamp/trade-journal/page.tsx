@@ -104,6 +104,13 @@ interface UploadResult {
   sheetGid: number | null;
   trades: TradeRow[];
   stats: StatsData | null;
+  planMatch?: PlanMatchReport;
+}
+
+interface PlanMatchReport {
+  datesWithoutPlan: string[];
+  symbolsOffPlan: string[];
+  plannedDatesNotUploaded: string[];
 }
 
 interface EnrichmentProgress {
@@ -770,6 +777,8 @@ export default function TradeJournalPage() {
         <EnrichmentStatus progress={backfillEnrichment} />
       )}
 
+      {result?.planMatch && <PlanMatchNotice date={result.date} report={result.planMatch} />}
+
       {result && (
         <TradePreview
           trades={result.trades}
@@ -873,6 +882,65 @@ export default function TradeJournalPage() {
           tabName={getActiveTabName()!}
           filterParams={buildFilterParams()}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Says why the plan-driven columns on the rows just written are blank.
+ *
+ * The Daily Plan joins on the trade DATE, so a CSV uploaded under the wrong date produces
+ * rows with no psych check-in, no conviction, no catalyst, no MTF read, and an Origin of
+ * "Intraday discovery" for names that WERE on the watchlist. Nothing looks broken — the
+ * cells are just empty — so it is worth saying out loud at the moment of upload.
+ *
+ * A plan sitting on a date nobody uploaded is the giveaway: the date picker defaults to
+ * the previous weekday, which is wrong whenever you trade and upload on the same day.
+ */
+function PlanMatchNotice({ date, report }: { date: string; report: PlanMatchReport }) {
+  const noPlan = report.datesWithoutPlan.length > 0;
+  const offPlan = report.symbolsOffPlan.length > 0;
+  if (!noPlan && !offPlan) return null;
+
+  // A plan exists, but on a date we did not upload for — near-certainly a wrong date.
+  const likelyWrongDate = noPlan && report.plannedDatesNotUploaded.length > 0;
+
+  return (
+    <div
+      className="rounded-lg border p-4 space-y-2"
+      style={{
+        borderColor: likelyWrongDate ? "var(--stat-red)" : "var(--color-border)",
+        backgroundColor: "var(--color-panel)",
+      }}
+    >
+      <p className="text-sm font-semibold">
+        {likelyWrongDate ? "Check the trade date — the Daily Plan didn't match" : "Some columns were left blank"}
+      </p>
+
+      {likelyWrongDate && (
+        <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+          You uploaded as <strong>{date}</strong>, but there is a Daily Plan for{" "}
+          <strong>{report.plannedDatesNotUploaded.join(", ")}</strong> and none for {date}. The date
+          box defaults to the previous weekday, which is wrong when you trade and upload on the same
+          day. Fix the date and re-upload — the rows already written will be skipped as duplicates
+          only if the date matches, so delete them first.
+        </p>
+      )}
+
+      {noPlan && !likelyWrongDate && (
+        <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+          No Daily Plan for <strong>{report.datesWithoutPlan.join(", ")}</strong>, so Energy, Tension,
+          Urge, Sleep Score, Readiness Score and Sleep (hrs) stayed blank.
+        </p>
+      )}
+
+      {offPlan && (
+        <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+          Not on that day&apos;s plan, so Conviction, Catalyst, L2 Bias and the MTF reads stayed blank
+          and Origin was set to &ldquo;Intraday discovery&rdquo;:{" "}
+          <span className="font-mono">{report.symbolsOffPlan.join(" · ")}</span>
+        </p>
       )}
     </div>
   );
