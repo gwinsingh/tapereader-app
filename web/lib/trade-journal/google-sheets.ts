@@ -3283,7 +3283,13 @@ export async function appendTrades(
       await sheetsValuesUpdate(
         token, spreadsheetId,
         `'${tabName}'!A${nextRowStart}:${colLetter(Math.max(0, tabColMapWidth - 1))}${endRow}`,
-        newRows
+        newRows,
+        // MUST be USER_ENTERED. sheetsValuesUpdate defaults to RAW, which stores every
+        // cell as a literal string: "2026-09-14" stays text (left-aligned, no date
+        // picker), "09:31:22" gets an apostrophe prefix, and the formulas land as visible
+        // text instead of calculating. The append this replaced defaulted to USER_ENTERED,
+        // so dropping the argument silently changed the write semantics.
+        "USER_ENTERED"
       );
       // Re-assert the column formats. On a tab the app created this is a no-op, but a
       // COPIED tab never runs applyFormatting (its headers are all present, so migration
