@@ -160,12 +160,46 @@ const TAG_FILTER_OPTIONS = [
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Hg1g73D8l8EH0j65IQBJhSEHzp3Ot_ib-ZD9UcN3ucU/edit";
 const ENRICH_DELAY_MS = 65000; // 65s between symbols — Polygon free tier is 5 req/min, each symbol uses ~5 requests
 
-function getLastWeekdayEST(): string {
+const MONTH_NAMES = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+/**
+ * The trade date, taken from the FILENAME.
+ *
+ * The DAS export itself carries no date at all — verified across all 73 archived exports:
+ * one identical header (`Event,B/S,Symbol,Shares,Price,Route,Time,Account,Note`), no Date
+ * column, and no date-shaped token anywhere in any file. `Time` is HH:MM:SS only. So the
+ * date can only come from the filename or the picker, and the filename is the better
+ * source because it travels with the file.
+ *
+ * Both shapes the archive actually uses are handled: `2026-08-05-trade-log.csv` and
+ * `trade-log-may-28.csv`. A month-name without a year is read as the most recent
+ * occurrence not in the future, so a January file uploaded in December doesn't jump
+ * forward a year.
+ */
+function dateFromFilename(name: string, today: string): string | null {
+  const iso = name.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const named = name.toLowerCase().match(/(january|february|march|april|may|june|july|august|september|october|november|december)[-_ ]?(\d{1,2})\b/);
+  if (named) {
+    const month = MONTH_NAMES.indexOf(named[1]) + 1;
+    const day = parseInt(named[2], 10);
+    if (month > 0 && day >= 1 && day <= 31) {
+      const thisYear = parseInt(today.slice(0, 4), 10);
+      const mk = (y: number) => `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      return mk(thisYear) <= today ? mk(thisYear) : mk(thisYear - 1);
+    }
+  }
+  return null;
+}
+
+/** Today in ET — the trader uploads the same day he trades. */
+function getTodayEST(): string {
   const now = new Date();
   const est = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const day = est.getDay();
-  const daysBack = day === 0 ? 2 : day === 1 ? 3 : 1;
-  est.setDate(est.getDate() - daysBack);
   const y = est.getFullYear();
   const m = String(est.getMonth() + 1).padStart(2, "0");
   const d = String(est.getDate()).padStart(2, "0");
@@ -187,7 +221,9 @@ interface SheetTab {
 }
 
 export default function TradeJournalPage() {
-  const [date, setDate] = useState(getLastWeekdayEST());
+  const [date, setDate] = useState(getTodayEST());
+  // Where the value in the date box came from, so the UI can say so.
+  const [dateSource, setDateSource] = useState<"today" | "filename" | "manual">("today");
   const [sheetSuffix, setSheetSuffix] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -295,10 +331,7 @@ export default function TradeJournalPage() {
     setDragOver(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped && dropped.name.endsWith(".csv")) {
-      setFile(dropped);
-      setError(null);
-      setResult(null);
-      setEnrichment(null);
+      acceptFile(dropped);
     } else {
       setError("Please drop a .csv file.");
     }
@@ -306,11 +339,23 @@ export default function TradeJournalPage() {
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-      setError(null);
-      setResult(null);
-      setEnrichment(null);
+    if (selected) acceptFile(selected);
+  }
+
+  /**
+   * Take the date from the filename when it has one. It beats any default: it is the
+   * file's own account of which session it is, and it survives uploading days later.
+   * A date typed by hand is left alone — an explicit choice outranks a guess.
+   */
+  function acceptFile(f: File) {
+    setFile(f);
+    setError(null);
+    setResult(null);
+    setEnrichment(null);
+    const fromName = dateFromFilename(f.name, getTodayEST());
+    if (fromName && dateSource !== "manual") {
+      setDate(fromName);
+      setDateSource("filename");
     }
   }
 
@@ -588,7 +633,7 @@ export default function TradeJournalPage() {
                 id="trade-date"
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => { setDate(e.target.value); setDateSource("manual"); }}
                 className="cursor-pointer rounded border py-2 pl-3 pr-8 text-sm focus:outline-none"
                 style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-panel)", color: "var(--color-text)" }}
               />
@@ -598,6 +643,13 @@ export default function TradeJournalPage() {
                 <path d="M5 1.5v3M11 1.5v3" />
               </svg>
             </div>
+            <p className="mt-1 text-[11px]" style={{ color: "var(--color-muted)" }}>
+              {dateSource === "filename"
+                ? "from the filename"
+                : dateSource === "manual"
+                  ? "set by you"
+                  : "today — the DAS export carries no date, so this is a default"}
+            </p>
           </div>
           <div>
             <label htmlFor="sheet-suffix" className="mb-1 block text-xs font-medium" style={{ color: "var(--color-muted)" }}>
