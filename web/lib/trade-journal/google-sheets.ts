@@ -626,6 +626,23 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     });
   }
 
+  // Whole-number columns. Declared so a stray format inherited from a copied sheet is
+  // corrected rather than carried forever: `# Partials` on one row of TRPCT1646-PCT19 had
+  // picked up CURRENCY and rendered a count of 2 as "$2.00". Writes go through
+  // values.update into existing cells, which keeps whatever format is already there, so
+  // the only thing that normalises these is declaring them here.
+  for (const h of ["Shares", "# Partials", "# Entries", "# Exits", "Stop Raises"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
+    requests.push({
+      repeatCell: {
+        range: colRange(col),
+        cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+
   // Date and the two time columns. Declared explicitly rather than left to the
   // USER_ENTERED auto-format: a cell that already carries ANY inherited format is not
   // auto-formatted, so on a copied tab the parsed values render as their raw serials —
