@@ -376,7 +376,13 @@ function getSpreadsheetId(): string {
 const SHEETS_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
 interface SheetMeta {
-  properties: { title: string; sheetId: number };
+  // `fields=sheets.properties` returns the whole properties object, gridProperties
+  // included — the type just never declared it.
+  properties: {
+    title: string;
+    sheetId: number;
+    gridProperties?: { rowCount?: number; columnCount?: number; frozenRowCount?: number };
+  };
 }
 
 async function sheetsGet(token: string, spreadsheetId: string): Promise<{ sheets: SheetMeta[] }> {
@@ -419,22 +425,23 @@ async function sheetsValuesUpdate(
   if (!res.ok) throw new Error(`Sheets values.update failed: ${await res.text()}`);
 }
 
-async function sheetsValuesAppend(
+/**
+ * Grow the grid so `lastRow` exists. `values.update` writes into existing cells only and
+ * fails past the grid edge, unlike append which grows it implicitly.
+ */
+async function ensureRowCapacity(
   token: string,
   spreadsheetId: string,
-  range: string,
-  values: (string | number)[][],
-  valueInputOption: string = "USER_ENTERED"
+  sheetId: number,
+  lastRow: number
 ): Promise<void> {
-  const res = await fetch(
-    `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=${valueInputOption}&insertDataOption=INSERT_ROWS`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ values }),
-    }
-  );
-  if (!res.ok) throw new Error(`Sheets values.append failed: ${await res.text()}`);
+  const meta = await sheetsGet(token, spreadsheetId);
+  const sheet = meta.sheets.find((x) => x.properties.sheetId === sheetId);
+  const have = sheet?.properties?.gridProperties?.rowCount ?? 0;
+  if (have >= lastRow) return;
+  await sheetsBatchUpdate(token, spreadsheetId, [
+    { appendDimension: { sheetId, dimension: "ROWS", length: lastRow - have + 100 } },
+  ]);
 }
 
 async function sheetsValuesClear(
@@ -614,6 +621,33 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
       repeatCell: {
         range: colRange(col),
         cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "0.0" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+
+  // Date and the two time columns. Declared explicitly rather than left to the
+  // USER_ENTERED auto-format: a cell that already carries ANY inherited format is not
+  // auto-formatted, so on a copied tab the parsed values render as their raw serials —
+  // a date as 46279 and 09:31:22 as 0.3967824. Matches what the healthy rows already use.
+  for (const h of ["Date"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
+    requests.push({
+      repeatCell: {
+        range: colRange(col),
+        cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  }
+  for (const h of ["Entry Time", "Exit Time"]) {
+    const col = rc(SHEET_HEADERS.indexOf(h));
+    if (col < 0) continue;
+    requests.push({
+      repeatCell: {
+        range: colRange(col),
+        cell: { userEnteredFormat: { numberFormat: { type: "TIME", pattern: "h:mm:ss" } } },
         fields: "userEnteredFormat.numberFormat",
       },
     });
@@ -3178,6 +3212,7 @@ export async function appendTrades(
     const existingKeys = new Set(existing.slice(1).map((row) => makeDedupeKey(row, tabColMap)));
 
     const nextRowStart = existing.length + 1;
+    const tabColMapWidth = Math.max(...Object.values(tabColMap)) + 1;
     const newRows: (string | number)[][] = [];
     let skipped = 0;
 
@@ -3229,7 +3264,31 @@ export async function appendTrades(
     }
 
     if (newRows.length > 0) {
-      await sheetsValuesAppend(token, spreadsheetId, `'${tabName}'!A1`, newRows);
+      // Write at the row we computed, rather than letting Sheets pick one.
+      //
+      // This used to be values.append with insertDataOption=INSERT_ROWS anchored at A1.
+      // Two things were wrong with that. Sheets gives an INSERTED row the formatting of
+      // the row ABOVE it, so on a tab whose only existing row is the header — a fresh
+      // account, or a copied tab that has been emptied — every new row inherited the
+      // STYLED HEADER: dark background, the flipped colour on manual columns, and no
+      // number formats at all. Dates then render as the raw serial (46279) and times as
+      // the raw fraction (0.3967…). Second, append chooses its own destination row while
+      // `tradeToRow` has already baked `rowIndex` into every formula, so the two can
+      // disagree and the formulas end up pointing at the wrong row.
+      //
+      // A plain update writes into cells that already exist, so nothing is inserted and
+      // no formatting is inherited — and it lands exactly where the formulas expect.
+      const endRow = nextRowStart + newRows.length - 1;
+      await ensureRowCapacity(token, spreadsheetId, gid, endRow);
+      await sheetsValuesUpdate(
+        token, spreadsheetId,
+        `'${tabName}'!A${nextRowStart}:${colLetter(Math.max(0, tabColMapWidth - 1))}${endRow}`,
+        newRows
+      );
+      // Re-assert the column formats. On a tab the app created this is a no-op, but a
+      // COPIED tab never runs applyFormatting (its headers are all present, so migration
+      // takes the no-op branch) and would otherwise keep whatever the copy inherited.
+      await applyFormatting(token, spreadsheetId, gid, tabColMap);
     }
 
     totalAppended += newRows.length;
