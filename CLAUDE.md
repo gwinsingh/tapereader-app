@@ -8,6 +8,8 @@ The repo also contains the **PCT Bootcamp** section (`/pct-bootcamp/*`), which i
 
 It also hosts the **4-Week Challenge** (`/4-week-challenge`), a standalone Vite + React fitness tracker with Cloudflare KV cloud sync, shared across a crew of athletes.
 
+The main TapeReader site is being rebuilt into an **end-of-day market study tool** — breadth/macro dashboard plus parameterized movers scans backed by a real daily-bar store. **Planned, not yet built — see `docs/market-scans/phase-1-spec.md` for the full spec and task checklist.**
+
 ## Repo layout
 
 ```
@@ -75,7 +77,7 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 - **Sheet structure**: One tab per trading account (matched by account prefix, e.g. `ACCT1234-XX`).
 - **96 columns**: Auto-filled trade data, formula columns (Stop after Avg Exit), manual per-trade + daily, enrichment + formula analysis columns (Max R Before Stop, Farthest Price, MAE (R), 1R-6R), market data enrichment, psych check-in columns, the trade-date daily candle (O/H/L/C/V) + volatility references (ATR, 30mATR, ADR), `Sleep (hrs)` (day-level sleep duration), and the **21-column order-ladder block** (see below). (The live tab also has two hand-added manual columns the code does not manage — `RightTheory?` and `EOD Screenshot` — so it is 98 wide; the code reads/writes strictly by header name, and `scripts/review/migration-safety.ts` asserts unmanaged columns can never be written, moved or dropped.)
 - **Auto-filled columns**: Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L.
-- **Formula columns**: Stop (real `Initial Stop`, falling back to Entry ± R/Shares), P&L (R) (P&L/R), 1R-6R (Y/N whether Max R Before Stop reached each R-multiple), Position MFE (R), Capture %, In-Window MFE (R), In-Window Capture %.
+- **Formula columns**: Stop (real `Initial Stop`, falling back to Entry ± R/Shares), P&L (R) (P&L/R), 1R-6R (Y/N whether Max R Before Stop reached each R-multiple), Position MFE (R), Capture %, In-Window MFE (R), In-Window Capture %. The two Capture columns floor at 0% (a losing trade captured none of the available gain) and go blank when the peak is under 0.25× initial risk (no real opportunity to capture, and a near-zero denominator otherwise manufactures absurd percentages).
 - **Max R Before Stop**: Order-aware enrichment field. Walks 1-minute bars from entry to 16:00 ET, tracks max favorable R-multiple reached, stops if stop-loss is hit. Skips adverse check on the entry bar (intra-bar order unknown). Requires R to be filled. Farthest Price is the stock price at that max point.
 - **MAE (R)**: Max Adverse Excursion enrichment — walks 1-minute bars over the ACTUAL holding window (entry → exit), max adverse R-multiple as a negative value (e.g. -0.62; 0 = never went against entry). Skips the entry bar's adverse check like Max R. Requires R filled. Exposed in the analysis + trades-for-review payloads (`maeR`) and shown as an MAE badge in Screenshot Review.
 - **VIX**: per-date (not per-symbol). Polygon `I:VIX` needs an Indices plan (current key is NOT_AUTHORIZED — verified), so enrichment falls back to CBOE's free daily history CSV (`cdn.cboe.com/.../VIX_History.csv`, memoized per isolate). The Backfill button first runs a fast per-date pass (`POST /api/trade-journal/backfill-vix`) filling every blank VIX cell in one call; per-symbol enrichment also fills VIX for new uploads.
@@ -134,6 +136,15 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 - **Write protection**: client sends `x-write-key` header; server checks against `WRITE_KEY` env var. Both must match `VITE_WRITE_KEY` in `apps/4-week-challenge/.env`.
 - **Next.js rewrite** in `web/next.config.mjs` maps `/4-week-challenge` → `/4-week-challenge/index.html` (Next.js doesn't auto-serve index.html from `public/` subdirectories).
 - **Local dev**: KV endpoint returns 503 locally (no KV binding). UI renders but can't persist. Use production for full testing.
+
+### Market Scans & Breadth (Phase 1 — PLANNED, see `docs/market-scans/phase-1-spec.md`)
+Rebuilds the main TapeReader site (`/`, `/market`, `/scans`) into an end-of-day study tool. **Nothing is built yet** — the spec carries verified platform facts, the data model, exact scan formulas, and a task checklist that is the resume point.
+- **The whole design rests on Polygon's grouped-daily endpoint** (`/v2/aggs/grouped/locale/us/market/stocks/{date}`) — **every US stock for one date in a single call** (verified 2026-08-17: 12,424 tickers, 1.36 MB). Polygon snapshots and indices (`I:VIX`) are NOT_AUTHORIZED on the current key; VIX reuses the CBOE CSV fallback in `lib/trade-journal/market-data.ts`. **Polygon rate limit is 5 req/min** (measured).
+- **Storage**: new D1 database `market_db` (`daily_bars`, `breadth_daily`, `scan_hits`, `universe`, `ingest_log`). Liquid universe = price ≥ $1 and dollar volume ≥ $5M (~4,174 names/day; 1 year ≈ 105 MB).
+- **Free tier is a deliberate constraint**: D1 free caps at **500 MB/database**, **100k rows written/day**, and **50 queries per Worker invocation** — so API routes must batch, scans are precomputed nightly rather than at request time, and the one-time backfill is **paced over ~11 days** in chunks. Breadth history lives in D1, not KV, because KV free allows only 1,000 writes/day.
+- **Ingest runs from GitHub Actions**, not a Cloudflare cron — Pages Functions have no cron triggers. The Action calls a `WRITE_KEY`-protected `POST /api/scan/ingest`; `ingest_log` makes the backfill idempotent and resumable across sessions.
+- **`lib/data/cache.ts` is in-memory and does not work across Cloudflare isolates** — that's why the current `getTopMovers` always falls back to fixtures in production. New pages read D1 directly.
+- The six hardcoded `fixtureSetups()` (`AAPL-breakout-1`, etc.) are retired once real scans produce hits; the existing `SetupType` enum (`nr7`, `inside_day`, `vol_dryup`) maps onto the contraction scans.
 
 ## Trade journal data flow
 

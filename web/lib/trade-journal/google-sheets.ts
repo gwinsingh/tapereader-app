@@ -1175,6 +1175,14 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
 // Columns this module OWNS: regenerated in full on every migration, so nothing else may
 // write a literal into them. Everything outside this set is left exactly as found — see
 // planMigration() and scripts/review/migration-safety.ts.
+/**
+ * Smallest peak, as a multiple of initial risk, for which "capture %" means anything.
+ * Below this the position never meaningfully went your way, so there was no gain to
+ * capture and the ratio is left blank rather than computed against a rounding-scale
+ * denominator.
+ */
+const CAPTURE_MIN_R = 0.25;
+
 const FORMULA_HEADERS = new Set([
   "Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R",
   "Position MFE (R)", "Capture %", "In-Window MFE (R)", "In-Window Capture %",
@@ -1409,9 +1417,29 @@ function buildFormulas(rowIndex: number, colMap: ColMap): RowFormulas {
   const peakWin = cl("Peak In-Window ($)");
   const ratio = (num: string | null, den: string | null) =>
     num && den ? `=IF(OR(${den}${R}="",${num}${R}=""),"",${num}${R}/${den}${R})` : "";
-  // Capture is undefined when the position never showed a gain, hence <=0 rather than "".
+  /**
+   * Capture: of the gain that was genuinely available, how much did you bank?
+   *
+   * Two guards, both learned the hard way — the previous `den <= 0` guard alone produced
+   * -8788% on 2026-09-14 AMD and left 54 of 70 rows negative.
+   *
+   * 1. The denominator must represent a real opportunity. A peak of $0.16 against $13.78
+   *    of risk is not a gain anyone could have captured; dividing by it manufactures
+   *    enormous percentages out of rounding-scale numbers. Below CAPTURE_MIN_R of initial
+   *    risk the answer is "the trade never went anywhere", which the neighbouring
+   *    In-Window MFE (R) column already says, so this one goes blank rather than shouting.
+   * 2. A losing trade captured NONE of the available gain, so it floors at 0%. A negative
+   *    capture is a category error — the name means a fraction of something available,
+   *    which cannot be less than none — and averaging those numbers destroys the metric.
+   *    That the trade gave the gain back is already carried by P&L (R) and MAE (R).
+   *
+   * Blank (not zero) for no-opportunity is deliberate: it drops out of averages instead of
+   * dragging them down with trades that were never capturable in the first place.
+   */
   const capture = (den: string | null) =>
-    den && pnl ? `=IF(OR(${den}${R}="",${den}${R}<=0),"",${pnl}${R}/${den}${R})` : "";
+    den && pnl && initialRisk
+      ? `=IF(OR(${den}${R}="",${initialRisk}${R}="",${den}${R}<${CAPTURE_MIN_R}*${initialRisk}${R}),"",MAX(0,${pnl}${R})/${den}${R})`
+      : "";
 
   return {
     stop, pnlR, rMultiples,
