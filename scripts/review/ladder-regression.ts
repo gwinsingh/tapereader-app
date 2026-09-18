@@ -63,6 +63,23 @@ const AMD = [
   "Execute,Sell,AMD,3,486.61,SMRT,09:36:41,U16632046,",
 ].join("\n");
 
+/**
+ * 2026-09-18 GOOGL, the pyramid that read -1.61R on a clean stop-out.
+ *
+ * Entered 10 @ 358.27 against a 356.52 stop ($17.50 at stake), added 10 @ 358.97 and
+ * raised the stop to 357.25 — which leaves $27.40 at stake, not $17.50, because the new
+ * lot alone risks $17.20 and the first still risks $10.20. Exited at 357.21 for -$28.20:
+ * -1.61R against initial risk, -1.03R against the risk actually carried.
+ */
+const GOOGL = [
+  HEAD,
+  "Execute,Buy,GOOGL,10,358.27,SMRT,09:36:42,U16632046,",
+  "Accept,Sell,GOOGL,10,356.52,SMAT,09:36:43,U16632046,",
+  "Execute,Buy,GOOGL,10,358.97,SMRT,09:38:10,U16632046,",
+  "Replaced,Sell,GOOGL,20,357.25,SMAT,09:38:11,U16632046,",
+  "Execute,Sell,GOOGL,20,357.21,SMRT,09:43:43,U16632046,",
+].join("\n");
+
 let failures = 0;
 function check(label: string, got: unknown, want: unknown) {
   const ok = Math.abs(Number(got) - Number(want)) < 0.011 || String(got) === String(want);
@@ -104,6 +121,19 @@ check("entries (fills within CLUSTER_SECS merge)", amd.entries.length, 1);
 check("total shares", amd.totalShares, 3);
 check("initial risk", amd.initialRisk, 14.93);
 check("max risk at stake", amd.maxRiskAtStake, 14.93);
+
+console.log("\n# 2026-09-18 GOOGL — risk at exit is the add-aware stop denominator");
+const googl = one(GOOGL);
+check("entries", googl.entries.length, 2);
+check("initial risk (first entry only)", googl.initialRisk, 17.5);
+check("max risk at stake", googl.maxRiskAtStake, 27.4);
+check("risk at exit", googl.riskAtExit, 27.4);
+check("stopped out", googl.everStoppedOut ? "Y" : "N", "Y");
+{
+  const pnl = (357.21 - (10 * 358.27 + 10 * 358.97) / 20) * 20;
+  check("P&L (R) on initial risk", (pnl / googl.initialRisk!).toFixed(2), "-1.61");
+  check("P&L (R at exit) on risk carried", (pnl / googl.riskAtExit!).toFixed(2), "-1.03");
+}
 
 console.log(
   `\n${failures === 0 ? "PASS — both artifacts stay fixed" : `FAIL — ${failures} assertion(s)`}`

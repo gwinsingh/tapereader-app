@@ -23,6 +23,8 @@ export interface TradeLadderFields {
   initialStop: number | null;
   initialRisk: number | null;
   maxRiskAtStake: number | null;
+  /** Risk still on the line against the working stop when the position was closed. */
+  riskAtExit: number | null;
   stopRaises: number;
   stoppedOut: "Y" | "N";
   riskBasis: TradeLadder["riskBasis"];
@@ -229,6 +231,7 @@ function toLadderFields(l: TradeLadder): TradeLadderFields {
     initialStop: round2(l.initialStop),
     initialRisk: round2(l.initialRisk),
     maxRiskAtStake: round2(l.maxRiskAtStake),
+    riskAtExit: round2(l.riskAtExit),
     stopRaises: l.stopRaises,
     stoppedOut: l.everStoppedOut ? "Y" : "N",
     riskBasis: l.riskBasis,

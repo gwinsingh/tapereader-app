@@ -25,6 +25,25 @@ Position tracking: Buy = +shares, Sell/Shrt = -shares. When cumulative position 
 - `# Partials` counts entries AND exits, so "2 partials" means zero partials taken. Deprecated in favour of `# Entries` / `# Exits`; kept for back-compat.
 - `parseFills()` is the inverse of `fmtFills()` — read stored ladder cells back with it rather than re-deriving the format.
 
+### Risk conventions — which denominator answers which question
+`R (Risk)` is **initial risk**: the dollars committed against the stop working just after the FIRST entry. That is the classic R-multiple convention, it is knowable before the trade, and every existing analysis rests on it. Keep it as the headline.
+
+It cannot, however, answer "did I honour my stop?" on a trade that was added to. 2026-09-18 GOOGL: entered 10 @ 358.27 against a 356.52 stop ($17.50 at stake), added 10 @ 358.97 and raised the stop to 357.25 — which leaves **$27.40** on the line, because the new lot alone risks $17.20 and the first still risks $10.20. Exiting at 357.21 lost $28.20: **−1.61R against initial risk, −1.03R against the risk actually carried.** A clean stop-out plus four cents of slippage, reading like a rule break.
+
+Three denominators, three questions — do not collapse them:
+
+| column | question it answers |
+|---|---|
+| `Initial Risk ($)` → `R (Risk)` / `P&L (R)` | how much of my planned unit did this cost? **charges you for expanding risk, deliberately** |
+| `Max Risk At Stake ($)` | what was the most I ever had on the line? (rule-breach detector) |
+| `Risk At Exit ($)` → `P&L (R at exit)` | was the stop honoured? a clean stop-out reads ≈ −1.0 however many units the adds put on |
+
+`P&L (R at exit)` is **losing trades only**, and blank once the remaining risk falls under `CAPTURE_MIN_R` of the original. Stop honour is not a question you can ask of a winner: by the exit the stop has usually been trailed up to almost nothing, so the ratio explodes on a denominator that is an artefact of good management (2026-08-04 PLTR exited with $0.10 still at risk and read **500R** before this guard).
+
+It catches violations in both directions. 2026-07-31 GOOGL reads a comfortable −0.4R on initial risk but **−1.2R on the $8.45 still at stake** — the stop had been trailed up and he lost more than what was left under it, which the headline hides.
+
+**The pyramid does not hold risk at one unit.** Median expansion on multi-entry trades is **1.36×** (live book, 21 of 27 expanded >5%). Stated intent is that each add re-sets the whole-position stop so total exposure stays near one unit; measured behaviour is about a third more. Worth knowing before reading any R-multiple from a pyramided trade.
+
 ### Two things that are NOT protective stops (both were, and both invented risk)
 DAS logs an ordinary `Accept` on the sell side for a lot of things that are not a resting stop. Two of them corrupted `Max Risk At Stake ($)` badly enough to manufacture a rule breach that never happened. Do not remove either guard.
 

@@ -24,6 +24,9 @@ const PROTECTED = [
   "Initial Stop", "Initial Risk ($)", "Max Risk At Stake ($)", "Stop Raises",
   "Stopped Out?", "MFE (R)", "Risk Source", "Peak Position Value ($)",
   "Trough Position Value ($)", "Risk Basis", "Peak In-Window ($)",
+  // Risk At Exit ($) is reconstructed from the order ladder, so it stays protected; only
+  // P&L (R at exit), the ratio over it, is an app-owned formula.
+  "Risk At Exit ($)",
   "RightTheory?", "EOD Screenshot",
 ];
 
@@ -39,6 +42,9 @@ const PROTECTED = [
 const OWNED_FORMULAS = new Set([
   "Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R",
   "Position MFE (R)", "Capture %", "In-Window MFE (R)", "In-Window Capture %",
+  // Added 2026-09-18 with Risk At Exit ($). The dollar figure stays PROTECTED — it is
+  // reconstructed from the order ladder; only this ratio over it is app-generated.
+  "P&L (R at exit)",
 ]);
 
 const a1 = (n: number) => { let s = ""; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };

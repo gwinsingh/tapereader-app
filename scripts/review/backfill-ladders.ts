@@ -21,7 +21,7 @@ const WRITE = process.argv.includes("--write");
 const NEW_COLS = [
   "Entry Ladder", "Exit Ladder", "Stop Ladder", "# Entries", "# Exits",
   "First Entry", "Initial Stop", "Initial Risk ($)", "Max Risk At Stake ($)",
-  "Stop Raises", "Stopped Out?", "Risk Basis",
+  "Risk At Exit ($)", "Stop Raises", "Stopped Out?", "Risk Basis",
 ];
 const f = (x: number | null, d = 2) => (x == null || isNaN(x) ? "" : Number(x.toFixed(d)));
 
@@ -127,6 +127,7 @@ const f = (x: number | null, d = 2) => (x == null || isNaN(x) ? "" : Number(x.to
         "Initial Stop": f(lad.initialStop),
         "Initial Risk ($)": f(lad.initialRisk),
         "Max Risk At Stake ($)": f(lad.maxRiskAtStake),
+        "Risk At Exit ($)": f(lad.riskAtExit),
         "Stop Raises": lad.stopRaises,
         "Stopped Out?": lad.everStoppedOut ? "Y" : "N",
         "Risk Basis": lad.riskBasis,

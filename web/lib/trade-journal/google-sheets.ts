@@ -121,6 +121,13 @@ export const SHEET_HEADERS = [
   "Peak In-Window ($)",
   "In-Window MFE (R)",
   "In-Window Capture %",
+  // Appended at the END like everything above. `Risk At Exit ($)` is the dollars still on
+  // the line against the working stop when the position was closed, and `P&L (R at exit)`
+  // divides the result by it. Together they answer "did I honour my stop?", which
+  // `P&L (R)` cannot on a trade that was added to — see the Risk conventions note in the
+  // trade-journal module CLAUDE.md.
+  "Risk At Exit ($)",
+  "P&L (R at exit)",
 ];
 
 const COL = {
@@ -577,6 +584,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
     "Peak Position Value ($)": 145, "Trough Position Value ($)": 155,
     "Position MFE (R)": 120, "Capture %": 90, "Risk Basis": 110,
     "Peak In-Window ($)": 130, "In-Window MFE (R)": 130, "In-Window Capture %": 140,
+    "Risk At Exit ($)": 110, "P&L (R at exit)": 115,
   };
   for (const [header, width] of Object.entries(colWidths)) {
     const col = colMap ? (colMap[header] ?? -1) : SHEET_HEADERS.indexOf(header);
@@ -601,7 +609,8 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   // Currency formatting
   for (const h of ["P&L", "R (Risk)", "OR Size ($)", "OR High", "OR Low", "Avg Entry", "Avg Exit", "Stop", "Farthest Price", "PDC", "PDH", "PDL", "O", "H", "L", "C",
                    "First Entry", "Initial Stop", "Initial Risk ($)", "Max Risk At Stake ($)",
-                   "Peak Position Value ($)", "Trough Position Value ($)", "Peak In-Window ($)"]) {
+                   "Peak Position Value ($)", "Trough Position Value ($)", "Peak In-Window ($)",
+                   "Risk At Exit ($)"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -614,7 +623,7 @@ async function applyFormatting(token: string, spreadsheetId: string, sheetId: nu
   }
 
   for (const h of ["Duration (mins)", "P&L (R)", "Sleep (hrs)",
-                   "MFE (R)", "Position MFE (R)", "In-Window MFE (R)"]) {
+                   "MFE (R)", "Position MFE (R)", "In-Window MFE (R)", "P&L (R at exit)"]) {
     const col = rc(SHEET_HEADERS.indexOf(h));
     if (col < 0) continue;
     requests.push({
@@ -1186,6 +1195,7 @@ const CAPTURE_MIN_R = 0.25;
 const FORMULA_HEADERS = new Set([
   "Stop", "P&L (R)", "1R", "2R", "3R", "4R", "5R", "6R",
   "Position MFE (R)", "Capture %", "In-Window MFE (R)", "In-Window Capture %",
+  "P&L (R at exit)",
 ]);
 
 async function repairFormulas(
@@ -1210,6 +1220,7 @@ async function repairFormulas(
       let value = "";
       if (h === "Stop") value = formulas.stop;
       else if (h === "P&L (R)") value = formulas.pnlR;
+      else if (h === "P&L (R at exit)") value = formulas.pnlRAtExit;
       else if (h === "Position MFE (R)") value = formulas.positionMfeR;
       else if (h === "Capture %") value = formulas.capturePct;
       else if (h === "In-Window MFE (R)") value = formulas.inWindowMfeR;
@@ -1347,6 +1358,7 @@ async function ensureSheetTab(
 interface RowFormulas {
   stop: string;
   pnlR: string;
+  pnlRAtExit: string;
   rMultiples: string[];
   positionMfeR: string;
   capturePct: string;
@@ -1441,8 +1453,32 @@ function buildFormulas(rowIndex: number, colMap: ColMap): RowFormulas {
       ? `=IF(OR(${den}${R}="",${initialRisk}${R}="",${den}${R}<${CAPTURE_MIN_R}*${initialRisk}${R}),"",MAX(0,${pnl}${R})/${den}${R})`
       : "";
 
+  /**
+   * The same P&L, divided by the risk that was actually still on the line at the exit
+   * rather than the risk committed at the first entry.
+   *
+   * On a single-entry trade this equals `P&L (R)`. On a pyramid it is the number that says
+   * whether the stop was honoured: a clean stop-out reads about -1.0 here however many
+   * units of risk the adds put on. `P&L (R)` stays the headline because it is the planned
+   * unit and it correctly charges you for expanding risk — this column separates "I broke
+   * my stop" from "I added risk", which the headline alone cannot.
+   *
+   * LOSING TRADES ONLY, and only while a real stop was still under the position. Stop
+   * honour is not a question you can ask of a winner: by the exit the stop has usually
+   * been trailed up to almost nothing, so the ratio explodes on a denominator that is an
+   * artefact of good management — 2026-08-04 PLTR exited with $0.10 still at risk and
+   * read 500R. Blank above zero P&L, and blank when the remaining risk has fallen under
+   * CAPTURE_MIN_R of the original (the trade had already been de-risked, so "how much of
+   * my risk did this cost" no longer has a denominator worth dividing by).
+   */
+  const riskAtExit = cl("Risk At Exit ($)");
+  const pnlRAtExit = riskAtExit && pnl && initialRisk
+    ? `=IF(OR(${riskAtExit}${R}="",${initialRisk}${R}="",${pnl}${R}>=0,` +
+      `${riskAtExit}${R}<${CAPTURE_MIN_R}*${initialRisk}${R}),"",${pnl}${R}/${riskAtExit}${R})`
+    : "";
+
   return {
-    stop, pnlR, rMultiples,
+    stop, pnlR, rMultiples, pnlRAtExit,
     positionMfeR: ratio(peak, initialRisk),
     capturePct: capture(peak),
     inWindowMfeR: ratio(peakWin, initialRisk),
@@ -1479,6 +1515,7 @@ export function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap
     set("Initial Stop", lad.initialStop ?? "");
     set("Initial Risk ($)", lad.initialRisk ?? "");
     set("Max Risk At Stake ($)", lad.maxRiskAtStake ?? "");
+    set("Risk At Exit ($)", lad.riskAtExit ?? "");
     set("Stop Raises", lad.stopRaises);
     set("Stopped Out?", lad.stoppedOut);
     set("Risk Basis", lad.riskBasis);
@@ -1511,6 +1548,7 @@ export function tradeToRow(trade: GroupedTrade, rowIndex: number, colMap: ColMap
   set("Avg Entry", trade.avgEntry);
   set("Avg Exit", trade.avgExit);
   set("Stop", formulas.stop);
+  set("P&L (R at exit)", formulas.pnlRAtExit);
   set("Position MFE (R)", formulas.positionMfeR);
   set("Capture %", formulas.capturePct);
   set("In-Window MFE (R)", formulas.inWindowMfeR);

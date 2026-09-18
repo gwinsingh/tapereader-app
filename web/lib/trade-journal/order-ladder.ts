@@ -70,6 +70,22 @@ export interface TradeLadder {
    */
   riskBasis: "first-entry" | "max-at-stake";
   maxRiskAtStake: number | null;   // peak risk during the BUILD phase (before the first exit)
+  /**
+   * Dollars at stake against the stop that was actually working when the position was
+   * closed — i.e. what the trade stood to lose if that stop had been hit.
+   *
+   * This is the denominator that answers "did I honour my stop?", and it is NOT
+   * `initialRisk` on a trade that was added to. 2026-09-18 GOOGL: entered 10 @ 358.27
+   * against a 356.52 stop ($17.50), added 10 @ 358.97 and raised the stop to 357.25 —
+   * which left $27.40 at stake, not $17.50. Exiting at 357.21 lost $28.20, which reads
+   * -1.61R against initial risk but -1.03R against the risk actually carried: a clean
+   * stop-out plus four cents of slippage.
+   *
+   * Distinct from `maxRiskAtStake`, which is the PEAK during the build. They coincide when
+   * the last bracket before the exit is also the widest, and diverge when the stop was
+   * trailed up after an add — then peak overstates what was still on the line at the end.
+   */
+  riskAtExit: number | null;
   riskCurve: RiskPoint[];
   stopRaises: number;              // count of protective-stop moves in the favourable direction
   everStoppedOut: boolean;         // did an exit fill at or through the then-active stop
@@ -319,6 +335,12 @@ function assemble(
   const maxAtStake = buildPhase.length
     ? Math.round(Math.max(...buildPhase.map((r) => r.risk)) * 100) / 100 : null;
 
+  // The last bracket standing before the position started being closed. Reuses the build
+  // phase so it cannot drift from maxRiskAtStake's view of which stops were live.
+  const riskAtExit = buildPhase.length
+    ? Math.round(buildPhase[buildPhase.length - 1].risk * 100) / 100
+    : null;
+
   // A first entry under a tenth of the final position is a token starter, not the trade.
   // Fall back to peak build-phase exposure so the R denominator reflects real risk taken.
   const TOKEN_STARTER = 0.10;
@@ -352,6 +374,7 @@ function assemble(
     initialRisk,
     riskBasis,
     maxRiskAtStake: maxAtStake,
+    riskAtExit,
     riskCurve,
     stopRaises,
     everStoppedOut,
