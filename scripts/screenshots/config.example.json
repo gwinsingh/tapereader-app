@@ -4,6 +4,12 @@
   "driveTradeDir": "G:\\<path to>\\Screenshots - Draft",
   "driveEodDir": "G:\\<path to>\\Screenshots - Draft\\EOD Screenshots",
   "driveDasDir": "G:\\<path to>\\Screenshots - Draft\\DAS - Trades Report",
+  "driveBookmapDir": "G:\\<path to>\\Screenshots - Draft\\Bookmap - Trades Report",
+  "inboxes": [
+    { "app": "Bookmap", "dir": "G:\\<path to>\\Screenshots - Draft\\_Inbox\\Bookmap", "clockOffsetMinutes": 0 },
+    { "app": "TradingView", "dir": "G:\\<path to>\\Screenshots - Draft\\_Inbox\\TradingView", "clockOffsetMinutes": 0 }
+  ],
+  "marketCloseEt": "16:00",
   "workDir": "C:\\Users\\<you>\\OneDrive\\Pictures\\Screenshots\\_journal",
   "defaultSetup": "ORB",
   "matchWindowSecs": 45,

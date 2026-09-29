@@ -116,6 +116,7 @@ All API routes must export `export const runtime = 'edge'`. Node.js APIs are not
 - **Auth**: Shares service account OAuth2 token with Sheets (scope: `drive.readonly`).
 - **Folder structure**: Two configurable folders — entry screenshots and EOD screenshots, set via `GOOGLE_DRIVE_ENTRY_FOLDER_ID` and `GOOGLE_DRIVE_EOD_FOLDER_ID`.
 - **Filename convention**: `YYYY-MM-DD SYMBOL <details>.png` for entry, `YYYY-MM-DD SYMBOL EOD <details>.png` for EOD. Date + symbol extracted for matching with trades.
+- **Companion shots** from Bookmap / TradingView sit after the DAS step they follow: `YYYY-MM-DD SYMBOL <step>.<k> Bookmap|TradingView [...] HH.mm.ss.png` (EOD: `… EOD Bookmap …`). `screenshot-names.ts` reads step/source/time; the index sorts each symbol's shots numerically by step then companion (Drive's name order puts step 10 before 2), and the UI badges non-DAS shots.
 - **Screenshot index**: Built by listing both folders, parsing filenames, joining with trade data on `date|symbol` key.
 - **Image proxy**: `/api/trade-journal/screenshot-image?fileId=xxx` streams Drive file content through edge, avoids exposing auth tokens to client.
 - **Tags**: Retrospective pattern labels (comma-separated) editable from the Screenshot Review UI. Saved immediately to Google Sheets via `PATCH /api/trade-journal/tags`. Presets: clean entry, extended entry, chased, FOMO, added size, perfect process, revenge trade, oversize, strong momentum, gap>2xATR, gap<2xATR.
@@ -188,7 +189,9 @@ Rebuilds the main TapeReader site (`/`, `/market`, `/scans`) into an end-of-day 
 | `web/app/api/trade-journal/plan/route.ts` | GET/POST endpoint for the `Daily Plan` tab (upsert by date, incl. daily psych check-in) |
 | `web/app/api/trade-journal/backfill-vix/route.ts` | POST endpoint: per-date pass filling every blank VIX cell in one call |
 | `web/components/HeaderVisibility.tsx` | Hides main app header on `/pct-bootcamp` routes |
-| `scripts/screenshots/Journal-Screenshots.ps1` | Windows-side daily routine: names/crops DAS screenshots from OCR + the DAS log, copies them and the log to Drive (plan → apply → undo). Spec + Bookmap next steps: `docs/trade-journal/screenshot-pipeline.md` |
+| `scripts/screenshots/Journal-Screenshots.ps1` | Windows-side daily routine: names/crops DAS screenshots from OCR + the DAS log, copies them and the log to Drive (plan → apply → undo). Also files Bookmap/TradingView shots and Bookmap order exports from Drive `_Inbox` folders as step companions (`NVDA 2.1 Bookmap 09.43.00.png`). Spec: `docs/trade-journal/screenshot-pipeline.md` |
+| `scripts/screenshots/JournalInbox.ps1` | Pure inbox logic (name parsing, Bookmap order export → DAS-shaped rows, companion naming); `pwsh scripts/screenshots/Test-JournalInbox.ps1` tests it on any OS |
+| `web/lib/trade-journal/screenshot-names.ts` | Pure: reads step / companion index / source app (DAS, Bookmap, TradingView) / capture time from a screenshot name; orders a symbol's shots and builds captions |
 | `apps/4-week-challenge/src/App.jsx` | 4-Week Challenge React app (single-file) |
 | `apps/4-week-challenge/vite.config.js` | Vite config, builds to `web/public/4-week-challenge/` |
 | `web/app/4-week-challenge/api/kv/route.ts` | KV GET/POST endpoint for crew data |
