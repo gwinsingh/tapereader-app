@@ -1,0 +1,11 @@
+{
+  "screenshotsDir": "C:\\Users\\<you>\\OneDrive\\Pictures\\Screenshots",
+  "dasReportsDir": "C:\\Users\\<you>\\OneDrive\\Documents\\DAS Reports",
+  "driveTradeDir": "G:\\<path to>\\Screenshots - Draft",
+  "driveEodDir": "G:\\<path to>\\Screenshots - Draft\\EOD Screenshots",
+  "driveDasDir": "G:\\<path to>\\Screenshots - Draft\\DAS - Trades Report",
+  "workDir": "C:\\Users\\<you>\\OneDrive\\Pictures\\Screenshots\\_journal",
+  "defaultSetup": "ORB",
+  "matchWindowSecs": 45,
+  "backup": true
+}

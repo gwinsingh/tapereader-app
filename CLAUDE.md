@@ -188,6 +188,7 @@ Rebuilds the main TapeReader site (`/`, `/market`, `/scans`) into an end-of-day 
 | `web/app/api/trade-journal/plan/route.ts` | GET/POST endpoint for the `Daily Plan` tab (upsert by date, incl. daily psych check-in) |
 | `web/app/api/trade-journal/backfill-vix/route.ts` | POST endpoint: per-date pass filling every blank VIX cell in one call |
 | `web/components/HeaderVisibility.tsx` | Hides main app header on `/pct-bootcamp` routes |
+| `scripts/screenshots/Journal-Screenshots.ps1` | Windows-side daily routine: names/crops DAS screenshots from OCR + the DAS log, copies them and the log to Drive (plan → apply → undo). Spec + Bookmap next steps: `docs/trade-journal/screenshot-pipeline.md` |
 | `apps/4-week-challenge/src/App.jsx` | 4-Week Challenge React app (single-file) |
 | `apps/4-week-challenge/vite.config.js` | Vite config, builds to `web/public/4-week-challenge/` |
 | `web/app/4-week-challenge/api/kv/route.ts` | KV GET/POST endpoint for crew data |
