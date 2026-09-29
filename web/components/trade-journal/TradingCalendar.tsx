@@ -45,6 +45,7 @@ interface DriveFileInfo {
   date: string | null;
   symbol: string | null;
   type: "entry" | "eod";
+  source?: "DAS" | "Bookmap" | "TradingView";
 }
 
 interface ScreenshotIndex {
@@ -55,6 +56,8 @@ interface GalleryImage {
   fileId: string;
   name: string;
   kind: "Entry" | "EOD";
+  /** Set for shots from apps other than DAS, so the lightbox can say which app it is. */
+  source?: "Bookmap" | "TradingView";
 }
 
 type Unit = "standardR" | "realizedR" | "dollar";
@@ -673,6 +676,10 @@ function drillSortValue(t: DailyTrade, key: DrillSortKey): number | string | nul
   }
 }
 
+function otherSource(f: DriveFileInfo): GalleryImage["source"] {
+  return f.source === "Bookmap" || f.source === "TradingView" ? f.source : undefined;
+}
+
 function DayDrillDown({ cell, unit, ssIndex, ssLoading, onOpenGallery, onClose }: {
   cell: DailyCalendarCell;
   unit: Unit;
@@ -713,8 +720,8 @@ function DayDrillDown({ cell, unit, ssIndex, ssLoading, onOpenGallery, onClose }
     const entry = ssIndex[`${cell.date}|${symbol}`];
     if (!entry) return [];
     return [
-      ...entry.entry.map((f) => ({ fileId: f.id, name: f.name, kind: "Entry" as const })),
-      ...entry.eod.map((f) => ({ fileId: f.id, name: f.name, kind: "EOD" as const })),
+      ...entry.entry.map((f) => ({ fileId: f.id, name: f.name, kind: "Entry" as const, source: otherSource(f) })),
+      ...entry.eod.map((f) => ({ fileId: f.id, name: f.name, kind: "EOD" as const, source: otherSource(f) })),
     ];
   }
 
@@ -886,6 +893,11 @@ function GalleryLightbox({ images, index, onIndex, onClose }: {
         <span className="rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: current.kind === "Entry" ? "rgba(72,187,120,0.3)" : "rgba(99,179,237,0.3)" }}>
           {current.kind}
         </span>
+        {current.source && (
+          <span className="rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: "rgba(236,201,75,0.3)" }}>
+            {current.source}
+          </span>
+        )}
         <span className="max-w-[60vw] truncate">{current.name}</span>
         {hasMultiple && <span style={{ opacity: 0.7 }}>· {index + 1}/{images.length}</span>}
       </div>

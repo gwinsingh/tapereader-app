@@ -4,6 +4,12 @@
  * Folder IDs are configurable via env vars.
  */
 
+import {
+  compareScreenshots, parseScreenshotDetails, type ScreenshotSource,
+} from "./screenshot-names";
+
+export type { ScreenshotSource };
+
 const DRIVE_BASE = "https://www.googleapis.com/drive/v3/files";
 
 export interface DriveFileInfo {
@@ -13,6 +19,13 @@ export interface DriveFileInfo {
   date: string | null;     // extracted YYYY-MM-DD
   symbol: string | null;   // extracted ticker
   type: "entry" | "eod";
+  source: ScreenshotSource;
+  /** The symbol's DAS step ("4" in "NVDA 4 AddSize …", "4" in "NVDA 4.1 Bookmap …"). */
+  step: number | null;
+  /** Companion index within a step ("1" in "4.1"); 0 for the DAS shot itself. */
+  sub: number;
+  /** HH:MM:SS capture time when the name carries one (Mac / TradingView suffixes). */
+  time: string | null;
 }
 
 export interface ScreenshotIndex {
@@ -133,6 +146,7 @@ export async function buildScreenshotIndex(token: string): Promise<{
         date: parsed.date,
         symbol: parsed.symbol,
         type: parsed.type,
+        ...parseScreenshotDetails(f.name),
       };
 
       if (!parsed.date || !parsed.symbol) {
@@ -150,6 +164,10 @@ export async function buildScreenshotIndex(token: string): Promise<{
 
   addToIndex(entryFiles, "entry");
   addToIndex(eodFiles, "eod");
+  for (const slot of Object.values(index)) {
+    slot.entry.sort(compareScreenshots);
+    slot.eod.sort(compareScreenshots);
+  }
 
   return { index, unmatched };
 }

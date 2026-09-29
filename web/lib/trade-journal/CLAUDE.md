@@ -121,6 +121,9 @@ Key functions:
 Filename convention:
 - Entry: `YYYY-MM-DD SYMBOL <more details>.png`
 - EOD: `YYYY-MM-DD SYMBOL EOD <more details>.png`
+- Companion (Bookmap / TradingView, written by `scripts/screenshots/Journal-Screenshots.ps1`): `YYYY-MM-DD SYMBOL <step>.<k> Bookmap|TradingView [...] HH.mm.ss.png`, EOD `YYYY-MM-DD SYMBOL EOD Bookmap … .png`
+
+`screenshot-names.ts` (pure, shared with the client components) reads the rest of the name: `source`, `step`, `sub` (companion index), capture `time` (also the Mac's `… at 9.52.47 AM` suffix). `buildScreenshotIndex()` sorts each slot with `compareScreenshots` — numeric step, then companion — so a step's Bookmap/TradingView shots follow it.
 
 ## Column layout (96 managed columns; 98 on the live tab with two unmanaged hand-added ones)
 Auto-filled from CSV: Date, Entry Time, Exit Time, Duration, Symbol, Side, Shares, Avg Entry, Avg Exit, # Partials, P&L.

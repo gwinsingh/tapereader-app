@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { screenshotCaption, type ScreenshotSource } from "@/lib/trade-journal/screenshot-names";
 
 // --- Types ---
 
@@ -11,7 +12,14 @@ interface DriveFileInfo {
   date: string | null;
   symbol: string | null;
   type: "entry" | "eod";
+  source?: ScreenshotSource;
 }
+
+/** Badge colours for shots from apps other than DAS (DAS shots carry no badge). */
+const SOURCE_BADGE: Partial<Record<ScreenshotSource, { label: string; bg: string; fg: string }>> = {
+  Bookmap: { label: "Bookmap", bg: "rgba(236,201,75,0.18)", fg: "#d69e2e" },
+  TradingView: { label: "TV", bg: "rgba(159,122,234,0.18)", fg: "#9f7aea" },
+};
 
 interface ScreenshotIndex {
   [key: string]: { entry: DriveFileInfo[]; eod: DriveFileInfo[] };
@@ -715,15 +723,6 @@ function ImageCarousel({
     });
   };
 
-  const getCaption = (name: string): string => {
-    return name
-      .replace(/^\d{4}-\d{2}-\d{2}\s*/, "")
-      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, "")
-      .replace(/Screenshot \(\d+\)\s*-?\s*/i, "")
-      .replace(/Screenshot \(\d+\)/i, "")
-      .trim() || name;
-  };
-
   return (
     <div className="relative group">
       {files.length > 1 && (
@@ -769,8 +768,16 @@ function ImageCarousel({
                 style={{ minHeight: "100px", backgroundColor: "var(--color-bg)" }}
               />
             </div>
-            <p className="text-xs mt-1 truncate max-w-[300px]" style={{ color: "var(--color-muted)" }}>
-              {getCaption(f.name)}
+            <p className="text-xs mt-1 truncate max-w-[300px]" style={{ color: "var(--color-muted)" }} title={f.name}>
+              {f.source && SOURCE_BADGE[f.source] && (
+                <span
+                  className="mr-1.5 rounded px-1 py-px font-semibold"
+                  style={{ backgroundColor: SOURCE_BADGE[f.source]!.bg, color: SOURCE_BADGE[f.source]!.fg }}
+                >
+                  {SOURCE_BADGE[f.source]!.label}
+                </span>
+              )}
+              {screenshotCaption(f.name)}
             </p>
           </div>
         ))}
