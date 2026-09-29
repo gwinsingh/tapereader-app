@@ -341,7 +341,11 @@ function Read-BookmapLogs([string]$day) {
     $rows = New-Object System.Collections.Generic.List[object]
     $files = New-Object System.Collections.Generic.List[object]
     $dirs = @($inboxes | ForEach-Object { [pscustomobject]@{ Dir = $_.dir; Inbox = $true } })
-    if ($cfg.driveBookmapDir) { $dirs += [pscustomobject]@{ Dir = $cfg.driveBookmapDir; Inbox = $false } }
+    $taken = @()
+    if ($cfg.driveBookmapDir) {
+        $dirs += [pscustomobject]@{ Dir = $cfg.driveBookmapDir; Inbox = $false }
+        if (Test-Path -LiteralPath $cfg.driveBookmapDir) { $taken = @(Get-ChildItem -LiteralPath $cfg.driveBookmapDir -File | ForEach-Object Name) }
+    }
     foreach ($d in $dirs) {
         if (-not (Test-Path -LiteralPath $d.Dir)) { continue }
         foreach ($f in Get-ChildItem -LiteralPath $d.Dir -File | Where-Object { $_.Extension -in '.txt', '.csv' }) {
@@ -351,10 +355,15 @@ function Read-BookmapLogs([string]$day) {
             $mine = @($all | Where-Object { $_.T.ToString('yyyy-MM-dd') -eq $day })
             if (-not $mine) { continue }
             $mine | ForEach-Object { $rows.Add($_) }
-            if ($d.Inbox) { $files.Add([pscustomobject]@{ File = $f; Archive = (Get-BookmapArchiveName $all); Count = $mine.Count }) }
+            if ($d.Inbox) {
+                if (-not $cfg.driveBookmapDir) { Write-Warning "$($f.Name): Bookmap export not archived - set driveBookmapDir in config.json"; continue }
+                $name = Get-BookmapArchiveName $all $taken
+                $taken += $name
+                $files.Add([pscustomobject]@{ File = $f; Archive = $name; Count = $mine.Count })
+            }
         }
     }
-    [pscustomobject]@{ Rows = @($rows | Sort-Object T); Files = $files.ToArray() }
+    [pscustomobject]@{ Rows = @(Select-UniqueBookmapRows $rows); Files = $files.ToArray() }
 }
 
 # OCR of a whole Bookmap / TradingView capture. Bookmap labels each instrument tab with
@@ -384,6 +393,12 @@ function New-InboxRows([string]$day, $actions, $known, $bookmapFiles) {
         foreach ($f in Get-ChildItem -LiteralPath $ib.dir -File | Where-Object { $_.Extension -in '.png', '.jpg', '.jpeg' } | Sort-Object Name) {
             $info = Get-InboxShotInfo $f.Name
             $checks = New-Object System.Collections.Generic.List[string]
+            # A TICKER_date_time name outside the TradingView inbox is only trusted for a
+            # symbol traded that day; otherwise keep its time but read the screen.
+            if ($info -and $info.App -eq 'TradingView' -and $ib.app -ne 'TradingView' -and $known -notcontains $info.Symbol) {
+                $checks.Add("name looks like TradingView's but '$($info.Symbol)' wasn't traded - ticker read from the screen")
+                $info = [pscustomobject]@{ App = $null; Captured = $info.Captured; Symbol = $null }
+            }
             # Drive keeps a file's modified time across machines; creation time is when it synced.
             if ($info) { $t = $info.Captured.AddMinutes($offset) }
             else { $t = $f.LastWriteTime; $checks.Add('name not recognised - time is the file''s modified time') }
@@ -546,6 +561,11 @@ function Invoke-Apply([string]$day) {
     $skip = @{}
     foreach ($r in $todo) {
         $src = Join-Path $(if ($r.SourceDir) { $r.SourceDir } else { $cfg.screenshotsDir }) $r.Source
+        # A row's origin fixes what it can become: DAS shots are copied from screenshotsDir,
+        # inbox files are moved from their inbox. Checked first so an edited Kind can't
+        # pass validation and then fail half-way through the apply.
+        if ($r.SourceDir -and $r.Kind -notin ($COMPANION_KINDS + 'bookmap-orders')) { $errs.Add("$($r.Source): inbox file - Kind must be companion or companion-eod (or Include=N), not '$($r.Kind)'"); continue }
+        if (-not $r.SourceDir -and $r.Kind -notin 'trade', 'eod') { $errs.Add("$($r.Source): DAS screenshot - Kind must be trade or eod (or Include=N), not '$($r.Kind)'"); continue }
         if ($r.Kind -eq 'bookmap-orders') {
             # One export can cover several days; a plan for another day may have archived it already.
             $remote = Join-Path $cfg.driveBookmapDir $r.NewName
@@ -567,10 +587,10 @@ function Invoke-Apply([string]$day) {
             $targets = @(Join-Path $(if ($r.Kind -eq 'companion-eod') { $cfg.driveEodDir } else { $cfg.driveTradeDir }) $r.NewName)
         }
         elseif ($r.Kind -eq 'bookmap-orders') {
-            if ($r.NewName -notmatch '^\d{4}-\d{2}-\d{2}(_\d{4}-\d{2}-\d{2})?-bookmap-orders\.txt$') { $errs.Add("$($r.Source): bad archive name '$($r.NewName)'") }
+            if ($r.NewName -notmatch '^\d{4}-\d{2}-\d{2}(_\d{4}-\d{2}-\d{2})?-bookmap-orders(-\d+)?\.txt$') { $errs.Add("$($r.Source): bad archive name '$($r.NewName)'") }
             $targets = @(Join-Path $cfg.driveBookmapDir $r.NewName)
         }
-        else { $errs.Add("$($r.Source): Kind is '$($r.Kind)' - set trade/eod/companion/companion-eod or Include=N"); continue }
+        else { continue }   # unreachable: the origin checks above cover every Kind
         foreach ($t in $targets) {
             if (Test-Path -LiteralPath $t) { $errs.Add("already exists: $t") }
         }

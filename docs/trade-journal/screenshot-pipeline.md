@@ -146,7 +146,7 @@ original backed up, reversible with `-Undo`). The Mac never has to run anything.
 | **Capture time** | macOS name `Screenshot 2026-09-29 at 9.52.47 AM.png`; TradingView name `NVDA_2026-09-29_09-52-47.png` | macOS 14+ writes a U+202F narrow space before AM/PM — handled. Anything else falls back to the file's modified time (Drive keeps it across machines) and is flagged. |
 | **Symbol** | TradingView: the file name. Bookmap: OCR of the instrument alias on its tab (`NVDA@DXFEED`) | Falls back to whatever was traded within `matchWindowSecs` before the shot, flagged `CHECK`. |
 | **App** | The inbox it came from; the screen text overrides it (a Cmd+Shift+4 of TradingView dropped in the Bookmap inbox) and is flagged | |
-| **Step** | The latest DAS step of that symbol taken **at or before** the capture | `0.k` before the first DAS shot (SOD reads — precedent `2026-08-05 PLTR 0 SOD …`). Works across runs: steps already on disk are read back from file names and times. |
+| **Step** | The latest DAS step of that symbol taken **at or before** the capture (a DAS shot trails its event by 3–8 s, so a step counts from 8 s before its screenshot) | `0.k` before the first DAS shot (SOD reads — precedent `2026-08-05 PLTR 0 SOD …`). Works across runs: steps already on disk are read back from file names and times. |
 | **Action** | The nearest DAS **or Bookmap** event before it, same rules as DAS shots | Bookmap orders map onto the DAS lifecycle (S→Accept, U→Replaced, C→Canceled, E→Execute), so `RaisedStop` / `AddSize` / `Stopped` come out identically. |
 | **EOD** | Captured at or after `marketCloseEt` (16:00) | → `EOD Screenshots`, named `… EOD Bookmap <time>` — DAS EOD numbering ignores these. |
 
@@ -158,10 +158,16 @@ original backed up, reversible with `-Undo`). The Mac never has to run anything.
 ```
 
 `<k>` counts companions within a step (Bookmap and TradingView share it, in time order),
-continuing from files already on disk. `<HH.mm.ss>` is the capture time on the ET clock —
+continuing from files already on disk. Two EOD companions in the same second get
+` 2`, ` 3` after the time. `<HH.mm.ss>` is the capture time on the ET clock —
 the only join key between two machines. The July hand-named files
 (`… 4.1 Bookmap Screenshot 2026-07-21 at 9.52.47 AM.png`) keep working: the app reads
 both suffixes (`web/lib/trade-journal/screenshot-names.ts`).
+
+Editing the plan: Mac file names contain a U+202F space, so edit the plan CSV in a text
+editor, or save from Excel as **CSV UTF-8** — a plain "CSV" save turns it into `?` and
+apply then reports the source file as gone. A row's origin is fixed: inbox rows can
+only be `companion` / `companion-eod` (or `Include=N`), DAS rows only `trade` / `eod`.
 
 ### Verify on the first real run
 
@@ -185,7 +191,10 @@ Bookmap routes US stock orders only through **Interactive Brokers or TradeStatio
   log stays the record, and Bookmap shots are companions of DAS steps. Nothing else to do.
 - **Orders placed in Bookmap (IB / TradeStation / sim):** the export (format: Bookmap KB
   "Appendix IV. Orders Format", UTC timestamps) is archived to `Bookmap - Trades Report`
-  and used to label companion shots. **It is not yet imported into the journal sheet.**
+  and used to label companion shots. A second export of the same day is archived as
+  `…-bookmap-orders-2.txt`, and events present in several exports are counted once.
+  Unreadable lines are skipped with a warning rather than failing the plan.
+  **It is not yet imported into the journal sheet.**
   Proposed next step, for decision: a pure `bookmap-orders.ts` converting the export into
   DAS-shaped rows (the same mapping as above) so the upload page, trade grouper and
   order-ladder reconstruction work unchanged, writing to a separate account tab

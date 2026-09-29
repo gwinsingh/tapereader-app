@@ -36,20 +36,21 @@ function Get-InboxShotInfo([string]$name) {
     $n = $name -replace $script:ODD_SPACES, ' '
     # macOS, 12-hour locale: "Screenshot 2026-09-29 at 9.52.47 AM.png" (older: "Screen Shot"),
     # optionally " (2)" / " 2" when two land in the same second.
-    if ($n -match '^Screen ?[Ss]hot (\d{4}-\d{2}-\d{2}) at (\d{1,2})\.(\d{2})\.(\d{2}) ?([AaPp][Mm])(?: ?\(?\d+\)?)?\.png$') {
+    if ($n -match '^Screen ?[Ss]hot (\d{4}-\d{2}-\d{2}) at (\d{1,2})\.(\d{2})\.(\d{2}) ?([AaPp][Mm])(?: ?\(?\d+\)?)?\.(png|jpe?g)$') {
         $h = [int]$Matches[2] % 12
         if ($Matches[5].ToUpper() -eq 'PM') { $h += 12 }
         $t = [datetime]::ParseExact($Matches[1], 'yyyy-MM-dd', $null).AddHours($h).AddMinutes([int]$Matches[3]).AddSeconds([int]$Matches[4])
         return [pscustomobject]@{ App = $null; Captured = $t; Symbol = $null }
     }
     # macOS, 24-hour locale: "Screenshot 2026-09-29 at 14.52.47.png"
-    if ($n -match '^Screen ?[Ss]hot (\d{4}-\d{2}-\d{2}) at (\d{2})\.(\d{2})\.(\d{2})(?: ?\(?\d+\)?)?\.png$') {
+    if ($n -match '^Screen ?[Ss]hot (\d{4}-\d{2}-\d{2}) at (\d{2})\.(\d{2})\.(\d{2})(?: ?\(?\d+\)?)?\.(png|jpe?g)$') {
         $t = [datetime]::ParseExact("$($Matches[1]) $($Matches[2]):$($Matches[3]):$($Matches[4])", 'yyyy-MM-dd HH:mm:ss', $null)
         return [pscustomobject]@{ App = $null; Captured = $t; Symbol = $null }
     }
     # TradingView "Download image": TICKER_YYYY-MM-DD_HH-MM-SS.png - no exchange prefix, but
     # tolerate one ("NASDAQ_NVDA_..."); browsers add " (1)" on a same-second clash.
-    if ($n -match '^(?:[A-Z]+_)?([A-Z0-9.!]+)_(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})(?: ?\(\d+\))?\.png$') {
+    # Case-sensitive: an upper-case ticker is part of what makes it TradingView's name.
+    if ($n -cmatch '^(?:[A-Z]+_)?([A-Z0-9.!]+)_(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})(?: ?\(\d+\))?\.png$') {
         $t = [datetime]::ParseExact("$($Matches[2]) $($Matches[3]):$($Matches[4]):$($Matches[5])", 'yyyy-MM-dd HH:mm:ss', $null)
         return [pscustomobject]@{ App = 'TradingView'; Captured = $t; Symbol = ($Matches[1] -replace '!', '') }
     }
@@ -92,10 +93,15 @@ function Read-BookmapOrders([string[]]$lines, [TimeZoneInfo]$tz) {
         if (-not $l -or $l.StartsWith('!') -or $l.StartsWith('#')) { continue }
         $f = $l -split ','
         if ($f.Count -lt 5) { continue }
-        $utc = [datetime]::ParseExact("$($f[1])$($f[2])", 'yyyyMMddHHmmss', $inv)
-        $utc = [datetime]::SpecifyKind($utc.AddSeconds([double]::Parse($f[3], $inv)), 'Utc')
-        $t = [TimeZoneInfo]::ConvertTimeFromUtc($utc, $tz)
+        # One bad line must not sink the plan: archived exports are re-read on every run.
+        try {
+            $utc = [datetime]::ParseExact("$($f[1])$($f[2].PadLeft(6, '0'))", 'yyyyMMddHHmmss', $inv)
+            $utc = [datetime]::SpecifyKind($utc.AddSeconds([double]::Parse($f[3], $inv)), 'Utc')
+            $t = [TimeZoneInfo]::ConvertTimeFromUtc($utc, $tz)
+        }
+        catch { Write-Warning "Bookmap export: skipped unreadable line '$l'"; continue }
         $id = $f[4]
+        try {
         switch ($f[0]) {
             'S' {
                 $px = Get-BookmapPrice $f 7
@@ -117,6 +123,21 @@ function Read-BookmapOrders([string[]]$lines, [TimeZoneInfo]$tz) {
                 [pscustomobject]@{ Event = 'Execute'; BS = $orders[$id].BS; Sym = $orders[$id].Sym; Qty = [int][double]::Parse($f[6], $inv); Px = [double]::Parse($f[5], $inv); T = $t; Id = $id }
             }
         }
+        }
+        catch { Write-Warning "Bookmap export: skipped unreadable line '$l'" }
+    }
+}
+
+# The same order event can arrive in more than one export (a mid-day export and one at
+# the close, or a re-export of an archived day); counting it twice would turn one buy into
+# an entry plus an AddSize. Keeps the first of each (order id, event, time, price, size).
+function Select-UniqueBookmapRows($rows) {
+    $seen = @{}
+    foreach ($r in @($rows | Sort-Object T)) {
+        $k = "$($r.Id)|$($r.Event)|$($r.T.Ticks)|$($r.Px)|$($r.Qty)"
+        if ($seen[$k]) { continue }
+        $seen[$k] = $true
+        $r
     }
 }
 
@@ -144,9 +165,13 @@ function Find-ActionBefore($actions, [string]$sym, [datetime]$t, [int]$win) {
 # pass, because a companion's step is the DAS step of the same symbol most recently
 # taken at or before it:
 #   $knownSteps  shots already named in earlier runs: objects with Sym, Step, T
-#   $usedSubs    "SYM|step" -> highest companion index already on disk
+#   $usedSubs    "SYM|step" -> highest companion index already on disk, and
+#                "SYM|EOD|App|HH.mm.ss" -> highest same-second EOD count
+#   $leadSecs    a DAS shot trails the event it records by 3-8 s, so a step starts this
+#                long before its screenshot: a Bookmap shot of the fill taken just ahead
+#                of the DAS shot still belongs to the new step.
 # DAS rows planned in this same run are added to the timeline from their NewName.
-function Set-CompanionNames($rows, [string]$day, $knownSteps, [hashtable]$usedSubs) {
+function Set-CompanionNames($rows, [string]$day, $knownSteps, [hashtable]$usedSubs, [int]$leadSecs = 8) {
     if (-not $usedSubs) { $usedSubs = @{} }
     $timeline = New-Object System.Collections.Generic.List[object]
     foreach ($s in @($knownSteps)) { if ($s) { $timeline.Add($s) } }
@@ -160,10 +185,13 @@ function Set-CompanionNames($rows, [string]$day, $knownSteps, [hashtable]$usedSu
         $t = [datetime]$r.Created
         $stamp = $t.ToString('HH.mm.ss')
         if ($r.Kind -eq 'companion-eod') {
-            $parts = @($day, $r.Symbol, 'EOD', $r.App, $r.Note, $stamp)
+            # EOD shots have no step to count within; two in the same second get " 2", " 3".
+            $k = "$($r.Symbol)|EOD|$($r.App)|$stamp"; $usedSubs[$k] = 1 + [int]$usedSubs[$k]
+            $n = if ($usedSubs[$k] -gt 1) { $usedSubs[$k] } else { '' }
+            $parts = @($day, $r.Symbol, 'EOD', $r.App, $r.Note, $stamp, $n)
         }
         else {
-            $prior = @($timeline | Where-Object { $_.Sym -eq $r.Symbol -and $_.T -le $t } | Sort-Object T, Step) | Select-Object -Last 1
+            $prior = @($timeline | Where-Object { $_.Sym -eq $r.Symbol -and $_.T.AddSeconds(-$leadSecs) -le $t } | Sort-Object T, Step) | Select-Object -Last 1
             $step = if ($prior) { [int]$prior.Step } else { 0 }
             $k = "$($r.Symbol)|$step"; $usedSubs[$k] = 1 + [int]$usedSubs[$k]
             $parts = @($day, $r.Symbol, "$step.$($usedSubs[$k])", $r.App, $r.Action, $r.Note, $stamp)
@@ -183,7 +211,12 @@ function Get-ExistingSteps([string]$day, [string[]]$dirs) {
     $subs = @{}
     foreach ($d in @($dirs | Where-Object { $_ -and (Test-Path -LiteralPath $_) })) {
         foreach ($f in Get-ChildItem -LiteralPath $d -File -Filter "$day *") {
-            if ($f.Name -match "^$day ([A-Z][A-Z0-9.]{0,9}) (\d+)\.(\d+) ") {
+            if ($f.Name -match "^$day ([A-Z][A-Z0-9.]{0,9}) EOD (Bookmap|TradingView) .*?(\d{2}\.\d{2}\.\d{2})(?: (\d+))?\.[a-z]+$") {
+                $k = "$($Matches[1])|EOD|$($Matches[2])|$($Matches[3])"
+                $n = if ($Matches[4]) { [int]$Matches[4] } else { 1 }
+                if ($n -gt [int]$subs[$k]) { $subs[$k] = $n }
+            }
+            elseif ($f.Name -match "^$day ([A-Z][A-Z0-9.]{0,9}) (\d+)\.(\d+) ") {
                 $k = "$($Matches[1])|$([int]$Matches[2])"
                 if ([int]$Matches[3] -gt [int]$subs[$k]) { $subs[$k] = [int]$Matches[3] }
             }
@@ -195,10 +228,14 @@ function Get-ExistingSteps([string]$day, [string[]]$dirs) {
     [pscustomobject]@{ Steps = $steps.ToArray(); Subs = $subs }   # an array: @(<generic List>) throws on pwsh 7.6
 }
 
-# Archive name for a Bookmap export: the ET date range it covers.
-function Get-BookmapArchiveName($rows) {
+# Archive name for a Bookmap export: the ET date range it covers, with "-2", "-3" when
+# $taken (names already archived or claimed in this plan) has it - a second export of
+# the same day is kept, not refused.
+function Get-BookmapArchiveName($rows, $taken) {
     $days = @($rows | ForEach-Object { $_.T.ToString('yyyy-MM-dd') } | Sort-Object -Unique)
     if (-not $days) { return $null }
     $span = if ($days.Count -eq 1) { $days[0] } else { "$($days[0])_$($days[-1])" }
-    "$span-bookmap-orders.txt"
+    $name = "$span-bookmap-orders.txt"
+    for ($i = 2; $taken -and $taken -contains $name; $i++) { $name = "$span-bookmap-orders-$i.txt" }
+    $name
 }

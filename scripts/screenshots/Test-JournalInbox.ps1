@@ -36,6 +36,9 @@ $i = Get-InboxShotInfo 'NASDAQ_NVDA_2026-09-29_09-53-10 (1).png'
 Check 'tradingview exchange prefix + dup' "$($i.Symbol)|$($i.Captured.ToString('HH:mm:ss'))" 'NVDA|09:53:10'
 $i = Get-InboxShotInfo 'BRK.B_2026-09-29_10-00-00.png'
 Check 'tradingview share class' $i.Symbol 'BRK.B'
+$i = Get-InboxShotInfo 'Screenshot 2026-09-29 at 9.52.47 AM.jpg'
+Check 'mac jpg' $i.Captured.ToString('HH:mm:ss') '09:52:47'
+Check 'lower-case word_date_time is not TradingView' (Get-InboxShotInfo 'bookmap_2026-09-29_09-53-10.png') ''
 Check 'already-named file is not raw' (Get-InboxShotInfo '2026-09-29 NVDA 4.1 Bookmap 09.52.47.png') ''
 Check 'DAS raw is not an inbox name' (Get-InboxShotInfo 'Screenshot (1121).png') ''
 
@@ -75,6 +78,17 @@ Check 'U -> Replaced with new stop' "$($rows[7].Event)|$($rows[7].Px)" 'Replaced
 Check 'archive name spans days' (Get-BookmapArchiveName $rows) '2018-08-17_2026-09-29-bookmap-orders.txt'
 Check 'archive name one day' (Get-BookmapArchiveName @($rows | Where-Object { $_.T.Year -eq 2026 })) '2026-09-29-bookmap-orders.txt'
 
+$bad = @('!BOOKMAP_FORMAT_V1', 'S,20260929,83500,0.1,1,NVDA@DXFEED,1,181.2,100', 'E,20260929,83500,0.3,1,181.2,100', 'E,garbage', 'S,2026x929,133500,0.1,2,NVDA@DXFEED,1,181.2,100')
+$out = @(Read-BookmapOrders $bad (Get-EasternTimeZone) 3>&1)
+$w = @($out | Where-Object { $_ -is [System.Management.Automation.WarningRecord] })
+$r2 = @($out | Where-Object { $_ -isnot [System.Management.Automation.WarningRecord] })
+Check 'un-padded time read (08:35 UTC = 04:35 ET)' "$($r2.Count)|$($r2[0].T.ToString('HH:mm:ss'))" '2|04:35:00'
+Check 'bad lines skipped with a warning' $w.Count 1
+$twice = @($rows) + @($rows | Select-Object -Last 3)
+Check 'events from two exports counted once' @(Select-UniqueBookmapRows $twice).Count 9
+Check 'archive name taken -> -2' (Get-BookmapArchiveName @($rows | Where-Object { $_.T.Year -eq 2026 }) @('2026-09-29-bookmap-orders.txt')) '2026-09-29-bookmap-orders-2.txt'
+Check 'archive name taken twice -> -3' (Get-BookmapArchiveName @($rows | Where-Object { $_.T.Year -eq 2026 }) @('2026-09-29-bookmap-orders.txt', '2026-09-29-bookmap-orders-2.txt')) '2026-09-29-bookmap-orders-3.txt'
+
 Write-Host '== companion naming'
 $day = '2026-09-29'
 function Row($kind, $created, $sym, $app, $newName) {
@@ -104,6 +118,15 @@ Check 'step from an earlier run' $rows[6].NewName "$day AMD 3.1 Bookmap 09.36.00
 Check 'after close -> EOD word 3' $rows[7].NewName "$day NVDA EOD Bookmap 16.21.40.png"
 Check 'Include=N gets no name' $rows[8].NewName ''
 Check 'DAS rows untouched' $rows[1].NewName "$day NVDA 1 ORB Long Screenshot (10).png"
+$e1 = Row 'companion-eod' '16:21:40' 'NVDA' 'Bookmap' ''; $e2 = Row 'companion-eod' '16:21:40' 'NVDA' 'Bookmap' ''
+Set-CompanionNames @($e1, $e2) $day @() @{}
+Check 'same-second EOD shots stay distinct' "$($e1.NewName)|$($e2.NewName)" "$day NVDA EOD Bookmap 16.21.40.png|$day NVDA EOD Bookmap 16.21.40 2.png"
+$e3 = Row 'companion-eod' '16:21:40' 'NVDA' 'Bookmap' ''
+Set-CompanionNames @($e3) $day @() @{ 'NVDA|EOD|Bookmap|16.21.40' = 2 }
+Check 'EOD count continues from disk' $e3.NewName "$day NVDA EOD Bookmap 16.21.40 3.png"
+$early = Row 'companion' '09:35:05' 'NVDA' 'Bookmap' ''
+Set-CompanionNames @($early, (Row 'trade' '09:35:08' 'NVDA' '' "$day NVDA 1 ORB Long Screenshot (10).png")) $day @() @{}
+Check 'shot of the fill just before the DAS shot joins the new step' $early.NewName "$day NVDA 1.1 Bookmap 09.35.05.png"
 $j = Row 'companion' '11:00:00' 'NVDA' 'Bookmap' ''
 $j | Add-Member Source 'NVDA 11-00-00.JPG'
 Set-CompanionNames @($j) $day @() @{}
@@ -114,13 +137,14 @@ $tmp = Join-Path ([IO.Path]::GetTempPath()) ("inbox-test-" + [guid]::NewGuid())
 New-Item -ItemType Directory $tmp | Out-Null
 try {
     foreach ($n in "$day NVDA 1 ORB Long Screenshot (10).png", "$day NVDA 1.1 Bookmap 09.35.20.png", "$day NVDA 1.3 Bookmap 09.36.20.png",
-        "$day NVDA EOD Screenshot (30).png", "2026-09-28 NVDA 7 x.png") {
+        "$day NVDA EOD Screenshot (30).png", "2026-09-28 NVDA 7 x.png", "$day NVDA EOD Bookmap 16.21.40 2.png") {
         Set-Content -LiteralPath (Join-Path $tmp $n) 'x'
         (Get-Item -LiteralPath (Join-Path $tmp $n)).LastWriteTime = [datetime]"$day 09:35:08"
     }
     $ex = Get-ExistingSteps $day @($tmp, (Join-Path $tmp 'missing'))
     Check 'steps found' (@($ex.Steps | ForEach-Object { "$($_.Sym)$($_.Step)" }) -join ',') 'NVDA1'
     Check 'highest companion index' $ex.Subs['NVDA|1'] 3
+    Check 'EOD same-second count from disk' $ex.Subs['NVDA|EOD|Bookmap|16.21.40'] 2
     # Straight from disk into the namer, as Set-AllNames does it.
     $c = Row 'companion' '09:40:00' 'NVDA' 'Bookmap' ''
     Set-CompanionNames @($c) $day $ex.Steps $ex.Subs
