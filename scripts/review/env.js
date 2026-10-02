@@ -48,5 +48,6 @@ async function getAccessToken(saJson) {
   return j.access_token;
 }
 
-const ENV_PATH = "/Users/gurwinder/Workspace/tapereader-app/web/.env.local";
+// Relative to the repo so it resolves on both the Mac and the Windows trading PC.
+const ENV_PATH = require("path").join(__dirname, "..", "..", "web", ".env.local");
 module.exports = { parseEnvLocal, getAccessToken, ENV_PATH };
