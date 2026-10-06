@@ -279,7 +279,8 @@ function Get-ExistingCounters([string]$day) {
     $counters = @{}
     $dirs = @($cfg.screenshotsDir, $cfg.driveTradeDir, $cfg.driveEodDir) | Where-Object { $_ -and (Test-Path $_) }
     foreach ($d in $dirs) {
-        foreach ($f in Get-ChildItem $d -File -Filter "$day *") {
+        # No -Filter: Google Drive's G: drive silently ignores it and returns nothing.
+        foreach ($f in Get-ChildItem $d -File | Where-Object { $_.Name.StartsWith("$day ") }) {
             if ($f.Name -match "^$day ([A-Z][A-Z0-9.]{0,9}) EOD(?: (\d+))? ") {
                 $k = "$($Matches[1])|EOD"; $n = if ($Matches[2]) { [int]$Matches[2] } else { 1 }
             }
