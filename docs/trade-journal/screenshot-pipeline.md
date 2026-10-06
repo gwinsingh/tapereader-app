@@ -88,6 +88,40 @@ is compared with the local file. Every step goes to `_journal\<date>.log.jsonl`;
 replays it backwards (restoring bytes and capture times). A second `-Apply` of the same
 day is refused because the sources are gone.
 
+## Spoken journal (trade notes -> sheet)
+
+Since 2026-10-02 the notes are dictated, not typed. Driven by the `/daily-journal` Claude
+skill (user-level, `~/.claude/skills/daily-journal/SKILL.md`):
+
+1. After the session, talk through the day **ticker by ticker** to Claude and take that
+   ticker's EOD screenshot while talking about it. Say per trade: why it looked good/bad
+   beforehand, why in/out, emotion, lesson, and **Right theory** / **Process followed** yes/no.
+2. Claude runs the screenshot plan, fixes EOD tickers OCR misread (`Check` doesn't catch an
+   EOD read like `IHOOD` - verify each EOD symbol was traded that day), drops repeat EOD shots,
+   sets `Setup` (FOMO for non-trade-book trades) and a one-word `Note` that lands in the
+   filename (`Scalp`, `FEAR`, `TILT`), then applies.
+3. Claude distils the talk into per-round-trip cells, prefixed **`[Claude] `** so they're
+   distinguishable from hand-written notes:
+
+   | Column | Content |
+   |---|---|
+   | `Notes` | what was seen, why in/out, emotion, lesson |
+   | `Pre-Trade Notes` | why the setup looked good/bad *before* entry (watchlist?, daily context, catalyst quality, known risks, idea source) - for long-term pre-trade patterns |
+   | `Right Theory` | Yes/No - was the read right, regardless of outcome |
+   | `Setup`, `Tags`, `Process Followed?` | as usual |
+
+4. After a yes, they're saved to `_journal\<date>.notes.json` and `node scripts/journal/sync.js
+   <date>` does the rest: `import-day.js` uploads the DAS log through the live app (same calls as
+   the upload page, so the trade rows, ladder and enrichment columns appear as with a manual
+   upload; dedups), then `write-notes.js --write` writes the notes (columns by name; rows by
+   Date + Symbol + Entry Time; appends to existing text, merges Tags, never overwrites a different
+   Setup/Process/Right Theory) and reads them back, and the day gets an empty
+   `_journal\<date>.notes.written` marker. `sync.js` with no date catches up every pending day;
+   the routine runs it at the start of every round. Needs `web/.env.local` with the Google
+   service account plus a Cloudflare Access service token (`CF_ACCESS_CLIENT_ID` /
+   `CF_ACCESS_CLIENT_SECRET`) - tapereader.us is behind Access. The PC's Node 16 gets `fetch`
+   from `scripts/journal/http.js`.
+
 ## Next: Bookmap screenshots from the Mac
 
 Not journaled today. The goal is to eventually view DAS price action and the Bookmap
