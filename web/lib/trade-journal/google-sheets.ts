@@ -3710,3 +3710,21 @@ export async function updateTradeTags(
   const range = `'${tabName}'!${colLetter(tagsIdx)}${rowIndex}`;
   await sheetsValuesUpdate(token, spreadsheetId, range, [[tags]]);
 }
+
+// Read a whole tab as raw (formatted) cell strings. Returns null when the tab
+// does not exist (Sheets answers 400 "Unable to parse range") instead of
+// throwing, so read-only consumers of optional tabs (e.g. the locally-written
+// `RS Watchlist` / `Morning Brief` tabs) can degrade gracefully. Any other
+// failure (auth, quota, network) still throws.
+export async function readTabValues(tabName: string): Promise<string[][] | null> {
+  const token = await getAccessToken();
+  const spreadsheetId = getSpreadsheetId();
+  const range = `'${tabName.replace(/'/g, "''")}'`;
+  try {
+    return await sheetsValuesGet(token, spreadsheetId, range);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/Unable to parse range/i.test(msg)) return null;
+    throw err;
+  }
+}

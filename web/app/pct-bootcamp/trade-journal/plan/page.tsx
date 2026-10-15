@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import MorningIntel, { type IntelPlanPatch } from "@/components/trade-journal/MorningIntel";
 
 interface PlanRow {
   symbol: string;
@@ -141,6 +142,25 @@ export default function MorningPlanPage() {
 
   function removeRow(i: number) {
     setRows((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  // Morning Intel "Add to plan": pre-fill only — never saves. A symbol that
+  // already has a card keeps everything typed; only its empty fields fill.
+  function addFromIntel(patch: IntelPlanPatch) {
+    const sym = patch.symbol.trim().toUpperCase();
+    if (!sym) return;
+    const fields = { catalyst: patch.catalyst, thesis: patch.thesis, dailyTrend: patch.dailyTrend };
+    setRows((prev) => {
+      const i = prev.findIndex((r) => r.symbol.trim().toUpperCase() === sym);
+      if (i < 0) return [...prev, { ...emptyRow(sym), ...fields }];
+      const cur = prev[i];
+      const fill: Partial<PlanRow> = {};
+      (Object.keys(fields) as (keyof typeof fields)[]).forEach((k) => {
+        if (!(cur[k] || "").trim() && fields[k]) fill[k] = fields[k];
+      });
+      return prev.map((r, idx) => (idx === i ? { ...r, ...fill } : r));
+    });
+    setStatus(null);
   }
 
   async function save() {
@@ -297,6 +317,13 @@ export default function MorningPlanPage() {
           </HintField>
         </div>
       </div>
+
+      {/* Morning Brief + RS lists (read-only; "Add to plan" pre-fills a card). */}
+      <MorningIntel
+        planSymbols={rows.map((r) => r.symbol)}
+        onAddToPlan={addFromIntel}
+        disabled={loading}
+      />
 
       <div className="space-y-3">
         {rows.map((row, i) => (
