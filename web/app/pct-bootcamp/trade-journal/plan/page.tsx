@@ -48,6 +48,9 @@ const CATALYST_OPTIONS = [
   "Key Daily Level",
   "Day 2",
   "Pullback to DEMA",
+  "Oversold Bounce",
+  "S-A Failed Bounce",
+  "S-B Early Range Break",
   "Other",
 ];
 

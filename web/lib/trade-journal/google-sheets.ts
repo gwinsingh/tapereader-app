@@ -233,6 +233,9 @@ const CATALYST_OPTIONS = [
   "Key Daily Level",
   "Day 2",
   "Pullback to DEMA",
+  "Oversold Bounce",
+  "S-A Failed Bounce",
+  "S-B Early Range Break",
   "Other",
 ];
 
@@ -248,6 +251,9 @@ const TAG_OPTIONS = [
   "strong momentum",
   "gap>2xATR",
   "gap<2xATR",
+  "S-A",
+  "S-B",
+  "micro",
 ];
 
 const ORIGIN_OPTIONS = [
@@ -3075,8 +3081,8 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Urge to Trade Fast?", "Auto-filled from Morning Plan", "Yes/No — did you arrive with an urge to jump in fast? Logged pre-market in the Morning Plan; auto-fills onto every trade of the day."],
     ["Market Bias", "No — you fill this in (daily)", "Your pre-market read on the overall market direction. Select from dropdown: Bullish, Bearish, or Neutral. Fill in once per day."],
     ["Conviction (1-3)", "No — you fill this in", "Your conviction level for this trade before/at entry: 1 (low), 2 (solid), 3 (A+ setup)."],
-    ["Catalyst", "No — you fill this in", "The catalyst driving the trade. Select one or type comma-separated: Earnings/News, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
-    ["Tags", "No — you fill this in", "Retrospective pattern tags applied during screenshot review. Comma-separated: clean entry, extended entry, chased, FOMO, added size, perfect process, revenge trade, oversize, strong momentum, gap>2xATR, gap<2xATR, or custom."],
+    ["Catalyst", "No — you fill this in", "The catalyst driving the trade. Select one or type comma-separated: Earnings/News, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Oversold Bounce, S-A Failed Bounce, S-B Early Range Break, Other."],
+    ["Tags", "No — you fill this in", "Retrospective pattern tags applied during screenshot review. Comma-separated: clean entry, extended entry, chased, FOMO, added size, perfect process, revenge trade, oversize, strong momentum, gap>2xATR, gap<2xATR, S-A, S-B, micro, or custom."],
     ["Max R Before Stop", "Yes (market data)", "Highest R-multiple the stock reached before the stop was hit (order-aware). If the stop was never hit, this is the max R by end of day. Requires R to be filled in. Used by 1R-6R columns."],
     ["Farthest Price", "Yes (market data)", "The actual stock price at the farthest favorable point before the stop was hit. Requires R to be filled in."],
     ["MAE (R)", "Yes (market data)", "Max Adverse Excursion: the worst the trade went against entry during the actual holding window (entry to exit), in R-multiples. Negative (e.g. -0.62); 0 = never went against entry. Requires R to be filled in."],
@@ -3126,7 +3132,7 @@ export async function populateInstructionsSheet(): Promise<void> {
     ["Process Followed?", "Honestly assess whether you followed your trading plan. This is for your own development — be truthful."],
     ["Notes", "Write anything that will help you learn: your reasoning, emotions, what the chart looked like, what you'd do differently."],
     ["Conviction (1-3)", "Rate your conviction before entry: 1 = low (taking it but not ideal), 2 = solid setup, 3 = A+ setup. Over time, compare your P&L across conviction levels."],
-    ["Catalyst", "Select the catalyst from dropdown or type comma-separated values for multiple: Earnings/News, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Other."],
+    ["Catalyst", "Select the catalyst from dropdown or type comma-separated values for multiple: Earnings/News, Upgrade/Downgrade, FDA/Regulatory, Sector Momentum, Gap Only, Key Daily Level, Day 2, Pullback to DEMA, Oversold Bounce, S-A Failed Bounce, S-B Early Range Break, Other."],
     ["Tags", "Add tags during screenshot review to categorize patterns. Comma-separated. Use the web app's Screenshot Review page or type directly."],
     ["Sleep Score", "Log in the Morning Plan check-in (0–100). Auto-fills onto every trade of the day; edit here only to correct."],
     ["Readiness Score", "Log in the Morning Plan check-in (0–100). Auto-fills onto every trade of the day; edit here only to correct."],

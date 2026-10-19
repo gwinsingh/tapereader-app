@@ -311,6 +311,32 @@ function renderBlocks(lines: string[], keyPrefix: string, depth = 0): React.Reac
       if (cm) {
         const type = cm[1];
         const title = cm[3] || type.charAt(0).toUpperCase() + type.slice(1);
+        // Obsidian fold marker: "[!x]-" = closed by default, "[!x]+" = open but foldable. The vault puts
+        // experimental material (study charts, pattern pictures, research drafts) in closed "example" callouts.
+        if (cm[2] && body.length > 1) {
+          out.push(
+            <details
+              key={key()}
+              open={cm[2] === "+"}
+              className="rounded-md border px-3 py-2"
+              style={{ borderColor: calloutColor(type), borderLeftWidth: 3, backgroundColor: "var(--color-bg)" }}
+            >
+              <summary className="cursor-pointer text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+                {renderInline(title, keyPrefix + "ct" + n)}
+                {type.toLowerCase() === "example" && (
+                  <span
+                    className="ml-2 rounded border px-1 py-px text-[10px] font-normal uppercase tracking-wide"
+                    style={{ borderColor: "var(--color-border)", color: "var(--color-muted)" }}
+                  >
+                    experimental
+                  </span>
+                )}
+              </summary>
+              <div className="mt-1 space-y-1.5">{renderBlocks(body.slice(1), keyPrefix + "c" + n, depth + 1)}</div>
+            </details>
+          );
+          continue;
+        }
         out.push(
           <div
             key={key()}

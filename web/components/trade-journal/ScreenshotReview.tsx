@@ -60,6 +60,9 @@ const TAG_OPTIONS = [
   "strong momentum",
   "gap>2xATR",
   "gap<2xATR",
+  "S-A",
+  "S-B",
+  "micro",
 ];
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];

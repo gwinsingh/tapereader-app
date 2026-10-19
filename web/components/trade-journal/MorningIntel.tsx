@@ -497,7 +497,21 @@ function FocusCard({ item, inPlan, onAdd, disabled }: {
         <span>ATR <b style={{ color: "var(--color-text)" }}>{fmtPx(item.atr)}</b></span>
         <span>Stop ref <b style={{ color: "var(--color-text)" }}>{fmtPx(item.stopRef)}</b></span>
       </div>
-      {item.chart && <MiniChart chart={item.chart} symbol={item.symbol} />}
+      {/* RS charts are research (not part of the trade book): closed by default, labelled */}
+      {item.chart && (
+        <details className="text-[11px]">
+          <summary className="cursor-pointer" style={muted}>
+            Chart{" "}
+            <span
+              className="rounded border px-1 py-px text-[10px] uppercase tracking-wide"
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              experimental
+            </span>
+          </summary>
+          <MiniChart chart={item.chart} symbol={item.symbol} />
+        </details>
+      )}
     </div>
   );
 }
