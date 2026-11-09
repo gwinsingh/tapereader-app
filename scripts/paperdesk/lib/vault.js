@@ -11,6 +11,8 @@ const { openRiskR } = require("./replay.js");
 const fin = x => typeof x === "number" && isFinite(x);
 const f2 = x => fin(x) ? (+x).toFixed(2) : "—";
 const pct = x => fin(x) ? (x * 100).toFixed(0) + "%" : "—";
+// system pages carry a prefix so they never collide with the study notes of the same name (Obsidian links ignore case)
+const pageOf = s => "PD System — " + s.name.replace(/[\/:*?"<>|]/g, "-");
 const esc = s => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
 
 function W(rel, txt) { const f = path.join(VAULT, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); if (fs.existsSync(f) && fs.readFileSync(f, "utf8") === txt) return; fs.writeFileSync(f, txt); }
@@ -110,7 +112,7 @@ function write(out) {
     if (s.universe) t += `**Universe overlay:** ${JSON.stringify(s.universe)}\n\n`;
     t += `## Setups\n\n${s.setups.map(x => `- [[${x}]]`).join("\n")}\n\n`;
     if (s.gaps && s.gaps.length) t += `## Gaps in the source, and how they were filled\n\n${s.gaps.map(g => `- ${g}`).join("\n")}\n`;
-    W(`${F}/Systems/${s.name.replace(/[\\/:*?"<>|]/g, "-")}.md`, t);
+    W(`${F}/Systems/${pageOf(s)}.md`, t);
   }
   for (const [id, s] of lib.setups) {
     const ex = lib.exits.get(s.exit);
@@ -127,7 +129,7 @@ function write(out) {
   let h = fm(["paperdesk", "paperdesk/home"]) + `# ${cfg.name}\n\nForward-tests setup systems on paper, every trading day, unattended: **code** scans, sizes and replays; an **agent** only selects and grades; a **rules-only twin** trades the same candidates mechanically so the record shows whether the agent adds edge. No live orders.\n\n`;
   h += `> [!${last.status === "ok" ? "success" : last.status === "failed" ? "failure" : "warning"}] Last run: **${last.status || "—"}** · ${last.at ? new Date(last.at).toLocaleString("en-US", { timeZone: "America/New_York" }) + " ET" : "—"} · for ${last.forDate || "—"}\n> Agent: ${status.agent ? status.agent.status + (status.agent.reason ? " — " + esc(status.agent.reason) : "") : "—"}\n\n`;
   h += `## Pages\n\n- [[Today's Plan]] · [[Open Positions]] · [[Ledger]] · [[Edge Board]] · [[Weekly Review]] · [[Morning To-Do]]\n- Plans archive: \`${F}/Plans/\`\n\n`;
-  h += `## Systems (from day zero, 2026-11-09)\n\n| System | Source | Setups |\n|---|---|---|\n${[...lib.systems.values()].map(s => `| [[${s.name.replace(/[\\/:*?"<>|]/g, "-")}]] | \`${s.source}\` | ${s.setups.map(x => `[[${x}]]`).join(", ")} |`).join("\n")}\n\n`;
+  h += `## Systems (from day zero, 2026-11-09)\n\n| System | Source | Setups |\n|---|---|---|\n${[...lib.systems.values()].map(s => `| [[${pageOf(s)}\\|${s.name}]] | \`${s.source}\` | ${s.setups.map(x => `[[${x}]]`).join(", ")} |`).join("\n")}\n\n`;
   h += `Studies behind ML and JLaw: [[ML — System Rules]] · [[JLaw — System Rules]] · [[JLaw — Integration with My Swing & ORB]].\n\n`;
   h += `## Rules of the desk\n\n- Plans lock before 09:25 ET (SHA-256, append-only log); late plans are excluded; nothing is written after the open.\n- The agent never runs on past dates. The backtest is labeled backtest everywhere and never mixes in.\n- 1R = $${cfg.R}. Limits: total ${cfg.portfolio.maxTotalOpenR}R, per system ${cfg.portfolio.perSystemOpenR}R (JLaw ${(lib.systems.get("jlaw") || { sizing: {} }).sizing.riskBudgetR || cfg.portfolio.perSystemOpenR}R), cluster ${cfg.portfolio.maxClusterR}R, ${cfg.portfolio.maxPositions} positions — per track.\n- New setup ideas wait in \`scripts/paperdesk/proposals.json\`; only the trader moves them into the library.\n`;
   W(`${F}/${cfg.name} — Home.md`, h);

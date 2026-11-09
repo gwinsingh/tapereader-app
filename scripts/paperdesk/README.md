@@ -22,7 +22,8 @@ Saturday 09:00 ET: `run-weekly.cmd` → edge statuses (`.data/edge-status.json`)
 
 ## Commands
 ```
-node --max-old-space-size=4000 scripts/paperdesk/run.js --dry           # full pipeline, nothing locked/saved
+node --max-old-space-size=4000 scripts/paperdesk/run.js --dry --no-vault  # full pipeline: no lock, no state, no agent, no publish
+                                                                        # (bar / earnings caches still fill; without --no-vault the vault pages are rewritten)
 node --max-old-space-size=4000 scripts/paperdesk/probe.js               # scanners on the latest session
 node scripts/paperdesk/test/replay.test.js                              # engine cases
 node --max-old-space-size=6000 scripts/paperdesk/backtest.js            # one-time rules-only backtest (labeled)
