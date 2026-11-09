@@ -13,6 +13,12 @@ const tools = [
     description:
       "Periodic performance reviews: a frozen scorecard, pre-registered hypothesis tests, and the decisions taken for the next period.",
   },
+  {
+    name: "Paper Desk",
+    href: "/pct-bootcamp/paper-desk",
+    description:
+      "Forward-tested paper trading of setup systems (rules-only vs agent) with locked pre-market plans, open positions and an edge board.",
+  },
 ];
 
 export default function PCTBootcampPage() {

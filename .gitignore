@@ -19,3 +19,13 @@ apps/4-week-challenge/.env
 
 # Stray source copies of help screenshots (the served copies live in web/public/images/help/)
 data/images/
+
+# Paper Desk (paper-trading forward test) - personal library, config, plans, ledger and docs stay local
+scripts/paperdesk/.data/
+scripts/paperdesk/setups/
+scripts/paperdesk/systems/
+scripts/paperdesk/exits/
+scripts/paperdesk/proposals.json
+scripts/paperdesk/config.json
+scripts/paperdesk/seed-library.js
+docs/trade-journal/paper-desk-*.md
