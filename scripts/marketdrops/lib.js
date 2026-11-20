@@ -18,8 +18,10 @@ const stock = sym => once("S" + sym, () => { const f = path.join(RAW, "stocks", 
 const anyBars = sym => fs.existsSync(raw(`yahoo_${safe(sym)}.csv`)) ? bars(sym) : stock(sym);
 const universe = () => once("U", () => JSON.parse(fs.readFileSync(path.join(DATA, "universe.json"), "utf8")));
 /** CBOE index history csv -> [{d,o,h,l,c}] (files with one value column give o=h=l=c) */
-const cboe = id => once("C" + id, () => fs.readFileSync(raw(`cboe_${id}${id === "VIX" && !fs.existsSync(path.join(RAW, "cboe_VIX.csv")) ? "_History" : ""}.csv`), "utf8").trim().split(/\r?\n/).slice(1)
+const cboeRaw = id => once("C" + id, () => fs.readFileSync(raw(`cboe_${id}${id === "VIX" && !fs.existsSync(path.join(RAW, "cboe_VIX.csv")) ? "_History" : ""}.csv`), "utf8").trim().split(/\r?\n/).slice(1)
   .map(l => { const p = l.split(","), [m, d, y] = p[0].split("/"); const c = +(p[4] != null && p[4] !== "" ? p[4] : p[1]); return { d: `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`, o: +p[1], h: +(p[2] || p[1]), l: +(p[3] || p[1]), c }; }).filter(b => b.c > 0));
+/** the VIX: CBOE history, topped up from Yahoo for the latest sessions CBOE has not posted yet */
+const cboe = id => once("CC" + id, () => { const a = cboeRaw(id); if (id !== "VIX" || !fs.existsSync(path.join(RAW, "yahoo__VIX.csv"))) return a; const last = a[a.length - 1].d; return a.concat(bars("^VIX").filter(b => b.d > last).map(b => ({ d: b.d, o: b.o, h: b.h, l: b.l, c: b.c }))); });
 /** CBOE put/call archive -> [[iso, ratio]] */
 const putCall = id => once("P" + id, () => fs.readFileSync(raw(`cboe_${id}.csv`), "utf8").split(/\r?\n/).map(l => { const p = l.split(","); const m = /^(\d+)\/(\d+)\/(\d{4})$/.exec((p[0] || "").trim()); return m ? [`${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`, +p[4]] : null; }).filter(r => r && isFinite(r[1])));
 function frenchTable(dirName, which = 0) {

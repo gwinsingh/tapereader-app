@@ -1,0 +1,15 @@
+[
+  {"d":"1990-02-13","t":"Drexel Burnham Lambert files for bankruptcy","cat":"credit","how":"The main junk-bond dealer failed five months before the stock peak; high-yield default rates were rising towards 10%.","src":"https://en.wikipedia.org/wiki/Drexel_Burnham_Lambert"},
+  {"d":"1990-07-13","t":"Fed cuts to 8.00%, three weeks before the invasion","cat":"Fed","how":"The only cut until late October.","src":"https://www.federalreserve.gov/monetarypolicy/openmarket_archive.htm"},
+  {"d":"1990-07-16","t":"S&P 500 closing peak: 368.95","cat":"technical","how":"The business cycle peaked the same month; a recession ran from July 1990 to March 1991.","src":"https://www.nber.org/research/data/us-business-cycle-expansions-and-contractions"},
+  {"d":"1990-08-02","t":"Iraq invades Kuwait","cat":"oil","how":"S&P 500 −1.1% to 351.48. Oil went from about $17 in July to $28 by 6 August.","src":"https://en.wikipedia.org/wiki/1990_oil_price_shock"},
+  {"d":"1990-08-23","t":"First low: 307.06; VIX peaks at 36.5","cat":"technical","how":"−3.0% on the day and −16.8% from the peak. The highest VIX close of the whole decline.","src":"https://fred.stlouisfed.org/series/VIXCLS"},
+  {"d":"1990-09-27","t":"Second low: 300.97","cat":"technical","how":"Below the August low with the VIX lower. The index rose 1.7% the next session.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"},
+  {"d":"1990-10-11","t":"Final low: 295.46 (−19.9%); VIX 34.0","cat":"technical","how":"A lower price than August on less fear. Oil peaked near $46 in the same fortnight.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"},
+  {"d":"1990-10-18","t":"Follow-through day: +2.3% on higher volume","cat":"technical","how":"Fifth session after the low. The index closed above its 50-day average twelve sessions later.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"},
+  {"d":"1990-10-29","t":"Fed resumes cutting: 7.75%","cat":"Fed","how":"S&P 500 −0.9% that day. The first cut since the invasion came 12 sessions after the low.","src":"https://www.federalreserve.gov/monetarypolicy/openmarket_archive.htm"},
+  {"d":"1990-12-12","t":"Corporate credit spread peaks at 2.45 points","cat":"credit","how":"Two months after the stock low, with the S&P 500 already 11.8% above it. Credit and earnings were still worsening while stocks rose.","src":"https://fred.stlouisfed.org/series/BAA10Y"},
+  {"d":"1991-01-17","t":"Air war begins: S&P 500 +3.7% to 327.97","cat":"politics","how":"The VIX fell to 27.5 from 36.2 three sessions earlier. The index closed above its 200-day average a week later.","src":"https://en.wikipedia.org/wiki/Gulf_War"},
+  {"d":"1991-02-05","t":"NYSE breadth thrust: advances 2.17 times declines","cat":"technical","how":"Ten-day ratio by Deemer’s rule, about 80 sessions after the low and 19% above it.","src":"https://www.walterdeemer.com/bam.htm"},
+  {"d":"1991-02-13","t":"New closing high: 369.02","cat":"technical","how":"Four months after the low and two weeks before the ground war.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"}
+]

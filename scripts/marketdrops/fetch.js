@@ -65,7 +65,7 @@ if (!ONLY || ONLY === "cboe") {
   for (const [id, what] of Object.entries({ totalpc: "CBOE total put/call volume ratio, daily, 2006-11 → 2019-10 (archive; CBOE stopped the file)", equitypc: "CBOE equity-only put/call ratio, daily, 2006-11 → 2019-10 (archive)", indexpc: "CBOE index put/call ratio, daily, 2006-11 → 2019-10 (archive)" })) {
     const f = path.join(RAW, `cboe_${id}.csv`); if (!fresh(f) && !curl(`https://cdn.cboe.com/resources/options/volume_and_call_put_ratios/${id}.csv`, f)) { fail.push("CBOE " + id); continue; }
     cov.series["CBOE:" + id] = { what, source: "CBOE", from: "2006-11-01", to: "2019-10-04" }; console.log("CBOE", id); }
-  for (const [sym, what] of Object.entries({ "^VIX3M": "3-month VIX (Yahoo, longer history than the CBOE file)", "^VVIX": "VVIX (Yahoo)" })) { const f = path.join(RAW, `yahoo_${safe(sym)}.csv`);
+  for (const [sym, what] of Object.entries({ "^VIX": "VIX (Yahoo; used only for days CBOE has not posted yet)", "^VIX3M": "3-month VIX (Yahoo, longer history than the CBOE file)", "^VVIX": "VVIX (Yahoo)" })) { const f = path.join(RAW, `yahoo_${safe(sym)}.csv`);
     if (!fresh(f)) { const rows = yahooCsv(sym, -1500000000); if (rows) fs.writeFileSync(f, rows.join("\n")); else { fail.push(sym); continue; } }
     const L = fs.readFileSync(f, "utf8").split("\n"); cov.series["Yahoo:" + sym] = { what, source: "Yahoo Finance", ...range(L) }; console.log(sym, L[1].slice(0, 10), "→", L[L.length - 1].slice(0, 10)); }
 }

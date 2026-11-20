@@ -8,6 +8,7 @@ const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g,
 const safe = s => s.replace(/[\^]/g, "_").replace(/[^A-Za-z0-9_.-]/g, "-");
 const pct = (x, d = 1) => (x == null || !isFinite(x) ? "—" : (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(d) + "%");
 const num = (x, d = 1) => (x == null || !isFinite(x) ? "—" : (x < 0 ? "−" : "") + Math.abs(x).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
+const mag = (x, d = 1) => (x == null || !isFinite(x) ? "—" : Math.abs(x).toFixed(d) + "%");       // size without a sign, for "fell 19.8%"
 const sign = x => (x == null || !isFinite(x) ? "" : x > 0 ? "pos" : x < 0 ? "neg" : "");
 
 const NAV = [
@@ -104,4 +105,4 @@ const warn = (html, title = "Limits") => `<div class="warn"><b>${title}</b> ${ht
 const ul = items => `<ul>${items.map(x => `<li>${x}</li>`).join("")}</ul>`;
 const link = (slug, text, hash) => `<a href="${slug}.html${hash ? "#" + hash : ""}">${text || TITLE[slug]}</a>`;
 
-module.exports = { Site, Page, NAV, ORDER, TITLE, OUT, SITE, esc, pct, num, sign, tbl, P, PB, tiles, take, warn, ul, link, safe };
+module.exports = { Site, Page, NAV, ORDER, TITLE, OUT, SITE, esc, pct, mag, num, sign, tbl, P, PB, tiles, take, warn, ul, link, safe };

@@ -1,0 +1,15 @@
+[
+  {"d":"1998-04-21","t":"Small companies peak: Russell 2000 at 491.41","cat":"technical","how":"Three months before the S&P 500. The Russell 2000 fell 36.9% to 8 October.","src":"https://finance.yahoo.com/quote/%5ERUT/history/"},
+  {"d":"1998-07-17","t":"S&P 500 closing peak: 1186.75","cat":"technical","how":"The index fell 19.3% in the next 31 sessions.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"},
+  {"d":"1998-08-17","t":"Russia devalues and defaults on domestic debt","cat":"credit","how":"S&P 500 +2.0% that day to 1083.67. The selling came over the following two weeks.","src":"https://en.wikipedia.org/wiki/1998_Russian_financial_crisis"},
+  {"d":"1998-08-27","t":"−3.8%: heaviest volume of the decline","cat":"positioning","how":"SPY traded 2.8 times its 50-day average, two sessions before the closing low.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"},
+  {"d":"1998-08-31","t":"Closing low: −6.8% to 957.28; VIX 44.3","cat":"technical","how":"The largest one-day fall of the decline. The index rose 3.9% the next session.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"},
+  {"d":"1998-09-08","t":"Follow-through day, fifth session after the low","cat":"technical","how":"+5.1% to 1023.46 on higher volume. The rally lasted to 23 September and was then almost fully given back.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"},
+  {"d":"1998-09-23","t":"LTCM rescue: 14 firms put in about $3.6bn","cat":"credit","how":"S&P 500 +3.5% to 1066.09. The New York Fed arranged the takeover and lent nothing.","src":"https://www.federalreservehistory.org/essays/ltcm-near-failure"},
+  {"d":"1998-09-29","t":"Fed cuts 0.25 points; the market wanted more","cat":"Fed","how":"Flat on the day, then −3.1% and −3.0% over the next two sessions.","src":"https://www.federalreserve.gov/boarddocs/press/general/1998/19980929/"},
+  {"d":"1998-10-08","t":"Retest: intraday 923.32, close 959.44","cat":"technical","how":"The yen had risen 14% in two days. Small-company and Nasdaq indices closed at new lows; the S&P 500 held 0.2% above its August close. VIX 45.7.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"},
+  {"d":"1998-10-15","t":"Surprise cut between meetings: S&P 500 +4.2%","cat":"Fed","how":"Second cut of 0.25 points. The start of the rise to new highs.","src":"https://www.federalreserve.gov/boarddocs/press/general/1998/19981015/"},
+  {"d":"1998-10-16","t":"Corporate credit spread peaks at 2.77 points","cat":"credit","how":"One week after the intraday low. Spreads stayed wide into year-end while stocks rose.","src":"https://fred.stlouisfed.org/series/BAA10Y"},
+  {"d":"1998-11-17","t":"Third cut: “unusual strains remain”","cat":"Fed","how":"S&P 500 +0.3% to 1139.32. The last cut; increases resumed in June 1999.","src":"https://www.federalreserve.gov/boarddocs/press/general/1998/19981117/"},
+  {"d":"1998-11-23","t":"New closing high: 1188.21","cat":"technical","how":"Six weeks after the intraday low. Large technology stocks led; small companies were still far below their April high.","src":"https://finance.yahoo.com/quote/%5EGSPC/history/"}
+]

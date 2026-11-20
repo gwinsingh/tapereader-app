@@ -34,6 +34,8 @@ autumn 2018, with 2000–02 and 2007–09 as the other path. It is a static webs
 | `kit.js` | Chart-spec builders (episode charts with failed-rally bands, event lists, paths from the peak) |
 | `pages-a.js` … `pages-f.js` | The pages: a atlas, lookalike · b bounces, bottoms, filters · c sectors, leaders · d intraday, leverage, fundamentals, news · e now, y2018, y2018-turn, compare · f bears, ai-dotcom, scenarios, drills, glossary, method, sources, index |
 | `build.js` | Runs the page modules, checks links and bad text, writes the site (removes stale files) |
+| `vault.js` | Writes the one summary note in the Obsidian vault (`Market/Market Drops/00 Anatomy of a Drop`), keeping the trader's notes under the ✍️ marker; then run `scripts/vault-sync/check.js --push` |
+| `publish.sh` | Copies code and built site into the deployment worktree (`~/tapereader-worktrees/marketdrops`); commit and push from there |
 | `site/assets/` | `charts.js` (the chart engine: candles and lines as SVG, hover read-out, replay mode), `site.css`, `app.js` |
 | `site/content/*.html` | Narrative fragments (body HTML only). `site/STYLE.md` is the writing guide |
 | `site/events/*.json` | Key days per drop, drawn as numbered badges on charts |
