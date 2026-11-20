@@ -1,0 +1,65 @@
+SPY {"sym":"SPY","name":"S&P 500","group":"industry","dec":-18.6,"rel":0,"ownDD":-18.6,"ownLow":"2011-10-03","lead":0,"rsLow":"2011-04-29","rsLead":108,"up200":0,"b126":16.3,"a21":11,"x21":0,"a63":16.7,"x63":0,"a126":29.9,"x126":0,"a252":34.3,"x252":0}
+-- sector
+XLF   Financials                 dec  −30.6 rel  −12.0 ownLow 2011-10-03 lead    0 rsLow 2011-11-29 rsLead  -40 | +21   14.0 +63   19.0 +126   41.7 x126   11.8 +252   41.7
+XLB   Materials                  dec  −29.4 rel  −10.8 ownLow 2011-10-03 lead    0 rsLow 2011-09-30 rsLead    1 | +21   17.5 +63   21.5 +126   31.8 x126    2.0 +252   31.5
+XLE   Energy                     dec  −29.2 rel  −10.6 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   19.4 +63   26.2 +126   28.1 x126   −1.8 +252   33.1
+XLI   Industrials                dec  −25.8 rel   −7.2 ownLow 2011-10-03 lead    0 rsLow 2011-09-22 rsLead    7 | +21   14.1 +63   22.3 +126   33.2 x126    3.3 +252   32.0
+XLY   Consumer discretionary     dec  −16.0 rel    2.6 ownLow 2011-10-03 lead    0 rsLow 2011-06-13 rsLead   78 | +21   12.8 +63   17.0 +126   34.5 x126    4.6 +252   40.1
+XLK   Technology                 dec  −13.1 rel    5.6 ownLow 2011-08-19 lead   30 rsLow 2011-06-20 rsLead   73 | +21    9.6 +63   12.4 +126   33.0 x126    3.2 +252   35.6
+XLV   Health care                dec  −11.9 rel    6.7 ownLow 2011-08-10 lead   37 rsLow 2011-04-29 rsLead  108 | +21    7.2 +63   15.0 +126   24.1 x126   −5.8 +252   34.8
+XLP   Consumer staples           dec   −5.9 rel   12.7 ownLow 2011-08-10 lead   37 rsLow 2011-04-29 rsLead  108 | +21    4.3 +63   12.1 +126   18.5 x126  −11.3 +252   27.0
+XLU   Utilities                  dec    1.0 rel   19.6 ownLow 2011-10-04 lead   -1 rsLow 2011-04-29 rsLead  108 | +21    4.0 +63    8.9 +126    9.5 x126  −20.4 +252   15.5
+-- industry
+TAN   Solar                      dec  −66.4 rel  −47.8 ownLow 2011-11-25 lead  -38 rsLow 2011-11-25 rsLead  -38 | +21   12.5 +63   −3.5 +126  −13.2 x126  −43.1 +252  −39.4
+ICLN  Clean energy               dec  −51.9 rel  −33.3 ownLow 2011-11-25 lead  -38 rsLow 2011-11-29 rsLead  -40 | +21    7.4 +63    3.0 +126    6.6 x126  −23.2 +252  −17.3
+URA   Uranium                    dec  −48.4 rel  −29.8 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   29.1 +63   15.0 +126   22.8 x126   −7.1 +252    1.6
+XME   Metals and mining          dec  −44.4 rel  −25.8 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   27.4 +63   23.9 +126   18.8 x126  −11.0 +252    4.9
+OIH   Oil services               dec  −37.9 rel  −19.3 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   23.7 +63   19.8 +126   23.8 x126   −6.1 +252   21.8
+ITB   Home construction          dec  −37.2 rel  −18.6 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   22.4 +63   43.7 +126   72.7 x126   42.8 +252  131.1
+XOP   Oil and gas producers      dec  −37.1 rel  −18.5 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   30.0 +63   37.1 +126   44.1 x126   14.2 +252   42.0
+IAI   Brokers and exchanges      dec  −36.0 rel  −17.4 ownLow 2011-10-03 lead    0 rsLow 2011-11-22 rsLead  -36 | +21   10.9 +63   13.4 +126   34.0 x126    4.2 +252   19.7
+KBE   Banks                      dec  −34.1 rel  −15.5 ownLow 2011-10-03 lead    0 rsLow 2011-11-29 rsLead  -40 | +21   12.3 +63   22.3 +126   45.6 x126   15.8 +252   44.0
+XHB   Homebuilders and suppliers dec  −33.8 rel  −15.2 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   23.7 +63   38.8 +126   69.6 x126   39.7 +252  100.1
+KIE   Insurance                  dec  −32.6 rel  −14.0 ownLow 2011-10-03 lead    0 rsLow 2011-09-23 rsLead    6 | +21   16.7 +63   24.5 +126   39.3 x126    9.4 +252   42.9
+KRE   Regional banks             dec  −29.9 rel  −11.3 ownLow 2011-10-03 lead    0 rsLow 2011-09-21 rsLead    8 | +21   20.1 +63   35.4 +126   56.1 x126   26.2 +252   57.2
+IYT   Transports                 dec  −26.7 rel   −8.1 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   17.8 +63   25.2 +126   30.9 x126    1.0 +252   22.0
+FDN   Internet                   dec  −25.2 rel   −6.6 ownLow 2011-10-03 lead    0 rsLow 2011-08-22 rsLead   29 | +21   15.3 +63   16.8 +126   31.8 x126    1.9 +252   34.9
+SMH   Semiconductors             dec  −24.6 rel   −6.0 ownLow 2011-10-04 lead   -1 rsLow 2011-09-01 rsLead   21 | +21   11.4 +63   11.5 +126   27.9 x126   −2.0 +252   14.8
+XBI   Biotech (equal weight)     dec  −23.2 rel   −4.6 ownLow 2011-08-08 lead   39 rsLow 2011-11-10 rsLead  -28 | +21   12.5 +63   16.9 +126   44.3 x126   14.5 +252   67.0
+IGV   Software                   dec  −22.0 rel   −3.4 ownLow 2011-08-19 lead   30 rsLow 2011-08-19 rsLead   30 | +21   15.7 +63    8.5 +126   32.2 x126    2.3 +252   26.3
+IHI   Medical devices            dec  −21.2 rel   −2.6 ownLow 2011-11-25 lead  -38 rsLow 2011-11-18 rsLead  -34 | +21    5.5 +63   10.7 +126   26.4 x126   −3.5 +252   28.5
+ITA   Aerospace and defence      dec  −18.4 rel    0.2 ownLow 2011-08-10 lead   37 rsLow 2011-08-18 rsLead   31 | +21    9.7 +63   18.4 +126   29.1 x126   −0.8 +252   27.1
+IBB   Biotech                    dec  −17.1 rel    1.5 ownLow 2011-08-08 lead   39 rsLow 2011-11-11 rsLead  -29 | +21    7.9 +63   18.2 +126   40.6 x126   10.7 +252   63.6
+XRT   Retail                     dec  −16.3 rel    2.3 ownLow 2011-08-19 lead   30 rsLow 2011-08-18 rsLead   31 | +21   16.9 +63   18.7 +126   40.1 x126   10.2 +252   41.7
+GDX   Gold miners                dec  −12.5 rel    6.1 ownLow 2011-10-04 lead   -1 rsLow 2011-07-01 rsLead   64 | +21    7.5 +63   −0.9 +126  −10.2 x126  −40.1 +252   −1.3
+-- style
+IWO   Small growth               dec  −29.2 rel  −10.6 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   18.2 +63   22.8 +126   38.3 x126    8.4 +252   38.9
+IWN   Small value                dec  −28.6 rel  −10.0 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   16.2 +63   24.3 +126   37.0 x126    7.1 +252   40.5
+IWD   Large value                dec  −21.4 rel   −2.8 ownLow 2011-10-03 lead    0 rsLow 2011-09-21 rsLead    8 | +21   11.5 +63   18.7 +126   29.8 x126   −0.1 +252   35.5
+IWF   Large growth               dec  −17.7 rel    0.9 ownLow 2011-10-03 lead    0 rsLow 2011-06-17 rsLead   74 | +21   11.4 +63   15.4 +126   31.3 x126    1.5 +252   33.1
+MGK   Mega-cap growth            dec  −15.9 rel    2.7 ownLow 2011-10-03 lead    0 rsLow 2011-06-17 rsLead   74 | +21   11.3 +63   15.7 +126   32.5 x126    2.6 +252   36.4
+-- broad
+IWM   Russell 2000 (small caps)  dec  −28.9 rel  −10.3 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   17.1 +63   23.5 +126   37.6 x126    7.7 +252   39.9
+MDY   S&P 400 mid caps           dec  −26.2 rel   −7.6 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   15.5 +63   19.5 +126   35.3 x126    5.4 +252   34.3
+RSP   S&P 500 equal weight       dec  −22.8 rel   −4.2 ownLow 2011-10-03 lead    0 rsLow 2011-10-03 rsLead    0 | +21   13.7 +63   18.3 +126   31.6 x126    1.7 +252   33.3
+QQQ   Nasdaq 100                 dec  −13.1 rel    5.5 ownLow 2011-08-19 lead   30 rsLow 2011-06-17 rsLead   74 | +21   10.4 +63   11.7 +126   34.2 x126    4.3 +252   35.7
+-- world
+EWG   Germany                    dec  −37.8 rel  −19.2 ownLow 2011-10-03 lead    0 rsLow 2011-09-12 rsLead   15 | +21   15.1 +63   15.0 +126   32.6 x126    2.7 +252   35.2
+EWZ   Brazil                     dec  −33.5 rel  −14.9 ownLow 2011-10-03 lead    0 rsLow 2011-10-04 rsLead   -1 | +21   19.0 +63   18.2 +126   28.2 x126   −1.7 +252   10.2
+FXI   China large caps           dec  −33.1 rel  −14.5 ownLow 2011-10-03 lead    0 rsLow 2011-10-04 rsLead   -1 | +21   19.4 +63   21.2 +126   25.3 x126   −4.6 +252   20.6
+EEM   Emerging markets           dec  −30.6 rel  −12.0 ownLow 2011-10-03 lead    0 rsLow 2011-09-22 rsLead    7 | +21   15.9 +63   14.9 +126   27.2 x126   −2.7 +252   24.3
+EFA   Developed markets ex-US    dec  −25.3 rel   −6.7 ownLow 2011-11-25 lead  -38 rsLow 2011-11-25 rsLead  -38 | +21    9.1 +63   10.7 +126   18.7 x126  −11.2 +252   19.4
+EWJ   Japan                      dec  −10.8 rel    7.8 ownLow 2011-11-23 lead  -37 rsLow 2011-11-16 rsLead  -32 | +21   −0.3 +63    1.0 +126    9.4 x126  −20.5 +252   −0.1
+-- bonds
+HYG   High-yield bonds           dec   −9.1 rel    9.5 ownLow 2011-10-04 lead   -1 rsLow 2011-04-29 rsLead  108 | +21    7.9 +63   12.4 +126   15.0 x126  −14.8 +252   21.2
+SHY   1-3 year Treasuries        dec    0.9 rel   19.5 ownLow 2011-10-10 lead   -5 rsLow 2011-04-29 rsLead  108 | +21    0.0 +63    0.0 +126   −0.1 x126  −30.0 +252    0.4
+LQD   Investment-grade bonds     dec    3.8 rel   22.4 ownLow 2011-11-29 lead  -40 rsLow 2011-04-29 rsLead  108 | +21    2.8 +63    2.5 +126    4.2 x126  −25.7 +252   13.1
+TIP   Inflation-linked Treasurie dec    6.7 rel   25.3 ownLow 2011-08-24 lead   27 rsLow 2011-04-29 rsLead  108 | +21    2.3 +63    1.7 +126    2.4 x126  −27.5 +252    8.6
+IEF   7-10 year Treasuries       dec   13.6 rel   32.2 ownLow 2011-10-27 lead  -18 rsLow 2011-04-29 rsLead  108 | +21   −1.0 +63   −0.3 +126   −2.0 x126  −31.9 +252    4.5
+TLT   20+ year Treasuries        dec   34.6 rel   53.2 ownLow 2011-10-27 lead  -18 rsLow 2011-04-29 rsLead  108 | +21   −3.3 +63   −2.7 +126   −9.3 x126  −39.2 +252    3.3
+-- other
+SLV   Silver                     dec  −37.1 rel  −18.5 ownLow 2011-09-28 lead    3 rsLow 2011-10-20 rsLead  -13 | +21    9.6 +63   −2.2 +126    7.3 x126  −22.6 +252   13.6
+USO   Oil                        dec  −34.1 rel  −15.5 ownLow 2011-10-03 lead    0 rsLow 2011-10-04 rsLead   -1 | +21   18.4 +63   33.5 +126   33.4 x126    3.5 +252   14.4
+DBC   Commodities                dec  −19.7 rel   −1.1 ownLow 2011-10-04 lead   -1 rsLow 2011-05-06 rsLead  103 | +21    6.9 +63    7.9 +126   13.3 x126  −16.5 +252   11.5
+GLD   Gold                       dec    5.6 rel   24.2 ownLow 2011-09-28 lead    3 rsLow 2011-05-05 rsLead  104 | +21    4.0 +63   −3.1 +126   −0.7 x126  −30.5 +252    6.9
+UUP   US dollar                  dec    7.4 rel   26.1 ownLow 2011-10-27 lead  -18 rsLow 2011-04-29 rsLead  108 | +21   −3.2 +63   −1.0 +126   −2.2 x126  −32.1 +252   −2.9

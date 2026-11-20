@@ -1,0 +1,76 @@
+SPY {"sym":"SPY","name":"S&P 500","group":"industry","dec":-13,"rel":0,"ownDD":-13,"ownLow":"2016-02-11","lead":0,"rsLow":"2015-05-21","rsLead":183,"up200":0,"b126":4.9,"a21":10.7,"x21":0,"a63":13.5,"x63":0,"a126":20.8,"x126":0,"a252":29.3,"x252":0}
+-- sector
+XLE   Energy                     dec  −31.5 rel  −18.6 ownLow 2016-01-20 lead   16 rsLow 2016-01-20 rsLead   16 | +21   15.0 +63   23.1 +126   28.6 x126    7.8 +252   39.5
+XLB   Materials                  dec  −22.9 rel   −9.9 ownLow 2016-01-25 lead   13 rsLow 2016-01-25 rsLead   13 | +21   13.7 +63   20.0 +126   27.2 x126    6.4 +252   37.1
+XLF   Financials                 dec  −19.7 rel   −6.7 ownLow 2016-02-11 lead    0 rsLow 2016-02-11 rsLead    0 | +21   14.0 +63   18.3 +126   22.9 x126    2.1 +252   51.8
+XLV   Health care                dec  −14.5 rel   −1.6 ownLow 2016-02-08 lead    3 rsLow 2016-03-17 rsLead  -24 | +21    7.5 +63    9.5 +126   18.9 x126   −1.9 +252   14.9
+XLI   Industrials                dec  −13.4 rel   −0.4 ownLow 2016-01-20 lead   16 rsLow 2015-07-24 rsLead  139 | +21   11.1 +63   15.1 +126   21.9 x126    1.1 +252   35.9
+XLY   Consumer discretionary     dec  −10.1 rel    2.9 ownLow 2016-02-11 lead    0 rsLow 2015-05-21 rsLead  183 | +21   13.2 +63   15.8 +126   20.6 x126   −0.2 +252   27.3
+XLK   Technology                 dec  −10.0 rel    3.0 ownLow 2016-02-11 lead    0 rsLow 2015-07-09 rsLead  150 | +21   10.8 +63   10.0 +126   23.0 x126    2.2 +252   35.0
+XLP   Consumer staples           dec    1.8 rel   14.8 ownLow 2016-01-20 lead   16 rsLow 2015-06-05 rsLead  173 | +21    6.2 +63    9.8 +126   12.4 x126   −8.4 +252   11.3
+XLU   Utilities                  dec    5.4 rel   18.3 ownLow 2016-02-12 lead   -1 rsLow 2015-06-25 rsLead  159 | +21    5.5 +63    9.4 +126   13.0 x126   −7.8 +252   11.6
+-- industry
+TAN   Solar                      dec  −54.1 rel  −41.1 ownLow 2016-02-11 lead    0 rsLow 2016-04-04 rsLead  -35 | +21   20.5 +63    4.0 +126    5.2 x126  −15.6 +252   −8.2
+XOP   Oil and gas producers      dec  −52.5 rel  −39.6 ownLow 2016-02-23 lead   -7 rsLow 2016-02-23 rsLead   -7 | +21   22.6 +63   43.3 +126   50.4 x126   29.6 +252   70.3
+XME   Metals and mining          dec  −47.6 rel  −34.6 ownLow 2016-01-19 lead   17 rsLow 2016-01-19 rsLead   17 | +21   37.1 +63   50.2 +126   97.4 x126   76.6 +252  143.0
+URA   Uranium                    dec  −46.9 rel  −33.9 ownLow 2016-02-11 lead    0 rsLow 2015-12-07 rsLead   45 | +21   14.5 +63   20.6 +126   24.2 x126    3.4 +252   64.7
+XBI   Biotech (equal weight)     dec  −41.0 rel  −28.0 ownLow 2016-02-11 lead    0 rsLow 2016-03-17 rsLead  -24 | +21   13.5 +63    8.5 +126   35.8 x126   15.0 +252   46.4
+OIH   Oil services               dec  −41.0 rel  −28.1 ownLow 2016-01-20 lead   16 rsLow 2016-01-20 rsLead   16 | +21   22.4 +63   24.6 +126   30.1 x126    9.2 +252   52.9
+IPO   Recent IPOs                dec  −36.1 rel  −23.1 ownLow 2016-02-11 lead    0 rsLow 2016-02-08 rsLead    3 | +21   18.4 +63   21.0 +126   29.7 x126    8.9 +252   39.2
+HACK  Cyber security             dec  −35.6 rel  −22.6 ownLow 2016-02-09 lead    2 rsLow 2016-02-09 rsLead    2 | +21   18.7 +63   16.2 +126   32.6 x126   11.8 +252   50.5
+ICLN  Clean energy               dec  −35.4 rel  −22.4 ownLow 2016-02-12 lead   -1 rsLow 2016-02-12 rsLead   -1 | +21   17.9 +63   12.4 +126   20.1 x126   −0.7 +252   13.7
+IBB   Biotech                    dec  −32.9 rel  −19.9 ownLow 2016-02-11 lead    0 rsLow 2016-03-17 rsLead  -24 | +21    7.1 +63    3.2 +126   19.8 x126   −1.1 +252   16.7
+ARKK  ARK Innovation             dec  −29.4 rel  −16.5 ownLow 2016-02-11 lead    0 rsLow 2016-02-08 rsLead    3 | +21   24.5 +63   21.4 +126   42.8 x126   22.0 +252   55.4
+KBE   Banks                      dec  −23.5 rel  −10.5 ownLow 2016-02-11 lead    0 rsLow 2016-04-07 rsLead  -38 | +21   16.4 +63   18.9 +126   23.5 x126    2.7 +252   69.4
+IAI   Brokers and exchanges      dec  −23.2 rel  −10.2 ownLow 2016-02-11 lead    0 rsLow 2016-04-08 rsLead  -39 | +21   13.6 +63   13.8 +126   22.3 x126    1.5 +252   60.4
+XHB   Homebuilders and suppliers dec  −22.9 rel   −9.9 ownLow 2016-02-11 lead    0 rsLow 2016-02-08 rsLead    3 | +21   16.1 +63   18.6 +126   29.6 x126    8.8 +252   26.7
+XRT   Retail                     dec  −22.2 rel   −9.3 ownLow 2016-02-11 lead    0 rsLow 2016-02-09 rsLead    2 | +21   18.7 +63    8.7 +126   18.7 x126   −2.1 +252   16.3
+KRE   Regional banks             dec  −21.5 rel   −8.5 ownLow 2016-02-11 lead    0 rsLow 2016-04-07 rsLead  -38 | +21   16.5 +63   19.4 +126   25.4 x126    4.6 +252   73.9
+ITB   Home construction          dec  −19.4 rel   −6.4 ownLow 2016-02-11 lead    0 rsLow 2016-02-11 rsLead    0 | +21   18.7 +63   20.6 +126   32.4 x126   11.6 +252   36.2
+SMH   Semiconductors             dec  −19.3 rel   −6.3 ownLow 2015-08-25 lead  117 rsLow 2015-08-20 rsLead  120 | +21   17.0 +63   12.3 +126   41.2 x126   20.4 +252   66.4
+IYT   Transports                 dec  −18.8 rel   −5.9 ownLow 2016-01-20 lead   16 rsLow 2016-01-19 rsLead   17 | +21   12.0 +63   10.7 +126   14.9 x126   −5.9 +252   38.6
+SKYY  Cloud computing            dec  −18.3 rel   −5.3 ownLow 2016-02-09 lead    2 rsLow 2016-02-09 rsLead    2 | +21   13.6 +63   17.2 +126   32.5 x126   11.7 +252   49.0
+IGV   Software                   dec  −17.1 rel   −4.2 ownLow 2016-02-09 lead    2 rsLow 2016-02-09 rsLead    2 | +21   15.1 +63   20.6 +126   33.0 x126   12.2 +252   44.6
+ITA   Aerospace and defence      dec  −16.6 rel   −3.6 ownLow 2016-02-11 lead    0 rsLow 2015-10-19 rsLead   79 | +21   10.8 +63   20.6 +126   27.9 x126    7.1 +252   44.7
+FDN   Internet                   dec  −13.2 rel   −0.2 ownLow 2016-02-09 lead    2 rsLow 2016-02-09 rsLead    2 | +21   14.5 +63   19.1 +126   34.7 x126   13.9 +252   46.7
+KIE   Insurance                  dec   −9.2 rel    3.8 ownLow 2016-02-11 lead    0 rsLow 2015-06-01 rsLead  177 | +21   10.9 +63   15.9 +126   19.0 x126   −1.8 +252   41.3
+IHI   Medical devices            dec   −8.4 rel    4.6 ownLow 2015-09-28 lead   94 rsLow 2015-10-26 rsLead   74 | +21   10.8 +63   18.9 +126   33.3 x126   12.5 +252   32.9
+GDX   Gold miners                dec   −7.1 rel    5.9 ownLow 2016-01-19 lead   17 rsLow 2015-08-05 rsLead  131 | +21    4.1 +63   33.6 +126   69.0 x126   48.2 +252   38.1
+-- style
+SPHB  High beta                  dec  −33.8 rel  −20.8 ownLow 2016-02-11 lead    0 rsLow 2016-02-11 rsLead    0 | +21   23.5 +63   25.9 +126   37.3 x126   16.5 +252   65.9
+IWO   Small growth               dec  −25.8 rel  −12.8 ownLow 2016-02-11 lead    0 rsLow 2016-02-09 rsLead    2 | +21   14.2 +63   15.6 +126   30.2 x126    9.4 +252   43.1
+IWN   Small value                dec  −20.7 rel   −7.8 ownLow 2016-02-11 lead    0 rsLow 2016-01-25 rsLead   13 | +21   13.6 +63   18.0 +126   29.6 x126    8.8 +252   52.5
+VLUE  Value factor               dec  −19.6 rel   −6.6 ownLow 2016-02-11 lead    0 rsLow 2016-02-02 rsLead    7 | +21   14.1 +63   13.1 +126   21.7 x126    0.9 +252   37.6
+IWD   Large value                dec  −16.2 rel   −3.2 ownLow 2016-02-11 lead    0 rsLow 2016-01-25 rsLead   13 | +21   11.9 +63   15.7 +126   23.0 x126    2.2 +252   34.0
+MGK   Mega-cap growth            dec  −13.2 rel   −0.2 ownLow 2016-02-11 lead    0 rsLow 2016-02-08 rsLead    3 | +21   10.5 +63   13.0 +126   20.9 x126    0.1 +252   27.8
+IWF   Large growth               dec  −12.5 rel    0.5 ownLow 2016-02-11 lead    0 rsLow 2016-02-08 rsLead    3 | +21   10.6 +63   12.6 +126   20.3 x126   −0.5 +252   27.1
+QUAL  Quality                    dec   −9.2 rel    3.8 ownLow 2016-02-11 lead    0 rsLow 2015-06-09 rsLead  171 | +21    9.2 +63   11.2 +126   16.9 x126   −3.9 +252   22.4
+MTUM  Momentum                   dec   −8.5 rel    4.4 ownLow 2016-02-08 lead    3 rsLow 2015-05-21 rsLead  183 | +21    9.4 +63   13.7 +126   21.0 x126    0.1 +252   23.5
+USMV  Minimum volatility         dec   −3.4 rel    9.6 ownLow 2016-01-20 lead   16 rsLow 2015-06-10 rsLead  170 | +21    8.3 +63   12.4 +126   18.6 x126   −2.2 +252   19.4
+SPLV  Low volatility             dec   −1.3 rel   11.7 ownLow 2016-01-20 lead   16 rsLow 2015-06-05 rsLead  173 | +21    7.5 +63   12.2 +126   17.4 x126   −3.4 +252   17.9
+-- broad
+IWM   Russell 2000 (small caps)  dec  −23.3 rel  −10.3 ownLow 2016-02-11 lead    0 rsLow 2016-02-09 rsLead    2 | +21   13.9 +63   16.8 +126   29.9 x126    9.1 +252   47.8
+MDY   S&P 400 mid caps           dec  −18.9 rel   −5.9 ownLow 2016-02-11 lead    0 rsLow 2016-01-14 rsLead   19 | +21   13.3 +63   17.8 +126   26.8 x126    5.9 +252   40.6
+RSP   S&P 500 equal weight       dec  −17.0 rel   −4.0 ownLow 2016-02-11 lead    0 rsLow 2016-01-19 rsLead   17 | +21   13.6 +63   16.5 +126   24.4 x126    3.6 +252   33.7
+QQQ   Nasdaq 100                 dec  −12.0 rel    1.0 ownLow 2016-02-09 lead    2 rsLow 2016-02-09 rsLead    2 | +21   10.5 +63   10.0 +126   22.0 x126    1.2 +252   33.4
+-- world
+EWZ   Brazil                     dec  −44.8 rel  −31.8 ownLow 2016-01-21 lead   15 rsLow 2016-01-21 rsLead   15 | +21   34.4 +63   53.7 +126   85.9 x126   65.1 +252  106.6
+FXI   China large caps           dec  −41.4 rel  −28.4 ownLow 2016-02-11 lead    0 rsLow 2016-02-25 rsLead   -9 | +21   15.7 +63   11.6 +126   31.2 x126   10.4 +252   37.3
+EEM   Emerging markets           dec  −30.8 rel  −17.8 ownLow 2016-01-20 lead   16 rsLow 2016-01-15 rsLead   18 | +21   14.3 +63   14.0 +126   31.6 x126   10.7 +252   35.2
+KWEB  China internet             dec  −29.4 rel  −16.4 ownLow 2015-08-24 lead  118 rsLow 2015-09-14 rsLead  104 | +21   17.6 +63   12.8 +126   27.2 x126    6.4 +252   36.2
+EWG   Germany                    dec  −23.9 rel  −10.9 ownLow 2016-02-11 lead    0 rsLow 2016-04-07 rsLead  -38 | +21   10.4 +63   12.0 +126   18.8 x126   −2.0 +252   22.4
+EFA   Developed markets ex-US    dec  −23.0 rel  −10.0 ownLow 2016-02-11 lead    0 rsLow 2016-04-05 rsLead  -36 | +21   11.3 +63   12.0 +126   17.1 x126   −3.7 +252   20.7
+EWJ   Japan                      dec  −21.5 rel   −8.5 ownLow 2016-02-11 lead    0 rsLow 2016-04-05 rsLead  -36 | +21   12.2 +63   13.3 +126   21.0 x126    0.2 +252   26.9
+-- bonds
+HYG   High-yield bonds           dec  −13.1 rel   −0.1 ownLow 2016-02-11 lead    0 rsLow 2015-12-29 rsLead   30 | +21    8.9 +63   11.6 +126   17.4 x126   −3.4 +252   22.2
+LQD   Investment-grade bonds     dec   −0.7 rel   12.3 ownLow 2015-06-26 lead  158 rsLow 2015-07-20 rsLead  143 | +21    2.4 +63    5.9 +126    9.7 x126  −11.1 +252    6.4
+TIP   Inflation-linked Treasurie dec   −0.3 rel   12.7 ownLow 2015-12-16 lead   38 rsLow 2015-11-06 rsLead   65 | +21   −0.1 +63    2.6 +126    4.3 x126  −16.5 +252    3.4
+SHY   1-3 year Treasuries        dec    0.7 rel   13.7 ownLow 2016-03-11 lead  -20 rsLow 2015-07-20 rsLead  143 | +21   −0.5 +63    0.1 +126    0.3 x126  −20.5 +252    0.0
+IEF   7-10 year Treasuries       dec    6.2 rel   19.2 ownLow 2016-03-11 lead  -20 rsLow 2015-06-23 rsLead  161 | +21   −2.5 +63   −0.4 +126    1.4 x126  −19.4 +252   −3.9
+TLT   20+ year Treasuries        dec   13.2 rel   26.2 ownLow 2016-03-11 lead  -20 rsLow 2015-06-23 rsLead  161 | +21   −4.3 +63   −1.4 +126    5.1 x126  −15.7 +252   −7.5
+-- other
+USO   Oil                        dec  −61.0 rel  −48.1 ownLow 2016-02-10 lead    1 rsLow 2016-02-10 rsLead    1 | +21   23.7 +63   43.3 +126   27.8 x126    7.0 +252   43.9
+DBC   Commodities                dec  −32.3 rel  −19.3 ownLow 2016-01-20 lead   16 rsLow 2016-04-04 rsLead  -35 | +21    8.1 +63   17.7 +126   17.3 x126   −3.5 +252   30.3
+SLV   Silver                     dec   −8.8 rel    4.2 ownLow 2015-12-14 lead   40 rsLow 2015-12-29 rsLead   30 | +21   −2.5 +63    8.5 +126   26.8 x126    6.0 +252   13.8
+UUP   US dollar                  dec   −1.0 rel   12.0 ownLow 2016-04-11 lead  -40 rsLow 2015-06-18 rsLead  164 | +21    1.0 +63   −1.7 +126   −0.1 x126  −20.9 +252    4.9
+GLD   Gold                       dec    2.9 rel   15.9 ownLow 2016-02-16 lead   -2 rsLow 2015-12-02 rsLead   48 | +21   −1.0 +63    1.8 +126    7.2 x126  −13.6 +252   −1.2

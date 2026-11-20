@@ -1,0 +1,81 @@
+SPY {"sym":"SPY","name":"S&P 500","group":"industry","dec":-19.3,"rel":0,"ownDD":-19.3,"ownLow":"2018-12-24","lead":0,"rsLow":"2018-09-20","rsLead":65,"up200":0,"b126":11.8,"a21":13.4,"x21":0,"a63":19.9,"x63":0,"a126":25.1,"x126":0,"a252":39.7,"x252":0}
+-- sector
+XLE   Energy                     dec  −27.2 rel   −7.8 ownLow 2018-12-24 lead    0 rsLow 2018-12-31 rsLead   -4 | +21   16.9 +63   23.5 +126   19.9 x126   −5.2 +252   19.3
+XLI   Industrials                dec  −23.6 rel   −4.3 ownLow 2018-12-24 lead    0 rsLow 2018-12-13 rsLead    7 | +21   16.1 +63   22.8 +126   28.1 x126    3.0 +252   38.3
+XLK   Technology                 dec  −22.7 rel   −3.4 ownLow 2018-12-24 lead    0 rsLow 2019-01-03 rsLead   -6 | +21   14.4 +63   27.1 +126   36.0 x126   10.9 +252   60.4
+XLF   Financials                 dec  −22.2 rel   −2.8 ownLow 2018-12-24 lead    0 rsLow 2018-12-13 rsLead    7 | +21   16.5 +63   14.5 +126   22.1 x126   −3.0 +252   40.3
+XLB   Materials                  dec  −21.5 rel   −2.1 ownLow 2018-12-24 lead    0 rsLow 2018-10-25 rsLead   40 | +21   12.2 +63   15.6 +126   23.4 x126   −1.7 +252   31.8
+XLY   Consumer discretionary     dec  −21.4 rel   −2.0 ownLow 2018-12-24 lead    0 rsLow 2018-11-20 rsLead   22 | +21   16.4 +63   22.8 +126   29.3 x126    4.2 +252   37.2
+XLC   Communication services     dec  −19.8 rel   −0.5 ownLow 2018-12-24 lead    0 rsLow 2018-12-03 rsLead   14 | +21   14.4 +63   20.3 +126   24.7 x126   −0.4 +252   39.2
+XLV   Health care                dec  −13.9 rel    5.5 ownLow 2018-12-24 lead    0 rsLow 2018-09-20 rsLead   65 | +21   10.2 +63   12.5 +126   14.5 x126  −10.6 +252   29.7
+XLP   Consumer staples           dec  −10.5 rel    8.9 ownLow 2018-12-24 lead    0 rsLow 2018-10-03 rsLead   56 | +21    6.2 +63   14.5 +126   20.6 x126   −4.5 +252   32.6
+XLRE  Real estate                dec   −9.0 rel   10.3 ownLow 2018-12-24 lead    0 rsLow 2018-10-03 rsLead   56 | +21   11.1 +63   21.2 +126   23.6 x126   −1.5 +252   31.7
+XLU   Utilities                  dec   −1.6 rel   17.8 ownLow 2018-12-24 lead    0 rsLow 2018-09-26 rsLead   61 | +21    3.4 +63   14.4 +126   16.8 x126   −8.3 +252   28.2
+-- industry
+OIH   Oil services               dec  −45.3 rel  −25.9 ownLow 2018-12-24 lead    0 rsLow 2018-12-31 rsLead   -4 | +21   29.1 +63   27.6 +126    9.5 x126  −15.6 +252    3.2
+XOP   Oil and gas producers      dec  −42.5 rel  −23.2 ownLow 2018-12-24 lead    0 rsLow 2018-12-24 rsLead    0 | +21   26.6 +63   27.3 +126   11.9 x126  −13.2 +252   −0.4
+XBI   Biotech (equal weight)     dec  −32.6 rel  −13.3 ownLow 2018-12-24 lead    0 rsLow 2018-12-21 rsLead    1 | +21   25.9 +63   34.1 +126   28.1 x126    3.0 +252   50.5
+BOTZ  Robotics and AI            dec  −30.4 rel  −11.0 ownLow 2018-12-24 lead    0 rsLow 2019-01-04 rsLead   -7 | +21   16.9 +63   25.2 +126   28.9 x126    3.8 +252   40.8
+IPO   Recent IPOs                dec  −29.4 rel  −10.0 ownLow 2018-12-24 lead    0 rsLow 2018-12-21 rsLead    1 | +21   24.3 +63   38.9 +126   42.4 x126   17.3 +252   44.2
+KRE   Regional banks             dec  −28.9 rel   −9.5 ownLow 2018-12-24 lead    0 rsLow 2018-12-19 rsLead    3 | +21   20.9 +63   15.4 +126   18.6 x126   −6.5 +252   35.2
+KBE   Banks                      dec  −27.8 rel   −8.4 ownLow 2018-12-24 lead    0 rsLow 2018-12-19 rsLead    3 | +21   22.0 +63   18.0 +126   21.1 x126   −4.0 +252   38.0
+XME   Metals and mining          dec  −27.7 rel   −8.4 ownLow 2018-12-24 lead    0 rsLow 2018-12-14 rsLead    6 | +21   16.5 +63   17.2 +126   12.0 x126  −13.1 +252   18.3
+PAVE  Infrastructure             dec  −27.2 rel   −7.9 ownLow 2018-12-24 lead    0 rsLow 2018-12-13 rsLead    7 | +21   16.6 +63   20.9 +126   26.0 x126    0.9 +252   41.0
+ARKK  ARK Innovation             dec  −26.9 rel   −7.5 ownLow 2018-12-24 lead    0 rsLow 2018-10-10 rsLead   51 | +21   24.3 +63   33.3 +126   30.5 x126    5.4 +252   51.3
+IBB   Biotech                    dec  −24.9 rel   −5.5 ownLow 2018-12-24 lead    0 rsLow 2018-12-21 rsLead    1 | +21   22.1 +63   21.6 +126   18.3 x126   −6.8 +252   38.2
+XRT   Retail                     dec  −24.9 rel   −5.6 ownLow 2018-12-24 lead    0 rsLow 2018-12-21 rsLead    1 | +21   16.2 +63   16.6 +126    9.0 x126  −16.1 +252   20.9
+IYT   Transports                 dec  −24.7 rel   −5.4 ownLow 2018-12-24 lead    0 rsLow 2019-01-03 rsLead   -6 | +21   14.8 +63   18.4 +126   18.6 x126   −6.5 +252   27.7
+FDN   Internet                   dec  −24.5 rel   −5.1 ownLow 2018-12-24 lead    0 rsLow 2018-11-19 rsLead   23 | +21   21.5 +63   27.9 +126   32.2 x126    7.1 +252   29.7
+ITA   Aerospace and defence      dec  −23.9 rel   −4.6 ownLow 2018-12-24 lead    0 rsLow 2018-12-26 rsLead   -1 | +21   16.4 +63   21.3 +126   32.5 x126    7.4 +252   40.8
+SMH   Semiconductors             dec  −23.3 rel   −4.0 ownLow 2018-12-24 lead    0 rsLow 2018-10-24 rsLead   41 | +21   19.7 +63   29.5 +126   34.2 x126    9.0 +252   78.5
+ITB   Home construction          dec  −23.1 rel   −3.8 ownLow 2018-12-24 lead    0 rsLow 2018-10-22 rsLead   43 | +21   14.3 +63   25.8 +126   30.2 x126    5.1 +252   57.3
+XHB   Homebuilders and suppliers dec  −22.8 rel   −3.5 ownLow 2018-12-24 lead    0 rsLow 2018-10-22 rsLead   43 | +21   14.6 +63   25.8 +126   32.6 x126    7.5 +252   50.1
+IGV   Software                   dec  −20.7 rel   −1.4 ownLow 2018-12-24 lead    0 rsLow 2018-11-19 rsLead   23 | +21   18.8 +63   29.9 +126   35.0 x126    9.9 +252   46.8
+HACK  Cyber security             dec  −19.8 rel   −0.4 ownLow 2018-12-24 lead    0 rsLow 2018-10-09 rsLead   52 | +21   14.9 +63   23.7 +126   22.8 x126   −2.3 +252   31.4
+SKYY  Cloud computing            dec  −19.3 rel    0.0 ownLow 2018-12-24 lead    0 rsLow 2018-11-19 rsLead   23 | +21   17.3 +63   26.1 +126   26.5 x126    1.4 +252   35.0
+IAI   Brokers and exchanges      dec  −18.8 rel    0.5 ownLow 2018-12-24 lead    0 rsLow 2018-10-02 rsLead   57 | +21   15.9 +63   10.8 +126   18.4 x126   −6.7 +252   32.4
+JETS  Airlines                   dec  −18.3 rel    1.1 ownLow 2018-12-24 lead    0 rsLow 2018-10-10 rsLead   51 | +21   12.6 +63    7.4 +126   11.0 x126  −14.1 +252   21.5
+KIE   Insurance                  dec  −17.7 rel    1.7 ownLow 2018-12-24 lead    0 rsLow 2018-10-16 rsLead   47 | +21   12.7 +63   16.1 +126   25.6 x126    0.5 +252   34.4
+IHI   Medical devices            dec  −17.2 rel    2.2 ownLow 2018-12-24 lead    0 rsLow 2018-10-08 rsLead   53 | +21   15.0 +63   23.9 +126   29.2 x126    4.1 +252   45.0
+TAN   Solar                      dec  −15.6 rel    3.7 ownLow 2018-10-29 lead   38 rsLow 2018-10-29 rsLead   38 | +21   20.8 +63   27.8 +126   52.8 x126   27.7 +252   71.4
+URA   Uranium                    dec  −12.5 rel    6.9 ownLow 2018-12-24 lead    0 rsLow 2018-10-29 rsLead   38 | +21   12.5 +63   11.2 +126    7.5 x126  −17.6 +252   −1.5
+ICLN  Clean energy               dec   −6.9 rel   12.5 ownLow 2018-10-29 lead   38 rsLow 2018-10-05 rsLead   54 | +21   15.0 +63   19.9 +126   32.3 x126    7.2 +252   48.7
+GDX   Gold miners                dec   12.0 rel   31.3 ownLow 2018-09-11 lead   72 rsLow 2018-09-27 rsLead   60 | +21    0.4 +63    9.1 +126   21.0 x126   −4.1 +252   36.9
+-- style
+IWO   Small growth               dec  −27.8 rel   −8.5 ownLow 2018-12-24 lead    0 rsLow 2018-12-21 rsLead    1 | +21   18.4 +63   23.9 +126   25.1 x126    0.0 +252   39.3
+SPHB  High beta                  dec  −27.7 rel   −8.4 ownLow 2018-12-24 lead    0 rsLow 2018-12-21 rsLead    1 | +21   21.0 +63   24.9 +126   29.2 x126    4.1 +252   44.8
+IWN   Small value                dec  −24.2 rel   −4.9 ownLow 2018-12-24 lead    0 rsLow 2018-12-27 rsLead   -2 | +21   15.7 +63   17.2 +126   16.0 x126   −9.1 +252   28.9
+VLUE  Value factor               dec  −22.2 rel   −2.8 ownLow 2018-12-24 lead    0 rsLow 2018-12-31 rsLead   -4 | +21   14.9 +63   15.9 +126   17.8 x126   −7.3 +252   34.7
+MGK   Mega-cap growth            dec  −21.8 rel   −2.4 ownLow 2018-12-24 lead    0 rsLow 2018-11-19 rsLead   23 | +21   14.5 +63   23.5 +126   29.6 x126    4.5 +252   47.2
+IWF   Large growth               dec  −21.4 rel   −2.1 ownLow 2018-12-24 lead    0 rsLow 2018-11-19 rsLead   23 | +21   15.0 +63   23.0 +126   29.2 x126    4.1 +252   45.8
+MTUM  Momentum                   dec  −21.2 rel   −1.8 ownLow 2018-12-24 lead    0 rsLow 2018-11-19 rsLead   23 | +21   13.2 +63   20.3 +126   27.9 x126    2.8 +252   37.2
+QUAL  Quality                    dec  −20.3 rel   −0.9 ownLow 2018-12-24 lead    0 rsLow 2018-11-29 rsLead   16 | +21   13.1 +63   22.2 +126   27.3 x126    2.2 +252   42.8
+IWD   Large value                dec  −17.9 rel    1.4 ownLow 2018-12-24 lead    0 rsLow 2018-09-27 rsLead   60 | +21   12.5 +63   17.5 +126   21.4 x126   −3.7 +252   33.5
+USMV  Minimum volatility         dec  −12.5 rel    6.8 ownLow 2018-12-24 lead    0 rsLow 2018-10-03 rsLead   56 | +21    9.4 +63   17.6 +126   24.3 x126   −0.8 +252   33.9
+SPLV  Low volatility             dec  −10.7 rel    8.7 ownLow 2018-12-24 lead    0 rsLow 2018-10-03 rsLead   56 | +21    9.1 +63   18.2 +126   23.7 x126   −1.4 +252   32.8
+-- broad
+IWM   Russell 2000 (small caps)  dec  −26.0 rel   −6.7 ownLow 2018-12-24 lead    0 rsLow 2018-12-21 rsLead    1 | +21   17.0 +63   20.5 +126   20.5 x126   −4.6 +252   34.2
+MDY   S&P 400 mid caps           dec  −23.1 rel   −3.7 ownLow 2018-12-24 lead    0 rsLow 2019-01-02 rsLead   -5 | +21   16.2 +63   20.1 +126   22.0 x126   −3.1 +252   33.6
+QQQ   Nasdaq 100                 dec  −22.0 rel   −2.6 ownLow 2018-12-24 lead    0 rsLow 2018-11-19 rsLead   23 | +21   15.1 +63   24.2 +126   30.0 x126    4.9 +252   48.9
+RSP   S&P 500 equal weight       dec  −19.7 rel   −0.4 ownLow 2018-12-24 lead    0 rsLow 2018-10-25 rsLead   40 | +21   14.7 +63   20.3 +126   24.3 x126   −0.8 +252   36.6
+-- world
+KWEB  China internet             dec  −23.0 rel   −3.7 ownLow 2019-01-03 lead   -6 rsLow 2018-11-12 rsLead   28 | +21   16.1 +63   23.2 +126   17.5 x126   −7.6 +252   33.4
+EWG   Germany                    dec  −20.0 rel   −0.7 ownLow 2018-12-24 lead    0 rsLow 2019-02-14 rsLead  -35 | +21   10.3 +63   10.0 +126   16.3 x126   −8.8 +252   23.2
+EWJ   Japan                      dec  −17.4 rel    2.0 ownLow 2018-12-24 lead    0 rsLow 2019-02-08 rsLead  -31 | +21    9.8 +63   11.4 +126   11.2 x126  −13.9 +252   23.8
+EFA   Developed markets ex-US    dec  −16.2 rel    3.2 ownLow 2018-12-24 lead    0 rsLow 2018-12-06 rsLead   12 | +21    9.3 +63   13.8 +126   17.1 x126   −8.0 +252   25.7
+EEM   Emerging markets           dec  −10.0 rel    9.4 ownLow 2018-10-29 lead   38 rsLow 2018-10-04 rsLead   55 | +21   10.6 +63   10.6 +126   12.7 x126  −12.4 +252   20.2
+FXI   China large caps           dec   −8.6 rel   10.7 ownLow 2018-10-29 lead   38 rsLow 2018-10-18 rsLead   45 | +21    9.1 +63   12.5 +126   10.6 x126  −14.6 +252   14.8
+EWZ   Brazil                     dec   12.8 rel   32.2 ownLow 2018-12-24 lead    0 rsLow 2018-09-24 rsLead   63 | +21   19.6 +63    7.2 +126   20.4 x126   −4.7 +252   30.7
+-- bonds
+HYG   High-yield bonds           dec   −5.9 rel   13.4 ownLow 2018-12-24 lead    0 rsLow 2018-09-20 rsLead   65 | +21    6.0 +63    9.1 +126   11.6 x126  −13.5 +252   16.0
+LQD   Investment-grade bonds     dec   −1.0 rel   18.3 ownLow 2018-11-20 lead   22 rsLow 2018-10-03 rsLead   56 | +21    2.7 +63    6.8 +126   11.7 x126  −13.4 +252   18.1
+TIP   Inflation-linked Treasurie dec   −0.6 rel   18.7 ownLow 2018-11-02 lead   34 rsLow 2018-10-03 rsLead   56 | +21    0.3 +63    3.2 +126    6.0 x126  −19.1 +252    8.5
+SHY   1-3 year Treasuries        dec    1.2 rel   20.5 ownLow 2018-12-26 lead   -1 rsLow 2018-09-20 rsLead   65 | +21    0.2 +63    1.2 +126    2.5 x126  −22.6 +252    3.4
+IEF   7-10 year Treasuries       dec    3.4 rel   22.7 ownLow 2018-12-26 lead   -1 rsLow 2018-10-03 rsLead   56 | +21    0.3 +63    3.7 +126    7.0 x126  −18.1 +252    8.9
+TLT   20+ year Treasuries        dec    4.5 rel   23.9 ownLow 2019-01-18 lead  -17 rsLow 2018-10-08 rsLead   53 | +21   −0.7 +63    4.4 +126   10.0 x126  −15.2 +252   15.4
+-- other
+USO   Oil                        dec  −37.2 rel  −17.9 ownLow 2018-12-24 lead    0 rsLow 2018-12-28 rsLead   -3 | +21   21.1 +63   32.8 +126   32.3 x126    7.2 +252   37.5
+DBC   Commodities                dec  −16.5 rel    2.9 ownLow 2018-12-24 lead    0 rsLow 2018-11-30 rsLead   15 | +21    8.1 +63   10.8 +126   10.5 x126  −14.6 +252   12.5
+SLV   Silver                     dec    3.1 rel   22.5 ownLow 2018-11-13 lead   27 rsLow 2018-09-20 rsLead   65 | +21    6.3 +63    3.2 +126    3.2 x126  −21.9 +252   19.5
+UUP   US dollar                  dec    3.7 rel   23.0 ownLow 2019-01-09 lead  -10 rsLow 2018-09-20 rsLead   65 | +21   −0.4 +63    1.4 +126    1.7 x126  −23.4 +252    4.8
+GLD   Gold                       dec    5.0 rel   24.4 ownLow 2018-12-26 lead   -1 rsLow 2018-09-27 rsLead   60 | +21    2.4 +63    3.0 +126   10.8 x126  −14.3 +252   17.7

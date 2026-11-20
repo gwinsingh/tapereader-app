@@ -1,0 +1,37 @@
+first close at -10%: what came next
+1950   1950-06-29   13d final  −14.0 more   −4.4 daysToLow   11 | +63   11.4 +126   19.1 +252   21.7 | n/a above200
+1953   1953-06-09  108d final  −14.8 more   −3.8 daysToLow   68 | +63   −0.1 +126    5.3 +252   20.1 | n/a below200
+1955   1955-10-11   12d final  −10.6 more    0.0 daysToLow    0 | +63    9.7 +126   17.7 +252   14.8 | hiking above200
+1956   1956-11-21   76d final  −21.5 more  −12.7 daysToLow  230 | +63   −2.9 +126    5.7 +252   −8.5 | hold below200
+1959   1960-03-04  148d final  −14.0 more   −4.3 daysToLow  163 | +63    3.0 +126    4.6 +252   17.4 | hiking below200
+1961   1962-04-30   95d final  −28.0 more  −19.8 daysToLow   40 | +63  −11.4 +126  −16.4 +252    7.0 | hold below200
+1966   1966-05-16   66d final  −22.2 more  −13.3 daysToLow  101 | +63   −2.0 +126   −3.6 +252   10.3 | hold below200
+1967   1968-03-05  110d final  −10.1 more    0.0 daysToLow    0 | +63   13.9 +126   17.0 +252   15.7 | cutting below200
+1968   1969-06-19  134d final  −36.1 more  −28.7 daysToLow  235 | +63   −2.1 +126   −6.8 +252  −21.3 | hold below200
+1971   1971-08-04   68d final  −13.9 more   −4.0 daysToLow   78 | +63   −0.8 +126   10.8 +252   15.5 | cutting below200
+1973   1973-04-27   73d final  −48.2 more  −41.9 daysToLow  363 | +63    2.2 +126    3.0 +252  −15.9 | hiking below200
+1975   1975-08-08   18d final  −14.1 more   −4.6 daysToLow   26 | +63    4.1 +126   15.6 +252   20.7 | cutting above200
+1976   1977-05-25  171d final  −19.4 more  −10.2 daysToLow  195 | +63   −0.6 +126   −0.3 +252    0.0 | hold below200
+1978   1978-10-26   32d final  −13.6 more   −3.7 daysToLow   13 | +63    6.1 +126    6.0 +252    4.1 | hiking below200
+1979   1979-10-25   14d final  −10.2 more   −0.1 daysToLow    9 | +63   13.6 +126    5.2 +252   29.5 | hiking below200
+1980a  1980-03-10   17d final  −17.1 more   −7.8 daysToLow   13 | +63    6.8 +126   15.8 +252   22.5 | hiking below200
+1980b  1981-08-24  185d final  −27.1 more  −18.4 daysToLow  245 | +63   −3.0 +126  −11.1 +252   −7.5 | hiking below200
+1983   1984-02-13   87d final  −14.4 more   −4.6 daysToLow  112 | +63    1.6 +126    6.8 +252   16.5 | hiking below200
+1987   1987-10-15   36d final  −33.5 more  −24.9 daysToLow   35 | +63  −15.4 +126  −12.9 +252   −7.7 | hiking below200
+1989   1990-01-30   78d final  −10.2 more    0.0 daysToLow    0 | +63    2.9 +126   10.3 +252    4.0 | cutting below200
+1990   1990-08-17   24d final  −19.9 more   −9.9 daysToLow   38 | +63   −3.3 +126   12.6 +252   17.6 | cutting below200
+1997   1997-10-27   14d final  −10.8 more    0.0 daysToLow    0 | +63   11.5 +126   24.8 +252   21.5 | hold after hikes above200
+1998   1998-08-14   20d final  −19.3 more   −9.9 daysToLow   11 | +63    5.2 +126   16.9 +252   25.2 | hold after hikes above200
+1999   1999-09-29   52d final  −12.1 more   −1.7 daysToLow   12 | +63   15.4 +126   18.9 +252   12.5 | hiking below200
+2000   2000-04-14   15d final  −49.1 more  −42.7 daysToLow  622 | +63   11.3 +126    1.3 +252  −12.1 | hiking below200
+2007   2007-11-26   33d final  −56.8 more  −51.9 daysToLow  322 | +63   −1.9 +126   −1.2 +252  −39.5 | cutting below200
+2010   2010-05-20   19d final  −16.0 more   −4.6 daysToLow   30 | +63    0.4 +126   10.0 +252   25.4 | hold after cuts below200
+2011   2011-08-04   67d final  −19.4 more   −8.4 daysToLow   41 | +63    3.2 +126   12.1 +252   15.9 | hold after cuts below200
+2015   2015-08-24   65d final  −14.2 more   −3.4 daysToLow  118 | +63   10.4 +126    1.9 +252   15.5 | hold after cuts below200
+2018a  2018-02-08    9d final  −10.2 more    0.0 daysToLow    0 | +63    5.5 +126   10.6 +252    5.0 | hiking above200
+2018b  2018-11-23   45d final  −19.8 more  −10.7 daysToLow   20 | +63    6.1 +126    5.7 +252   19.0 | hiking below200
+2020   2020-02-27    6d final  −33.9 more  −24.9 daysToLow   17 | +63    1.7 +126   16.8 +252   27.9 | cutting below200
+2022   2022-02-22   34d final  −25.4 more  −16.9 daysToLow  161 | +63   −7.7 +126   −4.1 +252   −6.8 | hold after cuts below200
+2023   2023-10-27   63d final  −10.3 more    0.0 daysToLow    0 | +63   19.6 +126   22.3 +252   41.7 | hiking below200
+2025   2025-03-13   16d final  −18.9 more   −9.8 daysToLow   18 | +63    9.5 +126   19.2 +252   21.3 | cutting below200
+2026   2026-11-20   33d final  −11.6 more    0.0 daysToLow    0 | +63      — +126      — +252      — | hiking below200

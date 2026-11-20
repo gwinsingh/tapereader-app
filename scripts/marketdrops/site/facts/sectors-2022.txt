@@ -1,0 +1,81 @@
+SPY {"sym":"SPY","name":"S&P 500","group":"industry","dec":-24.5,"rel":0,"ownDD":-24.5,"ownLow":"2022-10-12","lead":0,"rsLow":"2022-01-03","rsLead":195,"up200":0,"b126":11.1,"a21":10.7,"x21":0,"a63":11.8,"x63":0,"a126":16.7,"x126":0,"a252":22.9,"x252":0}
+-- sector
+XLC   Communication services     dec  −38.7 rel  −14.2 ownLow 2022-11-03 lead  -16 rsLow 2022-11-04 rsLead  -17 | +21    2.3 +63    9.8 +126   25.0 x126    8.3 +252   42.1
+XLY   Consumer discretionary     dec  −33.5 rel   −9.0 ownLow 2022-11-09 lead  -20 rsLow 2022-05-24 rsLead   97 | +21    1.9 +63   −0.2 +126    6.3 x126  −10.4 +252   15.5
+XLK   Technology                 dec  −33.1 rel   −8.6 ownLow 2022-10-12 lead    0 rsLow 2022-11-03 rsLead  -16 | +21   12.3 +63   12.0 +126   28.2 x126   11.5 +252   46.0
+XLRE  Real estate                dec  −32.2 rel   −7.7 ownLow 2022-10-14 lead   -2 rsLow 2022-10-24 rsLead   -8 | +21   14.0 +63   18.4 +126    9.6 x126   −7.0 +252    4.7
+XLF   Financials                 dec  −22.3 rel    2.2 ownLow 2022-10-12 lead    0 rsLow 2022-08-04 rsLead   48 | +21   17.5 +63   19.1 +126    9.8 x126   −6.9 +252   11.9
+XLB   Materials                  dec  −22.1 rel    2.4 ownLow 2022-09-26 lead   12 rsLow 2022-02-07 rsLead  171 | +21   17.1 +63   22.3 +126   19.3 x126    2.7 +252   15.6
+XLI   Industrials                dec  −18.2 rel    6.3 ownLow 2022-09-30 lead    8 rsLow 2022-01-03 rsLead  195 | +21   17.5 +63   21.6 +126   18.8 x126    2.2 +252   22.1
+XLV   Health care                dec  −11.6 rel   12.9 ownLow 2022-06-17 lead   80 rsLow 2022-01-04 rsLead  194 | +21   10.6 +63   11.1 +126   11.3 x126   −5.4 +252    8.5
+XLU   Utilities                  dec  −11.3 rel   13.2 ownLow 2022-10-12 lead    0 rsLow 2022-01-11 rsLead  189 | +21   11.9 +63   17.3 +126   13.7 x126   −2.9 +252   −0.5
+XLP   Consumer staples           dec  −10.6 rel   13.9 ownLow 2022-10-07 lead    3 rsLow 2022-01-03 rsLead  195 | +21    8.8 +63   10.8 +126   12.5 x126   −4.2 +252    1.3
+XLE   Energy                     dec   44.5 rel   69.0 ownLow 2022-07-14 lead   63 rsLow 2022-01-03 rsLead  195 | +21   13.0 +63   13.3 +126   11.1 x126   −5.5 +252   16.0
+-- industry
+ARKK  ARK Innovation             dec  −62.8 rel  −38.3 ownLow 2022-11-09 lead  -20 rsLow 2022-11-09 rsLead  -20 | +21    3.3 +63   −1.7 +126    7.4 x126   −9.3 +252    5.4
+IPO   Recent IPOs                dec  −51.1 rel  −26.6 ownLow 2022-11-09 lead  -20 rsLow 2022-11-22 rsLead  -29 | +21   −3.5 +63   −5.0 +126    1.5 x126  −15.1 +252   10.7
+BOTZ  Robotics and AI            dec  −50.0 rel  −25.5 ownLow 2022-10-14 lead   -2 rsLow 2022-10-14 rsLead   -2 | +21   16.4 +63   24.6 +126   38.2 x126   21.5 +252   35.1
+FDN   Internet                   dec  −45.1 rel  −20.6 ownLow 2022-11-09 lead  -20 rsLow 2022-11-09 rsLead  -20 | +21    2.4 +63    5.4 +126   17.0 x126    0.3 +252   27.1
+SMH   Semiconductors             dec  −44.4 rel  −19.9 ownLow 2022-10-14 lead   -2 rsLow 2022-10-18 rsLead   -4 | +21   21.8 +63   29.7 +126   45.3 x126   28.6 +252   71.0
+SKYY  Cloud computing            dec  −43.9 rel  −19.4 ownLow 2022-11-09 lead  -20 rsLow 2022-11-09 rsLead  -20 | +21    7.5 +63    3.3 +126   12.9 x126   −3.8 +252   30.4
+IGV   Software                   dec  −37.6 rel  −13.1 ownLow 2022-11-04 lead  -17 rsLow 2022-11-04 rsLead  -17 | +21    8.0 +63    8.2 +126   22.9 x126    6.2 +252   42.5
+XRT   Retail                     dec  −35.4 rel  −10.9 ownLow 2022-09-30 lead    8 rsLow 2022-05-24 rsLead   97 | +21    9.5 +63   13.9 +126    7.7 x126   −8.9 +252    2.3
+ITB   Home construction          dec  −32.9 rel   −8.4 ownLow 2022-06-16 lead   81 rsLow 2022-04-07 rsLead  129 | +21   11.6 +63   23.3 +126   31.4 x126   14.7 +252   41.4
+XHB   Homebuilders and suppliers dec  −32.1 rel   −7.6 ownLow 2022-06-16 lead   81 rsLow 2022-04-07 rsLead  129 | +21    9.5 +63   17.2 +126   19.2 x126    2.5 +252   32.3
+XBI   Biotech (equal weight)     dec  −31.8 rel   −7.3 ownLow 2022-05-11 lead  106 rsLow 2022-05-11 rsLead  106 | +21    5.6 +63   11.7 +126   −0.6 x126  −17.3 +252  −11.6
+HACK  Cyber security             dec  −31.2 rel   −6.7 ownLow 2022-10-14 lead   -2 rsLow 2022-11-07 rsLead  -18 | +21    7.7 +63    3.3 +126   13.8 x126   −2.9 +252   25.2
+JETS  Airlines                   dec  −28.5 rel   −4.0 ownLow 2022-09-30 lead    8 rsLow 2022-03-07 rsLead  152 | +21   19.1 +63   29.4 +126   15.2 x126   −1.4 +252    2.2
+IHI   Medical devices            dec  −27.4 rel   −2.9 ownLow 2022-09-27 lead   11 rsLow 2022-08-23 rsLead   35 | +21    8.2 +63   14.1 +126   16.7 x126    0.1 +252   −3.7
+IYT   Transports                 dec  −27.1 rel   −2.6 ownLow 2022-09-30 lead    8 rsLow 2022-04-08 rsLead  128 | +21   12.5 +63   16.9 +126   13.9 x126   −2.7 +252   16.5
+GDX   Gold miners                dec  −23.1 rel    1.4 ownLow 2022-09-26 lead   12 rsLow 2022-09-01 rsLead   28 | +21   17.4 +63   36.2 +126   48.6 x126   31.9 +252   22.6
+IBB   Biotech                    dec  −21.7 rel    2.8 ownLow 2022-06-16 lead   81 rsLow 2022-05-09 rsLead  108 | +21   12.2 +63   13.6 +126   11.4 x126   −5.3 +252    2.4
+IAI   Brokers and exchanges      dec  −20.8 rel    3.7 ownLow 2022-06-17 lead   80 rsLow 2022-04-07 rsLead  129 | +21   16.5 +63   18.1 +126    6.7 x126  −10.0 +252    6.0
+URA   Uranium                    dec  −20.1 rel    4.4 ownLow 2022-07-06 lead   69 rsLow 2022-01-27 rsLead  178 | +21   10.4 +63   14.9 +126    3.6 x126  −13.1 +252   32.0
+KBE   Banks                      dec  −17.6 rel    6.9 ownLow 2022-06-16 lead   81 rsLow 2022-04-07 rsLead  129 | +21   11.2 +63    5.9 +126  −17.4 x126  −34.1 +252  −17.1
+PAVE  Infrastructure             dec  −16.5 rel    8.0 ownLow 2022-06-23 lead   77 rsLow 2022-02-07 rsLead  171 | +21   14.8 +63   19.7 +126   16.4 x126   −0.3 +252   27.4
+ICLN  Clean energy               dec  −16.5 rel    8.0 ownLow 2022-05-12 lead  105 rsLow 2022-01-28 rsLead  177 | +21   16.7 +63   20.3 +126   10.9 x126   −5.8 +252  −20.2
+KRE   Regional banks             dec  −15.7 rel    8.8 ownLow 2022-06-16 lead   81 rsLow 2022-04-07 rsLead  129 | +21    9.5 +63    2.2 +126  −28.2 x126  −44.8 +252  −30.1
+TAN   Solar                      dec  −14.8 rel    9.7 ownLow 2022-05-12 lead  105 rsLow 2022-01-28 rsLead  177 | +21   21.8 +63   22.1 +126   14.1 x126   −2.5 +252  −27.7
+ITA   Aerospace and defence      dec   −8.8 rel   15.7 ownLow 2022-09-30 lead    8 rsLow 2022-01-03 rsLead  195 | +21   19.9 +63   21.4 +126   23.0 x126    6.4 +252   16.8
+KIE   Insurance                  dec   −6.5 rel   18.0 ownLow 2022-09-26 lead   12 rsLow 2022-01-03 rsLead  195 | +21   11.3 +63   14.7 +126    7.9 x126   −8.8 +252   18.0
+XME   Metals and mining          dec    1.0 rel   25.5 ownLow 2022-09-26 lead   12 rsLow 2022-01-31 rsLead  176 | +21   11.4 +63   22.7 +126   16.3 x126   −0.4 +252   12.6
+OIH   Oil services               dec   21.0 rel   45.5 ownLow 2022-09-26 lead   12 rsLow 2022-01-03 rsLead  195 | +21   29.1 +63   37.8 +126   21.9 x126    5.2 +252   46.0
+XOP   Oil and gas producers      dec   41.7 rel   66.2 ownLow 2022-07-06 lead   69 rsLow 2022-01-03 rsLead  195 | +21   10.4 +63   −0.3 +126   −2.3 x126  −19.0 +252    9.2
+-- style
+MGK   Mega-cap growth            dec  −34.7 rel  −10.2 ownLow 2022-11-03 lead  -16 rsLow 2022-11-09 rsLead  -20 | +21    6.5 +63    5.6 +126   19.7 x126    3.0 +252   36.7
+IWF   Large growth               dec  −31.9 rel   −7.4 ownLow 2022-10-14 lead   -2 rsLow 2022-11-09 rsLead  -20 | +21    8.0 +63    7.0 +126   17.8 x126    1.1 +252   31.7
+IWO   Small growth               dec  −29.6 rel   −5.1 ownLow 2022-06-16 lead   81 rsLow 2022-05-11 rsLead  106 | +21    8.9 +63   10.3 +126    8.9 x126   −7.7 +252    4.4
+SPHB  High beta                  dec  −28.3 rel   −3.8 ownLow 2022-10-14 lead   -2 rsLow 2022-07-01 rsLead   71 | +21   15.7 +63   19.8 +126   19.5 x126    2.8 +252   21.0
+QUAL  Quality                    dec  −27.3 rel   −2.8 ownLow 2022-10-14 lead   -2 rsLow 2022-09-22 rsLead   14 | +21   12.0 +63   14.7 +126   20.7 x126    4.0 +252   31.0
+MTUM  Momentum                   dec  −25.4 rel   −0.9 ownLow 2022-06-17 lead   80 rsLow 2022-08-04 rsLead   48 | +21   10.8 +63    9.1 +126    8.3 x126   −8.3 +252    6.9
+VLUE  Value factor               dec  −23.6 rel    0.9 ownLow 2022-09-30 lead    8 rsLow 2022-04-05 rsLead  131 | +21   14.8 +63   16.6 +126   14.0 x126   −2.6 +252   11.2
+IWN   Small value                dec  −20.6 rel    3.9 ownLow 2022-09-30 lead    8 rsLow 2022-02-02 rsLead  174 | +21   12.6 +63   13.0 +126    3.8 x126  −12.9 +252    2.0
+IWD   Large value                dec  −17.6 rel    6.9 ownLow 2022-09-30 lead    8 rsLow 2022-01-03 rsLead  195 | +21   13.0 +63   16.3 +126   14.1 x126   −2.5 +252   12.2
+USMV  Minimum volatility         dec  −17.3 rel    7.2 ownLow 2022-10-12 lead    0 rsLow 2022-02-16 rsLead  164 | +21   10.3 +63   12.4 +126   13.1 x126   −3.6 +252   13.0
+SPLV  Low volatility             dec  −14.9 rel    9.6 ownLow 2022-10-12 lead    0 rsLow 2022-01-03 rsLead  195 | +21   10.9 +63   14.2 +126   12.3 x126   −4.4 +252    5.6
+-- broad
+QQQ   Nasdaq 100                 dec  −34.3 rel   −9.8 ownLow 2022-11-03 lead  -16 rsLow 2022-11-03 rsLead  -16 | +21    7.6 +63    6.5 +126   21.8 x126    5.1 +252   40.0
+IWM   Russell 2000 (small caps)  dec  −25.0 rel   −0.5 ownLow 2022-06-16 lead   81 rsLow 2022-05-11 rsLead  106 | +21   10.8 +63   11.6 +126    6.4 x126  −10.2 +252    3.4
+RSP   S&P 500 equal weight       dec  −20.3 rel    4.2 ownLow 2022-09-30 lead    8 rsLow 2022-01-03 rsLead  195 | +21   13.0 +63   16.6 +126   14.0 x126   −2.6 +252   11.5
+MDY   S&P 400 mid caps           dec  −20.1 rel    4.4 ownLow 2022-06-16 lead   81 rsLow 2022-02-02 rsLead  174 | +21   11.8 +63   14.4 +126   11.3 x126   −5.3 +252   10.0
+-- world
+EWG   Germany                    dec  −38.7 rel  −14.2 ownLow 2022-09-27 lead   11 rsLow 2022-08-26 rsLead   32 | +21   22.3 +63   40.8 +126   47.7 x126   31.1 +252   33.8
+KWEB  China internet             dec  −37.8 rel  −13.3 ownLow 2022-10-24 lead   -8 rsLow 2022-10-24 rsLead   -8 | +21    0.7 +63   52.6 +126   28.3 x126   11.6 +252   21.1
+FXI   China large caps           dec  −32.1 rel   −7.6 ownLow 2022-10-31 lead  -13 rsLow 2022-10-31 rsLead  -13 | +21   −1.4 +63   30.8 +126   18.6 x126    2.0 +252   10.0
+EEM   Emerging markets           dec  −29.0 rel   −4.5 ownLow 2022-10-24 lead   -8 rsLow 2022-10-28 rsLead  -12 | +21    7.3 +63   20.3 +126   16.4 x126   −0.2 +252   11.9
+EFA   Developed markets ex-US    dec  −28.1 rel   −3.6 ownLow 2022-09-27 lead   11 rsLow 2022-09-08 rsLead   24 | +21   15.2 +63   26.4 +126   32.0 x126   15.3 +252   25.6
+EWJ   Japan                      dec  −26.6 rel   −2.1 ownLow 2022-10-20 lead   -6 rsLow 2022-10-28 rsLead  -12 | +21   10.5 +63   16.2 +126   20.2 x126    3.5 +252   23.4
+EWZ   Brazil                     dec   20.0 rel   44.5 ownLow 2022-07-14 lead   63 rsLow 2022-01-05 rsLead  193 | +21   −5.6 +63    1.8 +126    0.6 x126  −16.1 +252    6.1
+-- bonds
+TLT   20+ year Treasuries        dec  −29.3 rel   −4.8 ownLow 2022-10-24 lead   -8 rsLow 2022-10-24 rsLead   -8 | +21   −1.9 +63    8.2 +126    6.3 x126  −10.4 +252   −9.9
+LQD   Investment-grade bonds     dec  −21.1 rel    3.4 ownLow 2022-10-20 lead   -6 rsLow 2022-04-19 rsLead  122 | +21    3.4 +63   10.6 +126   10.2 x126   −6.5 +252    4.3
+IEF   7-10 year Treasuries       dec  −15.4 rel    9.1 ownLow 2022-10-20 lead   -6 rsLow 2022-04-19 rsLead  122 | +21    1.2 +63    5.2 +126    5.2 x126  −11.5 +252   −1.5
+HYG   High-yield bonds           dec  −14.6 rel    9.9 ownLow 2022-09-27 lead   11 rsLow 2022-03-29 rsLead  136 | +21    4.0 +63    8.5 +126    8.2 x126   −8.4 +252    7.7
+TIP   Inflation-linked Treasurie dec  −12.7 rel   11.8 ownLow 2022-09-30 lead    8 rsLow 2022-01-04 rsLead  194 | +21    1.4 +63    3.6 +126    4.5 x126  −12.2 +252    0.5
+SHY   1-3 year Treasuries        dec   −4.4 rel   20.1 ownLow 2022-10-20 lead   -6 rsLow 2022-01-03 rsLead  195 | +21    0.3 +63    1.4 +126    2.3 x126  −14.3 +252    2.5
+-- other
+SLV   Silver                     dec  −16.9 rel    7.5 ownLow 2022-09-01 lead   28 rsLow 2022-09-01 rsLead   28 | +21   13.5 +63   24.4 +126   32.5 x126   15.9 +252   18.1
+GLD   Gold                       dec   −7.3 rel   17.2 ownLow 2022-09-26 lead   12 rsLow 2022-01-03 rsLead  195 | +21    4.8 +63   13.2 +126   19.5 x126    2.8 +252   14.6
+UUP   US dollar                  dec   18.1 rel   42.6 ownLow 2022-12-02 lead  -36 rsLow 2022-01-03 rsLead  195 | +21   −4.5 +63   −9.0 +126   −8.3 x126  −24.9 +252   −0.8
+DBC   Commodities                dec   21.4 rel   45.9 ownLow 2022-09-26 lead   12 rsLow 2022-01-03 rsLead  195 | +21    1.3 +63   −2.5 +126   −2.8 x126  −19.5 +252   −1.3
+USO   Oil                        dec   29.4 rel   53.9 ownLow 2022-12-08 lead  -40 rsLow 2022-01-03 rsLead  195 | +21    1.8 +63   −3.3 +126    1.6 x126  −15.0 +252   11.4

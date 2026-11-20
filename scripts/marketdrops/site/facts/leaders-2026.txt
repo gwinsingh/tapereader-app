@@ -1,0 +1,30 @@
+{"n":635,"minDv":25,"medDec":-1.3,"medDD":-19.1,"up200":42.7,"hl":null,"fell50":6.9,"fell30":27.2,"fell20":47.9,"rose":47.2,"lowBefore":33.9,"lowWith":64.9,"lowAfter":0,"nhIn20":0,"nhIn60":0,"rho":{"dec_a21":null,"dec_a63":null,"dec_a126":null,"dec_a252":null,"b252_a126":null,"b252_dec":-0.3,"off_a126":null},"early":null}
+quintiles by fall (1 = fell most):
+{"q":1,"n":127,"lo":-74.7,"hi":-22.5,"med":-35.7,"a5":null,"a21":null,"a63":null,"a126":null,"a252":null}
+{"q":2,"n":127,"lo":-22.4,"hi":-5.8,"med":-12.1,"a5":null,"a21":null,"a63":null,"a126":null,"a252":null}
+{"q":3,"n":127,"lo":-5.8,"hi":2.6,"med":-1.3,"a5":null,"a21":null,"a63":null,"a126":null,"a252":null}
+{"q":4,"n":127,"lo":2.6,"hi":10.6,"med":6.2,"a5":null,"a21":null,"a63":null,"a126":null,"a252":null}
+{"q":5,"n":127,"lo":10.8,"hi":40.2,"med":15.4,"a5":null,"a21":null,"a63":null,"a126":null,"a252":null}
+quintiles by prior 12m (1 = weakest before):
+{"q":1,"n":126,"lo":-76.9,"hi":-21.4,"med":-34.9,"dec":-0.3,"a21":null,"a126":null,"a252":null}
+{"q":2,"n":126,"lo":-21.3,"hi":-2.6,"med":-9.8,"dec":4.1,"a21":null,"a126":null,"a252":null}
+{"q":3,"n":126,"lo":-2.6,"hi":11.7,"med":4.5,"dec":3.6,"a21":null,"a126":null,"a252":null}
+{"q":4,"n":126,"lo":11.9,"hi":35.3,"med":23,"dec":-3.5,"a21":null,"a126":null,"a252":null}
+{"q":5,"n":127,"lo":35.5,"hi":1193.1,"med":65.1,"dec":-22.2,"a21":null,"a126":null,"a252":null}
+fell least: EPAM(40,—d,  —) PLNT(39,—d,  —) IDXX(31,—d,  —) PNR(30,—d,  —) TDOC(29,—d,  —) CROX(29,—d,  —) CBOE(29,—d,  —) GEN(29,—d,  —) CLX(27,—d,  —) ROP(27,—d,  —) ROL(25,—d,  —) TSN(25,—d,  —) APP(25,—d,  —) GEHC(25,—d,  —) REGN(25,—d,  —) EFX(24,—d,  —) HAS(24,—d,  —) STZ(24,—d,  —) FISV(23,—d,  —) STE(23,—d,  —) YUMC(23,—d,  —) VRSK(22,—d,  —) TYL(22,—d,  —) ERIE(22,—d,  —) AON(22,—d,  —)
+fell most: AAOI(−75,—d,  —) IREN(−71,—d,  —) NBIS(−68,—d,  —) CIFR(−65,—d,  —) ASTS(−63,—d,  —) SNDK(−62,—d,  —) LITE(−59,—d,  —) MRVL(−57,—d,  —) GDS(−57,—d,  —) CRWV(−57,—d,  —) CRDO(−55,—d,  —) APLD(−55,—d,  —) INTC(−54,—d,  —) ALAB(−54,—d,  —) MARA(−54,—d,  —) RGTI(−53,—d,  —) MSTR(−53,—d,  —) TER(−52,—d,  —) IONQ(−52,—d,  —) BE(−52,—d,  —) DELL(−52,—d,  —) HIMS(−51,—d,  —) SMCI(−50,—d,  —) ARM(−50,—d,  —) OKLO(−49,—d,  —)
+first highs: 
+best 126d: 
+best 252d: 
+best 21d: 
+{"sector":"Information Technology","n":76,"dec":-22,"dd":-31.5,"up200":30.3,"a63":null,"a126":null,"a252":null}
+{"sector":"Energy","n":21,"dec":-6.7,"dd":-17.3,"up200":42.9,"a63":null,"a126":null,"a252":null}
+{"sector":"Financials","n":76,"dec":-0.2,"dd":-14.9,"up200":53.9,"a63":null,"a126":null,"a252":null}
+{"sector":"Industrials","n":83,"dec":0.2,"dd":-19.6,"up200":38.6,"a63":null,"a126":null,"a252":null}
+{"sector":"Communication Services","n":22,"dec":0.4,"dd":-22.3,"up200":27.3,"a63":null,"a126":null,"a252":null}
+{"sector":"Materials","n":24,"dec":1.7,"dd":-16.6,"up200":45.8,"a63":null,"a126":null,"a252":null}
+{"sector":"Health Care","n":60,"dec":4.1,"dd":-9.9,"up200":80,"a63":null,"a126":null,"a252":null}
+{"sector":"Real Estate","n":30,"dec":4.1,"dd":-16.4,"up200":36.7,"a63":null,"a126":null,"a252":null}
+{"sector":"Consumer Discretionary","n":47,"dec":5.2,"dd":-14.8,"up200":46.8,"a63":null,"a126":null,"a252":null}
+{"sector":"Utilities","n":31,"dec":7.2,"dd":-14.9,"up200":48.4,"a63":null,"a126":null,"a252":null}
+{"sector":"Consumer Staples","n":32,"dec":12.3,"dd":-7.4,"up200":78.1,"a63":null,"a126":null,"a252":null}

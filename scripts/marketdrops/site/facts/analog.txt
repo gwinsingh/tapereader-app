@@ -1,0 +1,18 @@
+N 33 me -12.35 loo corr -0.04411217533055389 nn corr 0.06672332099764816 sign 65 / 95
+2011b   2011-04-29 rmse 1.73 corr 0.78 depthN −7.3 f20 3.8 f60 −8.3 worst60 −11.7 final −19.4
+1997a   1997-02-18 rmse 1.73 corr 0.78 depthN −6.9 f20 8.9 f60 16.9 worst60 −3.2 final −9.6
+1967b   1967-09-25 rmse 1.74 corr 0.77 depthN −5.7 f20 3.2 f60 −0.2 worst60 −0.9 final −10.1
+2012a   2012-04-02 rmse 1.78 corr 0.76 depthN −9.1 f20 3.8 f60 8.4 worst60 −1.3 final −9.9
+1959    1959-08-03 rmse 1.83 corr 0.76 depthN −7.7 f20 2.0 f60 4.8 worst60 −1.9 final −14.0
+1961b   1961-12-12 rmse 1.94 corr 0.75 depthN −6.4 f20 2.6 f60 −1.6 worst60 −1.6 final −28.0
+1956b   1956-08-03 rmse 1.96 corr 0.73 depthN −7.2 f20 0.3 f60 0.7 worst60 −4.0 final −21.5
+1973    1973-01-11 rmse 2.04 corr 0.76 depthN −8.0 f20 1.5 f60 −2.8 worst60 −7.5 final −48.2
+1971    1971-04-28 rmse 2.11 corr 0.63 depthN −4.3 f20 −1.1 f60 0.5 worst60 −6.8 final −13.9
+2007b   2007-10-09 rmse 2.15 corr 0.84 depthN −10.6 f20 6.3 f60 −3.8 worst60 −6.9 final −56.8
+1968b   1968-11-29 rmse 2.17 corr 0.71 depthN −6.1 f20 −2.1 f60 −1.2 worst60 −3.9 final −36.1
+1985    1985-07-17 rmse 2.24 corr 0.56 depthN −4.0 f20 −2.0 f60 7.8 worst60 −3.9 final −7.7
+2005a   2005-03-07 rmse 2.24 corr 0.65 depthN −6.2 f20 3.2 f60 6.7 worst60 −0.8 final −7.2
+1983a   1983-06-22 rmse 2.24 corr 0.57 depthN −6.6 f20 4.9 f60 2.9 worst60 0.0 final −6.9
+1996    1996-05-24 rmse 2.24 corr 0.75 depthN −4.9 f20 2.5 f60 8.8 worst60 −3.0 final −7.6
+any-window: {"n":1,"medF60":7.711711711711722,"up60":1,"q10":7.711711711711722,"q90":7.711711711711722,"worstMed":-5.729729729729726} {"med60":2.56981326023642,"up60":66.61478599221789,"q10":-6.46244009688657,"q90":10.086596571901165}
+1962-04-10 1962-05-28 corr 0.943 move −19.0 f20 −5.7 f60 7.7 worst60 −5.7

@@ -29,3 +29,6 @@ scripts/paperdesk/proposals.json
 scripts/paperdesk/config.json
 scripts/paperdesk/seed-library.js
 docs/trade-journal/paper-desk-*.md
+
+# Market-drops study: downloaded public data and computed results (rebuilt by scripts/marketdrops/run.js)
+scripts/marketdrops/.data/

@@ -1,0 +1,21 @@
+SPY {"sym":"SPY","name":"S&P 500","group":"industry","dec":-47.5,"rel":0,"ownDD":-47.5,"ownLow":"2002-10-09","lead":0,"rsLow":"2000-03-24","rsLead":637,"up200":0,"b126":20.8,"a21":16.2,"x21":0,"a63":19.4,"x63":0,"a126":13.1,"x126":0,"a252":35.7,"x252":0}
+-- sector
+XLK   Technology                 dec  −81.9 rel  −34.4 ownLow 2002-10-09 lead    0 rsLow 2002-09-30 rsLead    7 | +21   32.2 +63   42.4 +126   25.9 x126   12.8 +252   67.8
+XLI   Industrials                dec  −36.3 rel   11.2 ownLow 2002-10-09 lead    0 rsLow 2000-06-22 rsLead  575 | +21   16.1 +63   18.8 +126   11.6 x126   −1.4 +252   36.9
+XLU   Utilities                  dec  −35.8 rel   11.7 ownLow 2002-10-09 lead    0 rsLow 2000-03-24 rsLead  637 | +21   21.4 +63   34.7 +126   25.6 x126   12.5 +252   50.7
+XLE   Energy                     dec  −23.7 rel   23.8 ownLow 2002-07-23 lead   55 rsLow 2000-03-24 rsLead  637 | +21    7.5 +63    9.5 +126    9.9 x126   −3.2 +252   23.3
+XLY   Consumer discretionary     dec  −23.2 rel   24.3 ownLow 2002-10-09 lead    0 rsLow 2000-10-13 rsLead  496 | +21   14.5 +63   13.4 +126   13.2 x126    0.1 +252   38.1
+XLF   Financials                 dec  −22.2 rel   25.3 ownLow 2002-10-09 lead    0 rsLow 2000-03-27 rsLead  636 | +21   20.2 +63   27.2 +126   19.2 x126    6.1 +252   46.0
+XLB   Materials                  dec  −20.6 rel   26.9 ownLow 2002-10-09 lead    0 rsLow 2000-09-27 rsLead  508 | +21   16.0 +63   23.3 +126   13.5 x126    0.5 +252   40.8
+XLV   Health care                dec  −17.2 rel   30.3 ownLow 2001-09-20 lead  265 rsLow 2000-09-07 rsLead  522 | +21    8.8 +63    7.6 +126    5.5 x126   −7.6 +252   10.9
+XLP   Consumer staples           dec    1.2 rel   48.7 ownLow 2002-07-19 lead   57 rsLow 2000-03-27 rsLead  636 | +21    1.5 +63    1.7 +126   −5.1 x126  −18.2 +252    6.3
+-- industry
+-- style
+-- broad
+QQQ   Nasdaq 100                 dec  −82.9 rel  −35.4 ownLow 2002-10-09 lead    0 rsLow 2002-09-05 rsLead   24 | +21   27.3 +63   33.1 +126   28.5 x126   15.4 +252   72.9
+MDY   S&P 400 mid caps           dec  −24.0 rel   23.5 ownLow 2002-10-09 lead    0 rsLow 2000-04-10 rsLead  626 | +21   15.4 +63   18.9 +126   11.5 x126   −1.5 +252   45.2
+-- world
+EWG   Germany                    dec  −65.8 rel  −18.3 ownLow 2002-10-09 lead    0 rsLow 2002-10-09 rsLead    0 | +21   24.1 +63   25.1 +126   13.7 x126    0.7 +252   58.8
+EWJ   Japan                      dec  −52.2 rel   −4.7 ownLow 2002-10-09 lead    0 rsLow 2002-02-06 rsLead  170 | +21    7.5 +63    6.4 +126   −2.3 x126  −15.3 +252   42.3
+-- bonds
+-- other
