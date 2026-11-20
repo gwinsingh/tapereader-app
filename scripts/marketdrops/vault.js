@@ -14,7 +14,7 @@ const sh18 = M.shape["2018b"].SPY.fall, shN = M.shape[cur.id].SPY.fall, mk = M.m
 const pg = (slug, text) => `[${text}](${URL}${slug}.html)`;
 const body = `# Anatomy of a Drop
 
-**The study lives on the web: ${URL}** (23 pages with interactive charts; data to ${L.nice(C.asOf)}).
+**The study lives on the web: ${URL}** (24 pages with interactive charts; data to ${L.nice(C.asOf)}).
 This note is only the summary and the way in. A historical study, not advice: it describes what happened and how often. Nothing in it is a rule.
 
 > [!abstract] What it is
@@ -36,14 +36,15 @@ This note is only the summary and the way in. A historical study, not advice: it
 11. **Washout first, proof after.** At the low of every drop of 18% or more since 1999 fewer than 21% of stocks were above their 200-day average; now ${Math.round(n.breadth.a200)}%. ${pg("bottoms", "Signs at the low")}
 12. **The fall has come in regular hours, as in 2018.** 2018: overnight ${pct(sh18.overnight)}, session ${pct(sh18.session)}, ${Math.round(sh18.gapUpSold)}% of gap-ups sold. 2026 so far: overnight ${pct(shN.overnight)}, session ${pct(shN.session)}. ${pg("intraday", "The shape of the day")}
 13. **Shelters lag afterwards; early relative strength leads.** ${pg("sectors", "Sectors and themes")} · ${pg("leaders", "The stocks that led")}
-14. **Leverage was higher going in than in 2018.** Margin loans ${lev.pctGdp}% of GDP, ${pct(lev.yoy, 0)} on the year. ${pg("leverage", "Leverage and positioning")}
+14. **Hand-kept breadth gauges mark the zone, not the day.** Washout readings (few stocks above their 50-day or 20-day lines) were followed by better-than-usual returns but often came before the final low; big 4%-up days were as common in bear rallies as at lows; a washout followed by a broad surge did best. ${pg("gauges", "Hand-kept breadth gauges, tested")}
+15. **Leverage was higher going in than in 2018.** Margin loans ${lev.pctGdp}% of GDP, ${pct(lev.yoy, 0)} on the year. ${pg("leverage", "Leverage and positioning")}
 
 ## Reading order
 
 1. ${pg("now", "Autumn 2026: the drop so far")} · ${pg("compare", "Now against 2018")} · ${pg("atlas", "Every drop since 1950")}
 2. ${pg("y2018", "2018, day by day")} · ${pg("y2018-turn", "How 2018 bottomed and turned")}
 3. ${pg("bears", "2000–02 and 2007–09")} · ${pg("ai-dotcom", "AI boom against the dot-com bubble")} · ${pg("scenarios", "Correction or bear: two paths")}
-4. ${pg("bounces", "Failed pops and the real turn")} · ${pg("bottoms", "Signs at the low")} · ${pg("filters", "Moving averages as a filter")} · ${pg("news", "Reaction to news")}
+4. ${pg("bounces", "Failed pops and the real turn")} · ${pg("bottoms", "Signs at the low")} · ${pg("gauges", "Breadth gauges, tested")} · ${pg("filters", "Moving averages as a filter")} · ${pg("news", "Reaction to news")}
 5. ${pg("sectors", "Sectors and themes")} · ${pg("leaders", "The stocks that led")}
 6. ${pg("intraday", "The shape of the day")} · ${pg("leverage", "Leverage and positioning")} · ${pg("fundamentals", "Earnings, rates and credit")} · ${pg("lookalike", "Look-alike charts")}
 7. ${pg("drills", "Train the eye (30 replay charts)")} · ${pg("glossary", "Glossary")} · ${pg("method", "Method, data and limits")} · ${pg("sources", "Research notes and sources")}

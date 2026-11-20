@@ -1,0 +1,69 @@
+from 1999-03-01 | thresholds (5% / 1% tails): {"e10":[15.1,5.5],"e20":[16.8,6.1],"a50":[20.7,6.2],"dn4":[16.2,37.6],"up4":[15.4,38.1]}
+baseline all days: f20 med 1.2 up 63% | f60 med 3 up 67% | adv60 med -3.4
+
+WASHOUTS (first day):
+Stocks above their 10-day EMA below 15               n  95 | f20 med   2.1 up 69% | f60 med   5.1 up 70% | f250 med 13.5 | adv60 med -3.5 worst -34.9 | at low 6 in fall 35 outside 54
+Stocks above their 10-day EMA below 5                n  22 | f20 med     3 up 77% | f60 med   4.8 up 59% | f250 med 16.6 | adv60 med -5.7 worst -28.8 | at low 6 in fall 11 outside 5
+Stocks above their 20-day EMA below 15               n  59 | f20 med   2.8 up 69% | f60 med   6.8 up 71% | f250 med 15 | adv60 med -3.7 worst -34.9 | at low 6 in fall 25 outside 28
+Stocks above their 20-day EMA below 5                n  16 | f20 med   4.8 up 75% | f60 med   7.3 up 88% | f250 med 21.3 | adv60 med -3.1 worst -28.8 | at low 6 in fall 9 outside 1
+Stocks above their 50-day average below 20           n  35 | f20 med   3.8 up 66% | f60 med     8 up 77% | f250 med 15.2 | adv60 med -3.7 worst -32 | at low 7 in fall 19 outside 9
+Stocks above their 50-day average below 10           n  16 | f20 med   2.9 up 81% | f60 med   9.9 up 88% | f250 med 19.5 | adv60 med -2.9 worst -31.5 | at low 6 in fall 10 outside 0
+Stocks down 4% or more on the day above 15           n 100 | f20 med   1.3 up 58% | f60 med   4.1 up 66% | f250 med 11.8 | adv60 med -4.5 worst -39.2 | at low 7 in fall 42 outside 51
+Stocks down 4% or more on the day above 35           n  28 | f20 med   4.9 up 74% | f60 med     8 up 70% | f250 med 19.5 | adv60 med -3.6 worst -38.6 | at low 5 in fall 15 outside 8
+Stocks down 25% or more in a quarter above 20        n  15 | f20 med   4.3 up 79% | f60 med   7.7 up 79% | f250 med 19.5 | adv60 med -4.7 worst -34.9 | at low 5 in fall 10 outside 0
+Stocks down 25% or more in a quarter above 40        n   3 | f20 med  12.5 up 67% | f60 med   7.5 up 67% | f250 med 21.2 | adv60 med -9.8 worst -23.6 | at low 1 in fall 2 outside 0
+
+THRUSTS:
+e10 from ≤15% to ≥80% within 10 sessions                                   n  55 | f20 med   1.3 | f60 med   3.1 up 64% | f250 med 12.5 up 85% | adv60 med -3.2 worst -22.6 | low held 29/55 | zones low/fall/out 8 19 28
+e10 from ≤15% to ≥70% within 10 sessions                                   n  83 | f20 med   1.3 | f60 med     3 up 67% | f250 med 12.4 up 84% | adv60 med -3.6 worst -40 | low held 35/83 | zones low/fall/out 12 28 43
+e20 from ≤15% to ≥70% within 15 sessions                                   n  42 | f20 med   1.6 | f60 med   3.6 up 52% | f250 med 14 up 88% | adv60 med -3.2 worst -25.2 | low held 23/42 | zones low/fall/out 6 14 22
+e20 from ≤20% to ≥60% within 15 sessions                                   n  83 | f20 med     2 | f60 med   3.1 up 67% | f250 med 11.8 up 83% | adv60 med -2.9 worst -29.6 | low held 43/83 | zones low/fall/out 10 26 47
+50-day: from ≤20% to ≥60% within 30 sessions                               n  33 | f20 med     3 | f60 med   1.8 up 55% | f250 med 14.2 up 78% | adv60 med -4 worst -35 | low held 17/33 | zones low/fall/out 3 14 16
+50-day: from ≤20% to ≥80% within 40 sessions                               n  23 | f20 med     0 | f60 med   3.6 up 61% | f250 med 12.6 up 83% | adv60 med -6.1 worst -27.4 | low held 11/23 | zones low/fall/out 0 6 17
+A day with 35%+ of stocks up 4%                                            n  29 | f20 med   2.6 | f60 med   4.7 up 72% | f250 med 17.2 up 72% | adv60 med -5.5 worst -37.6 | low held 13/29 | zones low/fall/out 6 15 8
+A day with 15%+ of stocks up 4%                                            n  95 | f20 med   1.6 | f60 med   3.4 up 67% | f250 med 13.3 up 64% | adv60 med -4.6 worst -40.6 | low held 38/95 | zones low/fall/out 10 40 45
+10-day ratio of 4% up-days to 4% down-days from ≤0.5 to ≥2 within 20 sessions n  73 | f20 med   1.7 | f60 med   4.3 up 64% | f250 med 13.2 up 80% | adv60 med -2.7 worst -33.8 | low held 47/73 | zones low/fall/out 9 17 47
+
+AT RALLY LOWS (failed 51 turn 12 ):
+Washout: 10-day EMA share at or below 10% at the low                       failed 24/51 turn 7/12 → share that were the turn 23% (base 19%) | medians 10.8 6.2
+Washout: 20-day EMA share at or below 10% at the low                       failed 23/51 turn 8/12 → share that were the turn 26% (base 19%) | medians 11 6.2
+Washout: 50-day share at or below 15% at the low                           failed 25/51 turn 9/12 → share that were the turn 26% (base 19%) | medians 15.4 9.9
+A day with 30%+ of stocks down 4% in the 10 sessions to the low            failed 28/51 turn 7/12 → share that were the turn 20% (base 19%) | medians 34.9 37.3
+A day with 30%+ of stocks up 4% in the next 10 sessions                    failed 32/51 turn 8/12 → share that were the turn 20% (base 19%) | medians 36.2 35.2
+10-day EMA share reaches 80% in the next 10 sessions                       failed 28/51 turn 9/12 → share that were the turn 24% (base 19%) | medians 82.6 89.6
+20-day EMA share reaches 70% in the next 15 sessions                       failed 31/51 turn 11/12 → share that were the turn 26% (base 19%) | medians 70.9 84.8
+50-day share reaches 60% in the next 30 sessions                           failed 32/51 turn 11/12 → share that were the turn 26% (base 19%) | medians 64.8 82.3
+10-day ratio of 4% up to 4% down reaches 2 in the next 20 sessions         failed 33/51 turn 12/12 → share that were the turn 27% (base 19%) | medians 2.4 3.6
+Stricter: 10-day EMA share reaches 90% in the next 10 sessions             failed 6/51 turn 4/12 → share that were the turn 40% (base 19%) | medians 82.6 89.6
+Stricter: 20-day EMA share reaches 80% in the next 15 sessions             failed 16/51 turn 9/12 → share that were the turn 36% (base 19%) | medians 70.9 84.8
+Stricter: 50-day share reaches 75% in the next 30 sessions                 failed 14/51 turn 9/12 → share that were the turn 39% (base 19%) | medians 64.8 82.3
+Stricter: the 10-day ratio reaches 3 in the next 20 sessions               failed 14/51 turn 8/12 → share that were the turn 36% (base 19%) | medians 2.4 3.6
+Washout and surge together: 50-day share ≤15% at the low, then ≥75% within 30 sessions failed 6/51 turn 8/12 → share that were the turn 57% (base 19%) | medians null null
+Washout and surge together: 20-day EMA share ≤10% at the low, then ≥80% within 15 sessions failed 6/51 turn 6/12 → share that were the turn 50% (base 19%) | medians null null
+
+BUCKETS f20:
+e10 [0-10) n169 med 2.88 up 71% q05 -11 dip -4.7 | [10-20) n375 med 2.2 up 68% q05 -7.9 dip -3.7 | [20-40) n1172 med 1.48 up 63% q05 -8.1 dip -3.2 | [40-60) n1967 med 1.08 up 61% q05 -7.7 dip -3 | [60-80) n2423 med 0.95 up 62% q05 -6.4 dip -2.6 | [80-101) n866 med 1.37 up 67% q05 -6.6 dip -2.5
+e20 [0-10) n143 med 3.43 up 73% q05 -10.1 dip -5.3 | [10-20) n314 med 2.32 up 66% q05 -8.2 dip -3.9 | [20-40) n1063 med 1.79 up 66% q05 -8.6 dip -3.5 | [40-60) n1893 med 1.05 up 61% q05 -7.9 dip -3.1 | [60-80) n2632 med 0.94 up 62% q05 -6.4 dip -2.5 | [80-101) n927 med 1.23 up 66% q05 -5.6 dip -2.2
+a50 [0-10) n119 med 3.89 up 71% q05 -10.2 dip -6.6 | [10-20) n222 med 2.82 up 67% q05 -9.7 dip -4.1 | [20-40) n960 med 2.33 up 67% q05 -7.5 dip -3.5 | [40-60) n1966 med 0.95 up 60% q05 -8.5 dip -3.3 | [60-80) n2743 med 0.98 up 63% q05 -5.9 dip -2.4 | [80-101) n962 med 1.09 up 65% q05 -5.3 dip -2.2
+dn4 [0-2) n3597 med 1.26 up 66% q05 -5.9 dip -2.3 | [2-5) n1820 med 0.92 up 59% q05 -7.6 dip -3.2 | [5-15) n1169 med 1.03 up 59% q05 -8.4 dip -3.6 | [15-35) n306 med 2.62 up 64% q05 -9.7 dip -4.3 | [35-101) n80 med 2.62 up 61% q05 -16.6 dip -7.4
+up4 [0-2) n2969 med 1.26 up 65% q05 -6 dip -2.5 | [2-5) n2187 med 1.18 up 64% q05 -7.2 dip -2.8 | [5-15) n1445 med 0.88 up 59% q05 -8.4 dip -3.4 | [15-35) n291 med 1.13 up 57% q05 -8.5 dip -4.1 | [35-101) n80 med 2.39 up 64% q05 -19.4 dip -6.9
+
+PER LOW:
+1999   1999-10-15 e10min 11.8 (0) e20min 15.7 (0) a50min 20.6 (-1) dn4max 16.4 1999-10-15 (0) days≥15: 2 | up4max 30.3 day 9 | e10→80 null e20→70 null a50→60 22 ratio→2 10
+2000   2002-10-09 e10min 2.7 (55) e20min 2.5 (55) a50min 1.7 (55) dn4max 54.7 2001-09-17 (268) days≥15: 79 | up4max 47.9 day 4 | e10→80 4 e20→70 4 a50→60 12 ratio→2 8
+2007   2009-03-09 e10min 0.4 (72) e20min 0.2 (72) a50min 0.4 (90) dn4max 93.8 2008-10-15 (98) days≥15: 73 | up4max 79.7 day 10 | e10→80 3 e20→70 6 a50→60 10 ratio→2 6
+2010   2010-07-02 e10min 1.5 (39) e20min 2.5 (30) a50min 6.4 (1) dn4max 48.5 2010-05-20 (30) days≥15: 5 | up4max 31 day 2 | e10→80 4 e20→70 6 a50→60 13 ratio→2 7
+2011   2011-10-03 e10min 0.2 (39) e20min 0.2 (39) a50min 0.8 (39) dn4max 88.8 2011-08-08 (39) days≥15: 12 | up4max 39.3 day 5 | e10→80 5 e20→70 5 a50→60 7 ratio→2 9
+2015   2016-02-11 e10min 0.7 (118) e20min 1.5 (117) a50min 5.6 (117) dn4max 51.1 2015-08-24 (118) days≥15: 8 | up4max 18.2 day 2 | e10→80 3 e20→70 3 a50→60 10 ratio→2 8
+2018a  2018-02-08 e10min 2.5 (3) e20min 4.9 (0) a50min 16.2 (0) dn4max 37.5 2018-02-08 (0) days≥15: 2 | up4max 9.5 day 4 | e10→80 11 e20→70 11 a50→60 46 ratio→2 10
+2018b  2018-12-24 e10min 2.4 (0) e20min 1.9 (0) a50min 3.6 (0) dn4max 40.9 2018-10-24 (41) days≥15: 6 | up4max 62.2 day 1 | e10→80 8 e20→70 9 a50→60 16 ratio→2 8
+2020   2020-03-23 e10min 0.3 (7) e20min 0.7 (7) a50min 2.3 (7) dn4max 94.2 2020-03-12 (7) days≥15: 13 | up4max 88.3 day 1 | e10→80 3 e20→70 12 a50→60 25 ratio→2 10
+2022   2022-10-12 e10min 1.6 (12) e20min 1.4 (12) a50min 3.6 (12) dn4max 56.9 2022-06-13 (84) days≥15: 35 | up4max 24.8 day 9 | e10→80 9 e20→70 9 a50→60 14 ratio→2 12
+2023   2023-10-27 e10min 6.3 (18) e20min 7.3 (18) a50min 11 (18) dn4max 16.3 2023-10-18 (7) days≥15: 2 | up4max 22.6 day 4 | e10→80 5 e20→70 5 a50→60 12 ratio→2 8
+2025   2025-04-08 e10min 0.8 (0) e20min 1.2 (0) a50min 5.5 (0) dn4max 76.6 2025-04-04 (2) days≥15: 8 | up4max 84.8 day 1 | e10→80 11 e20→70 11 a50→60 21 ratio→2 12
+2026   2026-11-20 e10min 8.1 (0) e20min 17.6 (0) a50min 29.7 (32) dn4max 35.7 2026-11-05 (11) days≥15: 7 | up4max undefined day undefined | e10→80 undefined e20→70 undefined a50→60 undefined ratio→2 undefined
+
+TODAY {"d":"2026-11-20","v":{"e10":8.1,"e20":17.6,"a50":35.4,"up4":0.3,"dn4":31.5,"q25u":1.2,"q25d":20.7},"rank":{"e10":2,"e20":5,"a50":15,"up4":5,"dn4":99,"q25u":6,"q25d":96},"ratio10":0.43,"dn4days15":["2026-10-14","2026-10-16","2026-10-22","2026-10-30","2026-11-05","2026-11-16","2026-11-20"],"up4days15":["2026-10-15","2026-10-22","2026-11-04","2026-11-09"],"e10below15since":"2026-11-19","washFired":[{"name":"Stocks above their 10-day EMA","dir":"below","th":15,"d":["2026-11-19"]},{"name":"Stocks down 4% or more on the day","dir":"above","th":15,"d":["2026-10-14"]},{"name":"Stocks down 4% or more on the day","dir":"above","th":35,"d":["2026-11-05"]},{"name":"Stocks down 25% or more in a quarter","dir":"above","th":20,"d":["2026-11-20"]}]}
+
+thrust dates e10 15→80: 2002-10-15(low,5.3,held) 2004-08-18(out,7.2,held) 2007-03-21(out,6.8,held) 2007-08-24(out,-3.1,broke) 2007-11-28(fall,-6,broke) 2007-12-24(fall,-9.8,broke) 2008-02-01(fall,-0.3,broke) 2008-03-25(fall,-1.1,broke) 2008-10-31(fall,-12.8,broke) 2008-11-26(fall,-13.8,broke) 2009-01-28(fall,-0.9,broke) 2009-03-12(low,25.1,held) 2009-07-15(out,14.2,held) 2009-09-09(out,6.4,held) 2009-10-09(out,6.1,held) 2009-11-09(out,-2.5,held) 2010-02-16(out,7,broke) 2010-06-11(fall,0,broke) 2010-07-09(low,5.5,held) 2010-09-01(out,10.1,held) 2011-03-25(out,-1.4,broke) 2011-06-29(fall,-13.1,broke) 2011-08-29(fall,-1.8,broke) 2011-09-15(fall,3.8,broke) 2011-10-10(low,7.2,held) 2011-11-30(out,10,held) 2012-03-13(out,-5.8,broke) 2012-06-18(out,6.8,held) 2012-11-23(out,6.6,held) 2013-07-08(out,3.3,held) 2013-09-09(out,7.4,held) 2013-10-11(out,7.9,held) 2014-02-11(out,3.1,held) 2014-10-21(out,4,held) 2014-12-18(out,1.9,held) 2015-03-18(out,-0.3,broke) 2015-09-16(fall,2.9,broke) 2015-10-05(fall,3.8,broke) 2015-12-23(fall,-0.7,broke) 2016-07-08(out,1.5,held) 2016-09-22(out,3.7,broke) 2018-02-26(out,-2,held) 2018-11-07(fall,-2.9,broke) 2019-01-07(low,12.7,held) 2019-06-07(out,1.1,held) 2020-03-26(low,18.5,held) 2020-10-05(out,9.5,held) 2020-11-05(out,9.1,held) 2022-02-09(fall,-10.1,broke) 2022-05-26(fall,1.7,broke) 2022-09-09(fall,-1.7,broke) 2022-10-04(low,1.5,broke) 2023-08-30(fall,1,broke) 2023-11-03(low,12.6,held) 2024-08-15(out,8.2,held)
+up4≥35 days: 2000-03-15(out,4.7,held) 2000-04-25(fall,1.2,broke) 2001-01-03(fall,-13.9,broke) 2001-04-05(fall,7.4,broke) 2001-09-24(fall,13.9,held) 2002-07-24(fall,4.2,broke) 2002-10-10(low,14.8,held) 2003-03-13(out,17.3,held) 2008-03-11(fall,6.3,broke) 2008-07-16(fall,-26.9,broke) 2008-09-18(fall,-27.1,broke) 2009-01-02(fall,-14.4,broke) 2009-01-21(fall,3.5,broke) 2009-02-24(low,16.9,broke) 2009-05-04(out,7.5,held) 2010-05-10(fall,-2.8,broke) 2010-05-27(fall,-3.2,broke) 2011-08-09(fall,5.6,broke) 2011-10-04(low,12.4,held) 2011-10-27(out,3.2,held) 2011-11-30(out,10,held) 2018-12-26(low,13.4,held) 2020-03-02(fall,-1.8,broke) 2020-05-18(out,14.4,held) 2022-06-24(fall,-1.4,broke) 2022-10-04(low,1.5,broke) 2022-11-10(out,4.1,held) 2025-04-09(low,14.1,held) 2025-05-12(out,8.5,held)

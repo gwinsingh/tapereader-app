@@ -3,7 +3,7 @@
 **State on 2026-11-20:** built, committed and live. Data to the 20 Nov 2026 close. A historical study, not advice;
 nothing in it is a rule, and only the trader puts rules in force.
 
-- **Live:** https://tapereader.us/studies/market-drops/ (23 static pages, interactive charts; `noindex`, not linked from the site's menus)
+- **Live:** https://tapereader.us/studies/market-drops/ (24 static pages, interactive charts; `noindex`, not linked from the site's menus)
 - **Code:** `scripts/marketdrops/` (**README.md there is the resume point**: file map, pipeline, gotchas)
 - **Built site:** `web/public/studies/market-drops/` (committed; Cloudflare deploys it with the site)
 - **Data and results:** `scripts/marketdrops/.data/` (git-ignored, about 150 MB; rebuilt by `run.js`)
@@ -16,7 +16,7 @@ Compare the present drop with 2018 on technicals and fundamentals; go beyond 201
 fell most, what defied the drop, what turned before the index, what led after; what failed bounces and the real turn
 looked like; signs of bottoming (VIX, volume, breadth); reaction to news; leverage then and now; whether a moving
 average or something else would have been a better filter for longs; what worked intraday; daily and weekly charts to
-train the eye, in the trader's colours (white/black candles on every timeframe, EMA 9/20, SMA 50/200). No strategy
+train the eye, in the trader's colours (white/black candles on every timeframe; daily averages EMA 9/20 and SMA 50/200 in greys from dark to light, as on the vault's daily charts). No strategy
 back-tests. Depth and documentation matter equally; repetition that helps understanding is welcome. An HTML site on
 tapereader.us was chosen over the vault for its charts.
 
@@ -36,7 +36,10 @@ tapereader.us was chosen over the vault for its charts.
 9. At every deep low since 1999 fewer than 21% of stocks were above their 200-day average; on 20 Nov 2026 it was 41%.
 10. In 2018 the whole fall came in regular hours (gap-ups sold two times in three) and flipped at the low; 2026 has the same signature so far.
 11. Shelters (staples, utilities, health care) lagged after every low; groups whose relative strength bottomed early led.
-12. The profitable giants of 2000 (Cisco, Microsoft, Intel, Oracle) fell 60–90% and took 15–25 years to regain their highs.
+12. The hand-kept breadth gauges (share of stocks above their 10-/20-day EMA and 50-day average, 4% up/down days; added on the trader's request the same day):
+    washout readings marked the zone where lows form but not the day; surges and 4%-up days alone did not separate real lows from failed ones;
+    a washout followed by a broad surge did best (57% of its appearances were final lows against a 19% base rate, on 12 lows).
+13. The profitable giants of 2000 (Cisco, Microsoft, Intel, Oracle) fell 60–90% and took 15–25 years to regain their highs.
 
 ## Runbook
 

@@ -28,11 +28,12 @@ autumn 2018, with 2000–02 and 2007–09 as the other path. It is a static webs
 | `breadth.js` | One memory-light pass over the stock files → `.data/breadth.json` (daily breadth since 1999) and `.data/stockstats.json` (each stock in each drop) |
 | `analyze.js` | Catalogue of S&P and Nasdaq drops, features of every rally, what surrounded each low, base rates after −10%, the look-alike test → `.data/core.json` |
 | `analyze2.js` | Sector/industry ETFs per drop, leaders, macro backdrop at each peak and similarity score, day shape from daily bars, VIX family, margin loans, today's snapshot → `.data/more.json`, `.data/nightday.json` |
+| `analyze3.js` | The hand-kept breadth gauges (share above the 10-/20-day EMA and 50-day average, 4% up/down days, 10-day ratio, 25%-in-a-quarter): washouts, surges, held vs failed lows, per-low table, today → `.data/gauges.json` |
 | `intra.js` | Half-hour day shape by phase from the 30-minute bars → `.data/intra.json` |
 | `inspect.js` | Prints result tables (`bounce`, `lows`, `cross`, `analog`, `sectors <id>`, `leaders <id>`, `macro`, `shape`, `vix`, `lev`, `now`); `site/facts/*.txt` are dumps of these for the fragment writers |
 | `sitegen.js` | Page builder, chart-data registry, HTML helpers, navigation (`NAV`) |
 | `kit.js` | Chart-spec builders (episode charts with failed-rally bands, event lists, paths from the peak) |
-| `pages-a.js` … `pages-f.js` | The pages: a atlas, lookalike · b bounces, bottoms, filters · c sectors, leaders · d intraday, leverage, fundamentals, news · e now, y2018, y2018-turn, compare · f bears, ai-dotcom, scenarios, drills, glossary, method, sources, index |
+| `pages-a.js` … `pages-f.js` | The pages: a atlas, lookalike · b bounces, bottoms, filters · c sectors, leaders · d intraday, leverage, fundamentals, news · e now, y2018, y2018-turn, compare · g gauges · f bears, ai-dotcom, scenarios, drills, glossary, method, sources, index |
 | `build.js` | Runs the page modules, checks links and bad text, writes the site (removes stale files) |
 | `vault.js` | Writes the one summary note in the Obsidian vault (`Market/Market Drops/00 Anatomy of a Drop`), keeping the trader's notes under the ✍️ marker; then run `scripts/vault-sync/check.js --push` |
 | `publish.sh` | Copies code and built site into the deployment worktree (`~/tapereader-worktrees/marketdrops`); commit and push from there |
@@ -46,7 +47,7 @@ autumn 2018, with 2000–02 and 2007–09 as the other path. It is a static webs
 - **Shell and backslashes:** this PC's Bash tool eats backslashes in heredocs and `node -e`. Write files with an editor, not with shell heredocs.
 - **6 GB of memory:** `breadth.js` keeps one stock in memory at a time on purpose; do not load all stocks at once.
 - **Survivorship:** the stock universe is today's index membership. Breadth and leader tables before about 2010 are flattering; the pages say so.
-- **Chart theme:** white up-candles, black down-candles, black EMA 9, light-blue EMA 20, grey SMA 50 / 200 (weekly: 10- and 40-week). The trader asked for black-and-white candles on every timeframe (20 Nov 2026).
+- **Chart theme:** white up-candles, black down-candles on every timeframe (the trader, 20 Nov 2026: never white/red). Daily averages as on the trader's daily DAS chart and the vault's daily charts (`DASH.ma` in `scripts/modelbook/chart.js`): EMA 9 `#464646`, EMA 20 `#808080`, SMA 50 `#B0B0B0`, SMA 200 `#D0D0D0`, dark to light; weekly 10- and 40-week in the same greys. Intraday candle charts, if added, use the DAS1 set: black EMA 9, blue EMA 20 `#0080FF`, grey EMA 50, pale-blue EMA 200, thick blue VWAP.
 - **Yahoo on the day:** today's bar is final only some hours after the close (volume changes); CBOE posts the VIX close in the evening; Polygon's bars for the day arrive after the close.
 - **No strategy tests:** the trader asked for description, not back-tests. Keep it that way unless asked.
 - **Privacy:** the site is public (noindex). No personal details, accounts or trades belong in it.

@@ -184,6 +184,7 @@ module.exports = function (site, C, M) {
       ["Breadth thrust (a surge in the share of stocks rising)", "Appeared after most real lows and few failed rallies. Arrives one to three weeks after the low. Small sample since 1999.", link("bounces", "Failed pops", "differences")],
       ["Follow-through day", "After most real lows and after more than half of failed rallies. Its absence was more telling than its presence.", link("bounces", "Failed pops", "differences")],
       ["VIX falling back, curve no longer inverted", "Quick after fast lows; gave false starts inside long drops.", link("bottoms", "Signs at the low", "vix")],
+      ["Hand-kept breadth tallies (stocks above their 10-, 20- and 50-day averages; 4% days)", "Washout readings marked the zone where lows form but not the day. Surges and 4%-up days alone did not separate real lows from failed ones; a washout followed by a broad surge did best.", link("gauges")],
       ["Reaction to news (bad news no longer making new lows)", "Hard to measure and easy to see in hindsight; the documented cases for 2018 and the present are on the news page.", link("news")],
       ["Leaders: the first stocks to make new highs", "The stocks that led for the following year were disproportionately those making new highs within the first month.", link("leaders")],
       ["The Fed changing course", "Marked the low in 1998 and 2018–19, when inflation allowed it. Did not in 2001 or 2007–08.", link("bottoms", "Signs at the low", "fed")]], { cls: "wrap" }));

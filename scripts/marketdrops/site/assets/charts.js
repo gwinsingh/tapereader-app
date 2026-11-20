@@ -1,12 +1,13 @@
 /* Market-drops study: chart engine. No dependencies. Draws SVG from small JSON specs.
-   Candles follow the trader's DAS look: white up-candles, black down-candles, black EMA 9, light-blue EMA 20, grey SMA 50 / 200.
+   Candles follow the trader's chart look: white up-candles, black down-candles; daily averages in greys from dark to light (EMA 9, EMA 20, SMA 50, SMA 200).
    Spec types:  candle | lines.   Data: data/px/<SYM>.json (bars), data/ser/<key>.json (date series), or inline in the page spec file. */
 (function () {
   "use strict";
   var INK = "#111", INK2 = "#55534e", MUTED = "#8a887f", GRID = "#e9e7e1", AXIS = "#c9c6bd", SURF = "#ffffff";
   var CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
-  var MA = { e9: { n: 9, k: "ema", c: "#111", w: 1, t: "EMA 9" }, e20: { n: 20, k: "ema", c: "#4aa3e0", w: 1.3, t: "EMA 20" }, s50: { n: 50, k: "sma", c: "#9a978e", w: 1.2, t: "SMA 50" }, s200: { n: 200, k: "sma", c: "#5f5d57", w: 1.8, t: "SMA 200" },
-    w10: { n: 10, k: "sma", c: "#4aa3e0", w: 1.3, t: "10-week" }, w40: { n: 40, k: "sma", c: "#5f5d57", w: 1.8, t: "40-week" } };
+  /* daily averages in the greys of the trader's daily DAS chart, dark to light: EMA 9, EMA 20, SMA 50, SMA 200 (the 50 and 200 drawn a little thicker so they stay readable) */
+  var MA = { e9: { n: 9, k: "ema", c: "#464646", w: 1.2, t: "EMA 9" }, e20: { n: 20, k: "ema", c: "#808080", w: 1.2, t: "EMA 20" }, s50: { n: 50, k: "sma", c: "#B0B0B0", w: 1.6, t: "SMA 50" }, s200: { n: 200, k: "sma", c: "#D0D0D0", w: 2.4, t: "SMA 200" },
+    w10: { n: 10, k: "sma", c: "#808080", w: 1.4, t: "10-week" }, w40: { n: 40, k: "sma", c: "#B0B0B0", w: 2.2, t: "40-week" } };
   var BAND = { drop: "rgba(227,73,72,.10)", rally: "rgba(237,161,0,.16)", turn: "rgba(27,175,122,.14)", grey: "rgba(0,0,0,.05)", blue: "rgba(42,120,214,.10)" };
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var cache = {}, BASE = (document.currentScript && document.currentScript.getAttribute("data-base")) || "";
@@ -130,7 +131,7 @@
         for (var i2 = i0; i2 <= cut; i2++) { var hh = b.v[i2] / mx * (ph - 4); (b.c[i2] >= b.o[i2] ? u : d).push('<rect x="' + (x(i2) - bwid / 2).toFixed(1) + '" y="' + (bot - hh).toFixed(1) + '" width="' + bwid.toFixed(1) + '" height="' + hh.toFixed(1) + '"/>'); }
         s.push('<g fill="#fff" stroke="' + INK + '" stroke-width="0.5">' + u.join("") + '</g><g fill="' + INK + '">' + d.join("") + "</g>");
         var ap = "", pen = false; for (var i3 = i0; i3 <= cut; i3++) { if (!isFinite(av[i3])) { pen = false; continue; } ap += (pen ? "L" : "M") + x(i3).toFixed(1) + " " + (bot - av[i3] / mx * (ph - 4)).toFixed(1); pen = true; }
-        s.push('<path d="' + ap + '" fill="none" stroke="' + CAT[0] + '" stroke-width="1.2"/><text x="' + (mL + 5) + '" y="' + (top + 11) + '" font-size="10" fill="' + INK2 + '">Volume, with its ' + (tf === "W" ? "10-week" : "50-day") + " average (blue)</text>"); }
+        s.push('<text x="' + (mL + 5) + '" y="' + (top + 11) + '" font-size="10" fill="' + INK2 + '" paint-order="stroke" stroke="#fff" stroke-width="3">Volume</text>'); }
       else { // a line series aligned to the bars by date (last known value carried forward)
         var ser, vals = new Array(n);
         if (p.k === "rs" && rsData) { for (var q2 = i0; q2 <= cut; q2++) { var r = atOrBefore(rsData.e, tf === "W" ? b.last[q2] : b.e[q2]); vals[q2] = r >= 0 ? b.c[q2] / rsData.c[r] : NaN; } var b0 = vals[i0]; for (var q3 = i0; q3 <= cut; q3++) vals[q3] = vals[q3] / b0 * 100; }

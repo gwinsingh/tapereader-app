@@ -19,7 +19,7 @@ const EP = D.episodes(ALL, 10).filter(e => e.peak >= "1999-01-01").map(e => {
 { const seen = {}; for (const e of EP) { seen[e.id] = (seen[e.id] || 0) + 1; } const cnt = {}; for (const e of EP) if (seen[e.id] > 1) { cnt[e.id] = (cnt[e.id] || 0) + 1; e.id = e.id + "ab"[cnt[e.id] - 1]; } }
 
 const acc = k => new Float32Array(T);
-const A = { n20: acc(), n50: acc(), n200: acc(), n252: acc(), a20: acc(), a50: acc(), a200: acc(), nl: acc(), nh: acc(), h20: acc(), l20: acc(), adv: acc(), dec: acc(), upv: acc(), dnv: acc(), n: acc() };
+const A = { n20: acc(), n50: acc(), n200: acc(), n252: acc(), a20: acc(), a50: acc(), a200: acc(), nl: acc(), nh: acc(), h20: acc(), l20: acc(), adv: acc(), dec: acc(), upv: acc(), dnv: acc(), n: acc(), e10: acc(), e20: acc(), up4: acc(), dn4: acc(), q25u: acc(), q25d: acc(), n65: acc() };
 const stats = {}, U = L.universe().stocks, dir = path.join(L.RAW, "stocks"), files = fs.readdirSync(dir).filter(f => f.endsWith(".csv.gz"));
 let done = 0;
 for (const f of files) {
@@ -29,9 +29,14 @@ for (const f of files) {
   if (first < 0 || last - first < 60) continue;
   for (let i = first + 1; i <= last; i++) if (!isFinite(a[i])) { a[i] = a[i - 1]; c[i] = c[i - 1]; }      // rare holes: carry forward
   // rolling stats on adjusted closes
-  let s20 = 0, s50 = 0, s200 = 0; const m200 = new Float64Array(T).fill(NaN), m50 = new Float64Array(T).fill(NaN), hi252 = new Float64Array(T).fill(NaN);
+  let s20 = 0, s50 = 0, s200 = 0, x10 = 0, x20 = 0; const m200 = new Float64Array(T).fill(NaN), m50 = new Float64Array(T).fill(NaN), hi252 = new Float64Array(T).fill(NaN);
   for (let i = first; i <= last; i++) {
     const k = i - first; s20 += a[i]; s50 += a[i]; s200 += a[i]; if (k >= 20) s20 -= a[i - 20]; if (k >= 50) s50 -= a[i - 50]; if (k >= 200) s200 -= a[i - 200];
+    // the gauges many traders track by hand: share above the 10- and 20-day EMA, share moving 4% in a day, share up or down 25% in a quarter
+    if (k === 0) { x10 = a[i]; x20 = a[i]; } else { x10 = a[i] * (2 / 11) + x10 * (9 / 11); x20 = a[i] * (2 / 21) + x20 * (19 / 21); }
+    if (k >= 19) { if (a[i] > x10) A.e10[i]++; if (a[i] > x20) A.e20[i]++; }
+    if (k >= 1) { const r = a[i] / a[i - 1] - 1; if (r >= 0.04) A.up4[i]++; else if (r <= -0.04) A.dn4[i]++; }
+    if (k >= 65) { A.n65[i]++; const q = a[i] / a[i - 65] - 1; if (q >= 0.25) A.q25u[i]++; else if (q <= -0.25) A.q25d[i]++; }
     if (k >= 1) { A.n[i]++; const up = a[i] > a[i - 1], dn = a[i] < a[i - 1], dv = c[i] * v[i]; if (up) { A.adv[i]++; A.upv[i] += dv; } else if (dn) { A.dec[i]++; A.dnv[i] += dv; } }
     if (k >= 19) { A.n20[i]++; if (a[i] > s20 / 20) A.a20[i]++; let mx = -Infinity, mn = Infinity; for (let j = i - 19; j <= i; j++) { if (a[j] > mx) mx = a[j]; if (a[j] < mn) mn = a[j]; } if (a[i] >= mx) A.h20[i]++; if (a[i] <= mn) A.l20[i]++; }
     if (k >= 49) { A.n50[i]++; m50[i] = s50 / 50; if (a[i] > m50[i]) A.a50[i]++; }
@@ -60,7 +65,7 @@ for (const f of files) {
 }
 const pc = (x, n) => Array.from(x, (v, i) => (n[i] >= 50 ? Math.round(v / n[i] * 1000) / 10 : null));
 const out = { note: "share of the stock universe (today's S&P 500 and Nasdaq-100 members plus past leaders that still trade), in %", d: SPX.map(b => b.d), n: Array.from(A.n),
-  a20: pc(A.a20, A.n20), a50: pc(A.a50, A.n50), a200: pc(A.a200, A.n200), nl: pc(A.nl, A.n252), nh: pc(A.nh, A.n252), h20: pc(A.h20, A.n20), l20: pc(A.l20, A.n20),
+  a20: pc(A.a20, A.n20), e10: pc(A.e10, A.n20), e20: pc(A.e20, A.n20), up4: pc(A.up4, A.n), dn4: pc(A.dn4, A.n), q25u: pc(A.q25u, A.n65), q25d: pc(A.q25d, A.n65), a50: pc(A.a50, A.n50), a200: pc(A.a200, A.n200), nl: pc(A.nl, A.n252), nh: pc(A.nh, A.n252), h20: pc(A.h20, A.n20), l20: pc(A.l20, A.n20),
   adv: Array.from(A.adv, (v, i) => (A.adv[i] + A.dec[i] >= 50 ? Math.round(v / (A.adv[i] + A.dec[i]) * 1000) / 10 : null)), upv: Array.from(A.upv, (v, i) => (A.upv[i] + A.dnv[i] > 0 && A.n[i] >= 50 ? Math.round(v / (A.upv[i] + A.dnv[i]) * 1000) / 10 : null)) };
 L.saveJ("breadth.json", out, false); L.saveJ("stockstats.json", { episodes: EP, stocks: stats }, false);
 const i = T - 1; console.log(`stocks: ${done} | episodes: ${EP.map(e => e.id).join(" ")}\nlatest ${out.d[i]}: n=${out.n[i]} above 50d ${out.a50[i]}%, above 200d ${out.a200[i]}%, new 52w lows ${out.nl[i]}%, advancing ${out.adv[i]}%, up-volume ${out.upv[i]}%`);

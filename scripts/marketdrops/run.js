@@ -8,6 +8,6 @@ const A = process.argv.slice(2), run = (f, args = []) => { console.log(`\n──
 if (!fs.existsSync(path.join(__dirname, ".data", "universe.json")) || A.includes("--universe")) run("universe.js");
 if (!A.includes("--no-fetch")) { run("fetch.js", ["--only=etf"]); run("fetch.js", ["--only=cboe"]); run("fetch.js", ["--only=fred"]); run("fetch.js", ["--only=other"]); run("fetch.js", ["--only=stocks"]); }
 if (A.includes("--intraday")) run("intraday.js");
-run("breadth.js"); run("analyze.js"); run("analyze2.js");
+run("breadth.js"); run("analyze.js"); run("analyze2.js"); run("analyze3.js");
 if (fs.existsSync(path.join(__dirname, ".data", "intraday", "SPY_30m.json"))) run("intra.js");
 run("build.js");

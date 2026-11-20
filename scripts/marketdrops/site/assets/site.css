@@ -47,3 +47,4 @@ ol.ev li b { font-weight:600; } ol.ev .when { color:var(--muted); font-size:12.5
 .key { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:4px; }
 @media (max-width: 1020px) { #menu { display:block; } .side { transform:translateX(-102%); transition:transform .18s; box-shadow:0 0 24px rgba(0,0,0,.18); width:min(86vw, 320px); } .side.open { transform:none; } main { margin-left:0; padding:60px 12px 48px; } h1 { font-size:26px; } h2 { font-size:21px; } .lede { font-size:17.5px; } .fig { padding:10px 8px 8px; border-radius:10px; } .grid2 { grid-template-columns:1fr; } .t { font-size:13px; } }
 @media print { .top, .side, .pager, .md-reveal { display:none; } main { margin:0; padding:0; } }
+.t.wrap td:first-child, .t.wrap th:first-child { min-width: 210px; } .t td:first-child { min-width: 96px; }

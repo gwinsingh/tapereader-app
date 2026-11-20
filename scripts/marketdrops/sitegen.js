@@ -16,7 +16,7 @@ const NAV = [
   ["2018", [["y2018", "2018, day by day"], ["y2018-turn", "How 2018 bottomed and turned"], ["compare", "Now against 2018"]]],
   ["The big bears", [["bears", "2000–02 and 2007–09"], ["ai-dotcom", "The AI boom against the dot-com bubble"], ["scenarios", "Correction or bear: two paths"]]],
   ["All drops", [["atlas", "Every drop since 1950"], ["lookalike", "Do look-alike charts mean anything?"]]],
-  ["The turn", [["bounces", "Failed pops and the real turn"], ["bottoms", "Signs at the low"], ["filters", "Moving averages as a filter"], ["news", "Reaction to news"]]],
+  ["The turn", [["bounces", "Failed pops and the real turn"], ["bottoms", "Signs at the low"], ["gauges", "Hand-kept breadth gauges, tested"], ["filters", "Moving averages as a filter"], ["news", "Reaction to news"]]],
   ["What leads", [["sectors", "Sectors and themes"], ["leaders", "The stocks that led"]]],
   ["Under the surface", [["leverage", "Leverage and positioning"], ["intraday", "The shape of the day"], ["fundamentals", "Earnings, rates and credit"]]],
   ["Practice and reference", [["drills", "Train the eye"], ["glossary", "Glossary"], ["method", "Method, data and limits"], ["sources", "Research notes and sources"]]],

@@ -6,7 +6,7 @@ const fs = require("fs"), path = require("path");
 const L = require("./lib.js"), G = require("./sitegen.js");
 const C = L.J("core.json"), M = L.J("more.json");
 const site = new G.Site(C.asOf);
-for (const mod of ["pages-a", "pages-b", "pages-c", "pages-d", "pages-e", "pages-f"]) { const f = path.join(__dirname, mod + ".js"); if (fs.existsSync(f)) require(f)(site, C, M); }
+for (const mod of ["pages-a", "pages-b", "pages-c", "pages-d", "pages-e", "pages-g", "pages-f"]) { const f = path.join(__dirname, mod + ".js"); if (fs.existsSync(f)) require(f)(site, C, M); }
 // pages named in the navigation that no module has written yet get a placeholder, so that every link resolves
 for (const slug of G.ORDER) if (!site.pages[slug]) { const p = site.page(slug); p.lede = "This page is still being written."; site.missing.push("page " + slug); }
 // checks before writing: every in-site link points at a page that exists; no "undefined"/"NaN" in the text
