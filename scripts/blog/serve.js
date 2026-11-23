@@ -18,4 +18,5 @@ http.createServer((req, res) => {
   if (!file) { res.writeHead(404, { "Content-Type": "text/plain" }); return res.end("404 " + p); }
   res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream", "Cache-Control": "no-store" });
   fs.createReadStream(file).pipe(res);
-}).listen(PORT, () => console.log(`Blog preview: http://localhost:${PORT}/blog`));
+// bound to this laptop only: no firewall prompt, nothing exposed to the network
+}).listen(PORT, "127.0.0.1", () => console.log(`Blog preview: http://localhost:${PORT}/blog`));

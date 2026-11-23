@@ -1,5 +1,5 @@
 {
-  "count": 3,
+  "count": 6,
   "posts": [
     {
       "title": "Investor styles: 30 names, one set of questions",
@@ -11,6 +11,45 @@
         "research",
         "investor-styles",
         "method"
+      ]
+    },
+    {
+      "title": "Global macro: a primer on trading currencies, interest rates and whole markets",
+      "slug": "global-macro-primer",
+      "date": "2026-11-23",
+      "dateText": "23 Nov 2026",
+      "summary": "Global macro traders bet on whole economies with borrowed money, and the part of their method that an individual can use is the free public data they watch to decide how much risk to carry.",
+      "tags": [
+        "research",
+        "primer",
+        "investor-styles",
+        "global-macro"
+      ]
+    },
+    {
+      "title": "Stan Druckenmiller: big bets, small losses",
+      "slug": "stan-druckenmiller",
+      "date": "2026-11-23",
+      "dateText": "23 Nov 2026",
+      "summary": "Druckenmiller's results came less from being right than from betting large in liquid markets when conviction was high, cutting fast when wrong, and standing aside when cold; the famous 30% a year rests on press reports of his own firm's numbers, not on a public audited series.",
+      "tags": [
+        "research",
+        "profile",
+        "investor-styles",
+        "global-macro"
+      ]
+    },
+    {
+      "title": "Ray Dalio: rules, many small bets, and a record in two halves",
+      "slug": "ray-dalio",
+      "date": "2026-11-23",
+      "dateText": "23 Nov 2026",
+      "summary": "Ray Dalio built the largest hedge fund by writing his decisions down as testable rules and spreading risk over many unrelated bets, and the record shows the method worked very well until 2011, poorly from 2012 to 2024, and well again once the fund shrank.",
+      "tags": [
+        "research",
+        "profile",
+        "investor-styles",
+        "global-macro"
       ]
     },
     {

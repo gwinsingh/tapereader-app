@@ -105,6 +105,9 @@ Studies with their own pages stay under `web/public/studies/` and get a dated po
 `/studies/market-drops` (built by `scripts/marketdrops`) and `/studies/ai-buildout-atlas` (a copy of `docs/` from the
 private repository `gwinsingh/ai-buildout-atlas`; to refresh it, copy `docs/` again and run `publish.sh --studies`).
 
+To test the Next side locally (home page, clean addresses), run the dev server bound to this laptop only, so Windows
+does not raise a firewall prompt: `next dev -H 127.0.0.1 -p 3111`.
+
 ## The investor-styles series
 
 30 names in 13 style groups, 10 primers. State and reading order: `series/investor-styles.json` (a name counts as

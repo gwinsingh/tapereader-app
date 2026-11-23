@@ -41,6 +41,14 @@ function nice(min, max, target) {
 }
 
 const r2 = (x) => +x.toFixed(2);
+// axis ticks: compact on an axis that reaches 10,000 (0 / 10K / 20K) or a million (0 / 1M / 2M)
+function tick(t, unit, hi) {
+  const a = Math.abs(hi);
+  if (t === 0 && a >= 1e4) return (unit[0] === "$" || unit[0] === "£" || unit[0] === "€" ? unit[0] : "") + "0";
+  if (a >= 1e6) return fmt(t / 1e6, (unit[0] === "$" || unit[0] === "£" || unit[0] === "€" ? unit[0] : "") + "M");
+  if (a >= 1e4) return fmt(t / 1e3, (unit[0] === "$" || unit[0] === "£" || unit[0] === "€" ? unit[0] : "") + "K");
+  return fmt(t, unit, false);
+}
 
 function legend(names) {
   if (names.length < 2) return "";
@@ -72,7 +80,7 @@ function bar(s) {
   const pct = (v) => ((v - sc.lo) / (sc.hi - sc.lo)) * 100;
   const zero = pct(0);
   const signed = sc.lo < 0;
-  const grid = sc.ticks.map((t) => `<div class="g${t === 0 ? " z" : ""}" style="bottom:${r2(pct(t))}%"><span>${fmt(t, unit, false)}</span></div>`).join("");
+  const grid = sc.ticks.map((t) => `<div class="g${t === 0 ? " z" : ""}" style="bottom:${r2(pct(t))}%"><span>${tick(t, unit, Math.max(Math.abs(sc.lo), Math.abs(sc.hi)))}</span></div>`).join("");
   const mx = Math.max.apply(null, all), mn = Math.min.apply(null, all);
   const labelAll = k === 1 && n <= 14;
   const xl = xLabels(s.x);
@@ -94,10 +102,12 @@ function bar(s) {
     }).join("");
     return `<div class="slot" style="left:${r2((i / n) * 100)}%;width:${r2(100 / n)}%">${bars}</div>`;
   }).join("");
-  const xs = s.x.map((lab, i) => (xl.show(i) ? `<span style="left:${r2(((i + 0.5) / n) * 100)}%">${esc(lab)}</span>` : "")).join("");
+  // a few long category names: give each label its slot and let it wrap, so nothing overlaps on a phone
+  const wrap = n <= 6 && Math.max.apply(null, s.x.map((t) => String(t).length)) > 7;
+  const xs = s.x.map((lab, i) => (wrap ? `<span style="left:${r2(((i + 0.5) / n) * 100)}%;width:${r2(100 / n)}%">${esc(lab)}</span>` : xl.show(i) ? `<span style="left:${r2(((i + 0.5) / n) * 100)}%">${esc(lab)}</span>` : "")).join("");
   const head = [s.xName || ""].concat(series.map((r) => r.name || s.yName || "Value"));
   const rows = s.x.map((lab, i) => [lab].concat(series.map((r) => fmt(r.values[i], unit, signed))));
-  return `${s.sign ? "" : legend(series.map((r) => r.name))}<div class="chart col" style="--h:${s.height || 250}px"><div class="plot">${grid}${slots}</div><div class="xaxis">${xs}</div></div>${dataTable(head, rows)}`;
+  return `${s.sign ? "" : legend(series.map((r) => r.name))}<div class="chart col" style="--h:${s.height || 250}px"><div class="plot">${grid}${slots}</div><div class="xaxis${wrap ? " wrap" : ""}">${xs}</div></div>${dataTable(head, rows)}`;
 }
 
 // ---------- hbar (horizontal bars, one series, labels on the left)
@@ -129,7 +139,7 @@ function line(s) {
   const py = (v) => ((v - sc.lo) / (sc.hi - sc.lo)) * 100;
   const px = (i) => (n === 1 ? 50 : (i / (n - 1)) * 100);
   const signed = sc.lo < 0;
-  const grid = sc.ticks.map((t) => `<div class="g${t === 0 && signed ? " z" : ""}" style="bottom:${r2(py(t))}%"><span>${fmt(t, unit, false)}</span></div>`).join("");
+  const grid = sc.ticks.map((t) => `<div class="g${t === 0 && signed ? " z" : ""}" style="bottom:${r2(py(t))}%"><span>${tick(t, unit, Math.max(Math.abs(sc.lo), Math.abs(sc.hi)))}</span></div>`).join("");
   const paths = series.map((r, j) => {
     let d = "", pen = false;
     r.values.forEach((v, i) => {
@@ -145,16 +155,18 @@ function line(s) {
     if (li < 0) return "";
     return `<i class="dot s${j + 1}" style="left:${r2(px(li))}%;bottom:${r2(py(r.values[li]))}%"></i>`;
   }).join("");
+  let markCount = 0;
   const marks = (s.marks || []).map((m) => {
     const i = s.x.map(String).indexOf(String(m[0]));
     if (i < 0) return "";
     const right = px(i) > 70;
-    return `<div class="mk${right ? " r" : ""}" style="left:${r2(px(i))}%"><span>${inl(m[1])}</span></div>`;
+    markCount += 1;
+    return `<div class="mk${right ? " r" : ""}${markCount % 2 === 0 ? " up" : ""}" style="left:${r2(px(i))}%"><span>${inl(m[1])}</span></div>`;
   }).join("");
   const xl = xLabels(s.x);
   const xs = s.x.map((lab, i) => {
     if (!xl.show(i) && i !== 0) return "";
-    if (i === 0 && !xl.show(0) && xl.step > 1 && (n - 1) % xl.step < xl.step / 2) return "";
+    if (i === 0 && !xl.show(0) && (n - 1) % xl.step < Math.max(2, Math.ceil(xl.step * 0.6))) return "";
     const al = i === 0 ? " a0" : i === n - 1 ? " a1" : "";
     return `<span class="${al.trim()}" style="left:${r2(px(i))}%">${esc(lab)}</span>`;
   }).join("");
@@ -167,7 +179,7 @@ function line(s) {
   const payload = { x: s.x, u: unit, sg: signed, s: series.map((r) => ({ n: r.name || s.yName || "", v: r.values })) };
   const head = [s.xName || ""].concat(series.map((r) => r.name || s.yName || "Value"));
   const rows = s.x.map((lab, i) => [lab].concat(series.map((r) => fmt(r.values[i], unit, signed))));
-  return `${leg}<div class="chart line" style="--h:${s.height || 250}px" data-line="${esc(JSON.stringify(payload))}"><div class="plot">${grid}${marks}<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${paths}</svg>${dots}<div class="cross" hidden></div></div><div class="xaxis">${xs}</div></div>${dataTable(head, rows)}`;
+  return `${leg}<div class="chart line${markCount > 1 ? " marks2" : ""}" style="--h:${s.height || 250}px" data-line="${esc(JSON.stringify(payload))}"><div class="plot">${grid}${marks}<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${paths}</svg>${dots}<div class="cross" hidden></div></div><div class="xaxis">${xs}</div></div>${dataTable(head, rows)}`;
 }
 
 // ---------- stack (one whole split into parts; one or several bars)

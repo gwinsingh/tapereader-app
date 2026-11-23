@@ -104,20 +104,20 @@
 
   // ---- table of contents: mark the section being read
   var links = $$(".toc a");
-  if (links.length && "IntersectionObserver" in window) {
-    var map = {};
-    links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a; });
-    var current = null;
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) {
-          if (current) current.classList.remove("on");
-          current = map[en.target.id];
-          if (current) current.classList.add("on");
-        }
-      });
-    }, { rootMargin: "0px 0px -75% 0px" });
-    Object.keys(map).forEach(function (id) { var el = doc.getElementById(id); if (el) io.observe(el); });
+  if (links.length) {
+    var heads = links.map(function (a) { return { a: a, el: doc.getElementById(a.getAttribute("href").slice(1)) }; }).filter(function (h) { return h.el; });
+    var current = null, queued = false;
+    var mark = function () {
+      queued = false;
+      var hit = null;
+      heads.forEach(function (h) { if (h.el.getBoundingClientRect().top < 140) hit = h.a; });
+      if (hit === current) return;
+      if (current) current.classList.remove("on");
+      current = hit;
+      if (current) current.classList.add("on");
+    };
+    window.addEventListener("scroll", function () { if (!queued) { queued = true; requestAnimationFrame(mark); } }, { passive: true });
+    mark();
     if (window.matchMedia("(max-width: 999px)").matches) { var d = $(".toc details"); if (d) d.open = false; }
   }
 })();

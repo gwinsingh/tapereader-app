@@ -286,8 +286,11 @@ ${p.link ? linkBox : ""}
 })();
 
 // ---------------------------------------------------------------- write
-if (problems.length) {
-  console.error("Not built. Fix these first:\n- " + problems.join("\n- "));
+if (problems.length && args.indexOf("--loose") >= 0) {
+  // preview only: never publish a loose build
+  console.warn("Built anyway (--loose). Still to fix before publishing:\n- " + problems.join("\n- "));
+} else if (problems.length) {
+  console.error("Not built. Fix these first (or preview anyway with --loose):\n- " + problems.join("\n- "));
   process.exit(1);
 }
 fs.rmSync(OUT, { recursive: true, force: true });
