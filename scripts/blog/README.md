@@ -9,7 +9,7 @@ text. No install step: plain Node, the Markdown parser is in `vendor/`.
 ```
 cd tapereader-app
 node scripts/blog/new.js "Title of the note" research technical   # start a post (draft: true)
-node scripts/blog/build.js --drafts                               # build, drafts included
+node scripts/blog/build.js --drafts                               # build, drafts included (--loose: build despite problems, preview only)
 node scripts/blog/serve.js                                        # look at it: http://localhost:4174/blog
 node scripts/blog/build.js                                        # build for publishing (drafts left out)
 bash scripts/blog/publish.sh                                      # copy into the worktree ~/tapereader-worktrees/blog
@@ -109,6 +109,14 @@ To test the Next side locally (home page, clean addresses), run the dev server b
 does not raise a firewall prompt: `next dev -H 127.0.0.1 -p 3111`.
 
 ## The investor-styles series
+
+**State on 2026-11-23:** 3 of 40 parts live (global macro primer, Stan Druckenmiller, Ray Dalio) plus the method
+post. Next group: value and long-term equity (primer, Warren Buffett, Peter Lynch). How the pilot was made: one research
+agent per post, each given `PROTOCOL.md` and a list of the facts to pin down, capped at 60 web searches, no helpers;
+each wrote `<slug>.facts.md` and `<slug>.draft.md`, then turned its own draft into the post with figure blocks; the
+posts were then read in full and every figure checked in the browser before publishing. The ranking of all 30 is made
+at the end from the six questions in the method post; the original joke tier list is dropped. `posts/2026-01-01-figure-test.md`
+is a draft that shows every figure kind.
 
 30 names in 13 style groups, 10 primers. State and reading order: `series/investor-styles.json` (a name counts as
 published when a post with its slug exists). To add a name: research it against `research/investor-styles/PROTOCOL.md`
