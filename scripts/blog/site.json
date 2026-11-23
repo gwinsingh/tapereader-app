@@ -1,0 +1,29 @@
+{
+  "title": "TapeReader Research Notes",
+  "wordmark": "TapeReader",
+  "section": "Research notes",
+  "url": "https://tapereader.us",
+  "base": "/blog",
+  "description": "Dated research notes on markets: how drops unfold, how well-known investors actually work, and what holds up in the data.",
+  "lede": "Dated write-ups of market research: how markets fall and turn, how well-known investors actually work, and what holds up when it is checked against data. Each note is written so that a reader with no finance background can follow it.",
+  "status": "The rest of tapereader.us is being rebuilt. These notes are the part in regular use.",
+  "disclaimer": "Research and education only. Nothing here is investment advice or a recommendation to buy or sell anything.",
+  "index": false,
+  "tags": {
+    "research": "Background research from public sources",
+    "analysis": "Numbers worked from price or filing data",
+    "fundamental": "Economy, earnings, valuation, balance sheets",
+    "technical": "Price, volume, breadth and chart structure",
+    "study": "A multi-page study hosted on this site",
+    "profile": "How one investor or trader works",
+    "primer": "Background needed before the profiles",
+    "investor-styles": "The series on 30 investors and their styles",
+    "global-macro": "Currencies, rates, indexes and commodities traded top-down",
+    "market-structure": "How drops, bounces and lows behave",
+    "ai": "The AI build-out and the companies in it",
+    "method": "How the research here is done"
+  },
+  "series": {
+    "investor-styles": { "file": "series/investor-styles.json" }
+  }
+}

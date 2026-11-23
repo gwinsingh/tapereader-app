@@ -1,0 +1,39 @@
+{
+  "title": "Investor styles",
+  "summary": "How 30 well-known investors, fund managers and finance personalities actually invest or trade, one profile each, with a primer per style for the background.",
+  "intro": [
+    "Thirty names, from fund managers with decades of audited returns to television personalities and convicted fraudsters. Each profile answers the same questions: where the returns came from, how ideas are found and sized, how losses are handled, what the record really is, and what an individual can and cannot take from it.",
+    "Names are grouped by style so the background is learned once. Each style has a primer that explains its instruments and vocabulary from zero. The profiles then assume only the primer.",
+    "Every profile ends with the same section: what carries over to long-term investing, to swing trading over days and weeks, and to day trading. A ranking of all 30, with stated criteria, comes last, once every record has been checked."
+  ],
+  "method": "investor-styles-method",
+  "vault": "Studies/30 Investor Styles",
+  "groups": [
+    { "id": "global-macro", "title": "Global macro", "blurb": "Top-down bets on currencies, interest rates, stock indexes and commodities.", "primer": "global-macro-primer",
+      "members": [ { "name": "Stan Druckenmiller", "post": "stan-druckenmiller", "depth": "full" }, { "name": "Ray Dalio", "post": "ray-dalio", "depth": "full" } ] },
+    { "id": "value", "title": "Value and long-term equity", "blurb": "Buying businesses below what they are worth and holding them.", "primer": "value-investing-primer",
+      "members": [ { "name": "Warren Buffett", "post": "warren-buffett", "depth": "full" }, { "name": "Peter Lynch", "post": "peter-lynch", "depth": "full" } ] },
+    { "id": "quant", "title": "Quantitative and multi-strategy", "blurb": "Models, data and many small bets; market making and pods of traders.", "primer": "quant-primer",
+      "members": [ { "name": "Jim Simons", "post": "jim-simons", "depth": "full" }, { "name": "Ken Griffin", "post": "ken-griffin", "depth": "full" } ] },
+    { "id": "activist", "title": "Activist and concentrated bets", "blurb": "A few large positions, and public pressure on management to change course.", "primer": "hedge-fund-equity-primer",
+      "members": [ { "name": "Bill Ackman", "post": "bill-ackman", "depth": "full" } ] },
+    { "id": "distressed", "title": "Distressed debt and event-driven", "blurb": "Buying the bonds and shares of companies in trouble, and trading around bankruptcies and bailouts.", "primer": "credit-primer",
+      "members": [ { "name": "David Tepper", "post": "david-tepper", "depth": "full" } ] },
+    { "id": "contrarian", "title": "Contrarian and short-selling", "blurb": "Betting against a crowded view, including betting on prices to fall.", "primer": "hedge-fund-equity-primer",
+      "members": [ { "name": "Michael Burry", "post": "michael-burry", "depth": "full" } ] },
+    { "id": "thematic", "title": "Thematic growth funds", "blurb": "Public funds built around one idea about the future, bought through an ETF.", "primer": "funds-and-etfs-primer",
+      "members": [ { "name": "Cathie Wood", "post": "cathie-wood", "depth": "full" } ] },
+    { "id": "venture", "title": "Venture capital and angel investing", "blurb": "Stakes in young private companies, where a few winners pay for all the losers.", "primer": "venture-primer",
+      "members": [ { "name": "Peter Thiel", "post": "peter-thiel", "depth": "full" }, { "name": "Marc Andreessen", "post": "marc-andreessen", "depth": "full" }, { "name": "Masayoshi Son", "post": "masayoshi-son", "depth": "full" }, { "name": "Tim Draper", "post": "tim-draper", "depth": "short" }, { "name": "Ashton Kutcher", "post": "ashton-kutcher", "depth": "short" }, { "name": "Alexis Ohanian", "post": "alexis-ohanian", "depth": "short" }, { "name": "Chamath Palihapitiya", "post": "chamath-palihapitiya", "depth": "short" }, { "name": "Mark Cuban", "post": "mark-cuban", "depth": "short" }, { "name": "Kevin O'Leary", "post": "kevin-oleary", "depth": "short" } ] },
+    { "id": "crypto", "title": "Crypto trading and advocacy", "blurb": "Exchanges, tokens and the people who promote them.", "primer": "crypto-primer",
+      "members": [ { "name": "Anthony Pompliano", "post": "anthony-pompliano", "depth": "short" } ] },
+    { "id": "real-estate", "title": "Real estate and financial education", "blurb": "Property bought with borrowed money, and the business of teaching it.", "primer": "real-estate-primer",
+      "members": [ { "name": "Grant Cardone", "post": "grant-cardone", "depth": "short" }, { "name": "Robert Kiyosaki", "post": "robert-kiyosaki", "depth": "short" } ] },
+    { "id": "gold", "title": "Gold and bearish commentary", "blurb": "A standing forecast of crisis, and the assets sold alongside it.", "primer": "global-macro-primer",
+      "members": [ { "name": "Peter Schiff", "post": "peter-schiff", "depth": "short" } ] },
+    { "id": "media", "title": "Media and retail-facing personalities", "blurb": "People whose business is attention, measured against what their picks did.", "primer": "funds-and-etfs-primer",
+      "members": [ { "name": "Jim Cramer", "post": "jim-cramer", "depth": "short" }, { "name": "Dave Portnoy", "post": "dave-portnoy", "depth": "short" }, { "name": "Gary Vaynerchuk", "post": "gary-vaynerchuk", "depth": "short" } ] },
+    { "id": "fraud", "title": "Fraud case studies", "blurb": "How each scheme worked, who was fooled, and which warning signs were visible at the time.", "primer": "fraud-primer",
+      "members": [ { "name": "Bernie Madoff", "post": "bernie-madoff", "depth": "full" }, { "name": "Allen Stanford", "post": "allen-stanford", "depth": "full" }, { "name": "Jordan Belfort", "post": "jordan-belfort", "depth": "full" }, { "name": "Sam Bankman-Fried", "post": "sam-bankman-fried", "depth": "full" } ] }
+  ]
+}

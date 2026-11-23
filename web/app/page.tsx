@@ -1,5 +1,6 @@
 import SetupCard from "@/components/SetupCard";
 import MoverRow from "@/components/MoverRow";
+import BlogSection from "@/components/BlogSection";
 import { data } from "@/lib/data";
 
 export default async function Dashboard() {
@@ -11,6 +12,12 @@ export default async function Dashboard() {
 
   return (
     <div className="space-y-8">
+      <BlogSection />
+
+      <p className="text-xs uppercase tracking-wider text-muted">
+        Scanner preview · sample data · being rebuilt
+      </p>
+
       <section>
         <div className="mb-3 flex items-baseline justify-between">
           <h1 className="text-sm font-semibold uppercase tracking-wider text-muted">

@@ -1,0 +1,44 @@
+{
+  "count": 3,
+  "posts": [
+    {
+      "title": "Investor styles: 30 names, one set of questions",
+      "slug": "investor-styles-method",
+      "date": "2026-11-23",
+      "dateText": "23 Nov 2026",
+      "summary": "The plan for a series on how 30 well-known investors actually invest, the 14 questions every profile answers, and how the records will be graded and ranked.",
+      "tags": [
+        "research",
+        "investor-styles",
+        "method"
+      ]
+    },
+    {
+      "title": "Anatomy of a drop: how market falls unfold and end",
+      "slug": "anatomy-of-a-drop",
+      "date": "2026-11-20",
+      "dateText": "20 Nov 2026",
+      "summary": "A 24-page study of US stock-market drops since 1950, built around the comparison of autumn 2026 with autumn 2018, and with 2000 and 2007 as the other path.",
+      "tags": [
+        "study",
+        "analysis",
+        "technical",
+        "fundamental",
+        "market-structure"
+      ]
+    },
+    {
+      "title": "AI Buildout Atlas: where the money goes, in the West and in China",
+      "slug": "ai-buildout-atlas",
+      "date": "2026-09-25",
+      "dateText": "25 Sep 2026",
+      "summary": "A 32-page atlas of the AI build-out in ten layers, from the power grid to the apps people pay for, mapped once for the West and once for China on the same definitions.",
+      "tags": [
+        "study",
+        "research",
+        "fundamental",
+        "ai"
+      ]
+    }
+  ]
+}

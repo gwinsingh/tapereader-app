@@ -10,7 +10,12 @@ export default function WIPBanner() {
 
   return (
     <div className="border-b border-warn/20 bg-warn/5 px-4 py-2 text-center text-xs text-warn">
-      This app is under active development — features may be incomplete or change without notice.
+      <span className="font-semibold">Work in development.</span> The scanner pages run on sample data and are being
+      rebuilt. The part in regular use is the{" "}
+      <a href="/blog" className="font-semibold underline underline-offset-2 hover:text-text">
+        research blog
+      </a>
+      .
     </div>
   );
 }

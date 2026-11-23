@@ -12,6 +12,8 @@ export default async function Header() {
           <span className="hidden text-xs text-muted sm:inline">read the tape</span>
         </Link>
         <nav className="hidden items-center gap-4 text-sm text-muted md:flex">
+          {/* the blog is a set of static pages outside the Next router, so a plain link */}
+          <a href="/blog" className="rounded border border-accent/40 px-2 py-0.5 font-semibold text-accent hover:bg-accent/10">Blog</a>
           <Link href="/" className="hover:text-text">Dashboard</Link>
           <Link href="/watchlist" className="hover:text-text">Watchlist</Link>
           <Link href="/pct-bootcamp" className="hover:text-text">PCT Bootcamp</Link>
