@@ -1,6 +1,46 @@
 {
-  "count": 12,
+  "count": 15,
   "posts": [
+    {
+      "title": "Hedge funds, concentrated bets and short selling: a primer on big positions, public pressure and the cost of being early",
+      "slug": "hedge-fund-equity-primer",
+      "date": "2026-11-24",
+      "dateText": "24 Nov 2026",
+      "summary": "A hedge fund is a private partnership that may borrow, sell short and put most of its money into a few positions, and the record shows that these freedoms produced a handful of famous results while the average fund, after fees, trailed both a plain index fund and a 60/40 portfolio over the last ten and twenty years.",
+      "tags": [
+        "research",
+        "primer",
+        "investor-styles",
+        "activist",
+        "short-selling"
+      ]
+    },
+    {
+      "title": "Bill Ackman: ten positions and capital that cannot leave",
+      "slug": "bill-ackman",
+      "date": "2026-11-24",
+      "dateText": "24 Nov 2026",
+      "summary": "Ackman's audited record is about 16% a year since 2004 from roughly ten large positions and a few cheap hedges, but it includes four losing years in a row, and the listed fund has trailed the S&P 500 since its own launch in 2012.",
+      "tags": [
+        "research",
+        "profile",
+        "investor-styles",
+        "activist"
+      ]
+    },
+    {
+      "title": "Michael Burry: the price of being early",
+      "slug": "michael-burry",
+      "date": "2026-11-24",
+      "dateText": "24 Nov 2026",
+      "summary": "Burry's one documented record (2000 to mid-2008, about 26% a year after fees, known from investor letters) came from reading documents nobody else read and from bets whose loss was capped at a premium; since 2008 no returns have been published, and his public market warnings since 2019 were followed by a higher index far more often than by a lower one.",
+      "tags": [
+        "research",
+        "profile",
+        "investor-styles",
+        "short-selling"
+      ]
+    },
     {
       "title": "Investor styles: 30 names, one set of questions",
       "slug": "investor-styles-method",
@@ -37,45 +77,6 @@
         "profile",
         "investor-styles",
         "global-macro"
-      ]
-    },
-    {
-      "title": "Ray Dalio: rules, many small bets, and a record in two halves",
-      "slug": "ray-dalio",
-      "date": "2026-11-23",
-      "dateText": "23 Nov 2026",
-      "summary": "Ray Dalio built the largest hedge fund by writing his decisions down as testable rules and spreading risk over many unrelated bets, and the record shows the method worked very well until 2011, poorly from 2012 to 2024, and well again once the fund shrank.",
-      "tags": [
-        "research",
-        "profile",
-        "investor-styles",
-        "global-macro"
-      ]
-    },
-    {
-      "title": "Value investing: a primer on buying businesses for less than they are worth",
-      "slug": "value-investing-primer",
-      "date": "2026-11-23",
-      "dateText": "23 Nov 2026",
-      "summary": "Value investing means buying a share of a business for well below a careful estimate of its worth, and the record shows the idea is sound while cheap stocks lagged for most of 2007 to 2025 and most stock pickers trail an index.",
-      "tags": [
-        "research",
-        "primer",
-        "investor-styles",
-        "value-investing"
-      ]
-    },
-    {
-      "title": "Warren Buffett: patience, float and a record that changed after 1998",
-      "slug": "warren-buffett",
-      "date": "2026-11-23",
-      "dateText": "23 Nov 2026",
-      "summary": "Buffett's 19.7% a year over 61 years is the best-documented record in investing, but it rests on cheap insurance money and permanent capital as much as on stock picking, nearly all of the lead over the index was built before 1999, and what an individual can take from it is the behaviour, not the structure.",
-      "tags": [
-        "research",
-        "profile",
-        "investor-styles",
-        "value-investing"
       ]
     }
   ]
