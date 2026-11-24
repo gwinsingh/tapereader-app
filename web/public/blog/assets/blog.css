@@ -236,7 +236,7 @@ table.t th:last-child, table.t td:last-child { padding-right: 0; }
 .chart .xaxis span.a1 { transform: translateX(-100%); }
 .col .plot, .line .plot { margin-left: 38px; }
 .col .xaxis, .line .xaxis { margin-left: 38px; }
-.col .g span, .line .g span { left: -38px; bottom: -5px; width: 33px; text-align: right; padding: 0; background: none; }
+.col .g span, .line .g span { left: auto; right: calc(100% + 5px); bottom: -5px; white-space: nowrap; text-align: right; padding: 0; background: none; }
 .col .slot { position: absolute; top: 0; bottom: 0; display: flex; justify-content: center; gap: 2px; padding: 0 3px; z-index: 2; }
 .col .b { flex: 0 1 24px; position: relative; min-width: 2px; }
 .col .b i { position: absolute; left: 0; right: 0; border-radius: 4px 4px 0 0; min-height: 1px; cursor: default; }
