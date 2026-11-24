@@ -191,15 +191,15 @@ function stack(s) {
   const rows = bars.map((b) => {
     const tot = b.parts.reduce((a, p) => a + p[1], 0);
     const segs = b.parts.filter((p) => p[1] > 0).map((p) => {
-      const share = (p[1] / tot) * 100, ci = order.indexOf(p[0]) + 1;
+      const share = (p[1] / tot) * 100, ci = Math.min(order.indexOf(p[0]) + 1, 9);
       const txt = share >= 9 ? `<span>${fmt(p[1], unit)}</span>` : "";
       return `<i class="s${ci}" style="flex:${r2(share)} 1 0" data-tip="${esc(`${b.name ? b.name + " · " : ""}${p[0]}: ${fmt(p[1], unit)}`)}" tabindex="0">${txt}</i>`;
     }).join("");
-    return `<div class="srow">${b.name ? `<span class="sn">${inl(b.name)}</span>` : ""}<div class="seg">${segs}</div></div>`;
+    return `<div class="srow${b.name ? "" : " one"}">${b.name ? `<span class="sn">${inl(b.name)}</span>` : ""}<div class="seg">${segs}</div></div>`;
   }).join("");
   const head = ["Part"].concat(bars.map((b) => b.name || "Share"));
   const trows = order.map((name) => [name].concat(bars.map((b) => { const p = b.parts.filter((q) => q[0] === name)[0]; return p ? fmt(p[1], unit) : "–"; })));
-  return `<div class="legend">${order.map((n, i) => `<span><i class="sw s${i + 1}"></i>${esc(n)}</span>`).join("")}</div><div class="chart stack">${rows}</div>${dataTable(head, trows)}`;
+  return `<div class="legend">${order.map((n, i) => `<span><i class="sw s${Math.min(i + 1, 9)}"></i>${esc(n)}</span>`).join("")}</div><div class="chart stack">${rows}</div>${dataTable(head, trows)}`;
 }
 
 // ---------- timeline: events [when, title, text?]

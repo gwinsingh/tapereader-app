@@ -110,8 +110,10 @@ does not raise a firewall prompt: `next dev -H 127.0.0.1 -p 3111`.
 
 ## The investor-styles series
 
-**State on 2026-11-23:** 3 of 40 parts live (global macro primer, Stan Druckenmiller, Ray Dalio) plus the method
-post. Next group: value and long-term equity (primer, Warren Buffett, Peter Lynch). How the pilot was made: one research
+**State on 2026-11-23:** 6 of 40 parts live (global macro: primer, Stan Druckenmiller, Ray Dalio; value: primer,
+Warren Buffett, Peter Lynch) plus the method post. Next group: quantitative and multi-strategy (primer, Jim Simons,
+Ken Griffin). Lesson from the value group: tell research agents not to use the browser-pane tools (one sat for an hour
+on a site-permission prompt) and to put `--max-time` on shell downloads; ask them to write the fact sheet early. How the pilot was made: one research
 agent per post, each given `PROTOCOL.md` and a list of the facts to pin down, capped at 60 web searches, no helpers;
 each wrote `<slug>.facts.md` and `<slug>.draft.md`, then turned its own draft into the post with figure blocks; the
 posts were then read in full and every figure checked in the browser before publishing. The ranking of all 30 is made

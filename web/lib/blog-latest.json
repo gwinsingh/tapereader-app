@@ -1,5 +1,5 @@
 {
-  "count": 6,
+  "count": 9,
   "posts": [
     {
       "title": "Investor styles: 30 names, one set of questions",
@@ -53,30 +53,29 @@
       ]
     },
     {
-      "title": "Anatomy of a drop: how market falls unfold and end",
-      "slug": "anatomy-of-a-drop",
-      "date": "2026-11-20",
-      "dateText": "20 Nov 2026",
-      "summary": "A 24-page study of US stock-market drops since 1950, built around the comparison of autumn 2026 with autumn 2018, and with 2000 and 2007 as the other path.",
+      "title": "Value investing: a primer on buying businesses for less than they are worth",
+      "slug": "value-investing-primer",
+      "date": "2026-11-23",
+      "dateText": "23 Nov 2026",
+      "summary": "Value investing means buying a share of a business for well below a careful estimate of its worth, and the record shows the idea is sound while cheap stocks lagged for most of 2007 to 2025 and most stock pickers trail an index.",
       "tags": [
-        "study",
-        "analysis",
-        "technical",
-        "fundamental",
-        "market-structure"
+        "research",
+        "primer",
+        "investor-styles",
+        "value-investing"
       ]
     },
     {
-      "title": "AI Buildout Atlas: where the money goes, in the West and in China",
-      "slug": "ai-buildout-atlas",
-      "date": "2026-09-25",
-      "dateText": "25 Sep 2026",
-      "summary": "A 32-page atlas of the AI build-out in ten layers, from the power grid to the apps people pay for, mapped once for the West and once for China on the same definitions.",
+      "title": "Warren Buffett: patience, float and a record that changed after 1998",
+      "slug": "warren-buffett",
+      "date": "2026-11-23",
+      "dateText": "23 Nov 2026",
+      "summary": "Buffett's 19.7% a year over 61 years is the best-documented record in investing, but it rests on cheap insurance money and permanent capital as much as on stock picking, nearly all of the lead over the index was built before 1999, and what an individual can take from it is the behaviour, not the structure.",
       "tags": [
-        "study",
         "research",
-        "fundamental",
-        "ai"
+        "profile",
+        "investor-styles",
+        "value-investing"
       ]
     }
   ]

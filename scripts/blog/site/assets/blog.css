@@ -222,6 +222,7 @@ table.t th:last-child, table.t td:last-child { padding-right: 0; }
 .s1 { background: var(--s1); } .s2 { background: var(--s2); } .s3 { background: var(--s3); } .s4 { background: var(--s4); }
 .s5 { background: var(--s5); } .s6 { background: var(--s6); } .s7 { background: var(--s7); } .s8 { background: var(--s8); }
 .neg { background: var(--neg); }
+.s9 { background: var(--muted); }
 
 .chart .plot { position: relative; height: var(--h, 250px); margin-top: 16px; }
 .chart .g { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--line); }
@@ -269,6 +270,7 @@ table.t th:last-child, table.t td:last-child { padding-right: 0; }
 
 .stack { display: grid; gap: 10px; }
 .srow { display: grid; grid-template-columns: minmax(0, auto) 1fr; gap: 12px; align-items: center; }
+.srow.one { grid-template-columns: 1fr; }
 .srow .sn { font-size: 13.5px; color: var(--ink2); min-width: 96px; max-width: 180px; line-height: 1.25; }
 .seg { display: flex; gap: 2px; height: 28px; }
 .seg i { border-radius: 4px; display: flex; align-items: center; padding-left: 7px; min-width: 3px; overflow: visible; font-style: normal; }
