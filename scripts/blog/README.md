@@ -110,13 +110,17 @@ does not raise a firewall prompt: `next dev -H 127.0.0.1 -p 3111`.
 
 ## The investor-styles series
 
-**State on 2026-11-23:** 9 of 40 parts live (global macro: primer, Stan Druckenmiller, Ray Dalio; value: primer,
-Warren Buffett, Peter Lynch; quant: primer, Jim Simons, Ken Griffin) plus the method post. Next group: activist and
-concentrated bets (the hedge-fund equity primer, Bill Ackman), which can be paired with the contrarian group (Michael
-Burry) because both use the same primer. Lessons so far: tell research agents not to use the browser-pane tools (one
-sat for an hour on a site-permission prompt) and to put `--max-time` on shell downloads; ask them to write the fact
-sheet early; after the posts come back, check that numbers shared between posts of a group agree (assets, returns,
-any calculated chart). How the pilot was made: one research
+**State on 2026-11-24:** 12 of 40 parts live (global macro: primer, Stan Druckenmiller, Ray Dalio; value: primer,
+Warren Buffett, Peter Lynch; quant: primer, Jim Simons, Ken Griffin; activist and contrarian: the hedge fund primer,
+Bill Ackman, Michael Burry) plus the method post. Next group: distressed debt (the credit primer, David Tepper), which
+can be paired with thematic growth funds (the funds-and-ETFs primer, Cathie Wood) if two primers in one round are
+acceptable. Lessons so far: tell research agents not to use the browser-pane tools (one sat for an hour on a
+site-permission prompt) and to put `--max-time` on shell downloads; ask them to write the fact sheet early; tell them
+which post owns a number that several posts mention, so the others only point to it; after the posts come back, check
+that numbers shared between posts of a group agree (assets, returns, any calculated chart), recompute every calculated
+chart, and fetch the source of any surprising recent claim. PDFs: the Read tool cannot open them on this machine; use
+`pdftotext -layout`. Prices: the Yahoo chart endpoint answers `curl`; Stooq does not. Figure check: in the preview, hide
+everything except `.fig` blocks and screenshot at 1000x1700, about three figures per shot. How the pilot was made: one research
 agent per post, each given `PROTOCOL.md` and a list of the facts to pin down, capped at 60 web searches, no helpers;
 each wrote `<slug>.facts.md` and `<slug>.draft.md`, then turned its own draft into the post with figure blocks; the
 posts were then read in full and every figure checked in the browser before publishing. The ranking of all 30 is made

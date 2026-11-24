@@ -1,6 +1,17 @@
 {
-  "count": 15,
+  "count": 16,
   "posts": [
+    {
+      "title": "Making room for luck: a reading of the Luck Field Manual, with the evidence checked",
+      "slug": "making-room-for-luck",
+      "date": "2026-11-24",
+      "dateText": "24 Nov 2026",
+      "summary": "A popular 33-rule guide says luck can be engineered; its ideas reduce to three jobs (meet more chances, survive the bad ones, notice the good ones), the research behind them is strong for some rules and thin for others, and the advice only works where a failed attempt is cheap.",
+      "tags": [
+        "reading-notes",
+        "research"
+      ]
+    },
     {
       "title": "Hedge funds, concentrated bets and short selling: a primer on big positions, public pressure and the cost of being early",
       "slug": "hedge-fund-equity-primer",
@@ -62,19 +73,6 @@
       "tags": [
         "research",
         "primer",
-        "investor-styles",
-        "global-macro"
-      ]
-    },
-    {
-      "title": "Stan Druckenmiller: big bets, small losses",
-      "slug": "stan-druckenmiller",
-      "date": "2026-11-23",
-      "dateText": "23 Nov 2026",
-      "summary": "Druckenmiller's results came less from being right than from betting large in liquid markets when conviction was high, cutting fast when wrong, and standing aside when cold; the famous 30% a year rests on press reports of his own firm's numbers, not on a public audited series.",
-      "tags": [
-        "research",
-        "profile",
         "investor-styles",
         "global-macro"
       ]
