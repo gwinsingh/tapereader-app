@@ -1,6 +1,30 @@
 {
-  "count": 16,
+  "count": 18,
   "posts": [
+    {
+      "title": "From $500 to $1 million in ten trading days: a Reddit options run, read off NVDA's chart",
+      "slug": "nvda-options-500-to-1-million",
+      "date": "2026-11-27",
+      "dateText": "27 Nov 2026",
+      "summary": "A Reddit account went from about $2,600 to $1,021,075 between 11 and 25 November 2026 by buying cheap, short-dated NVDA options with a fifth to a half of the account each time; four overnight gaps produced 81% of the profit shown, and the last position was worth $740,000 at 9:32 am and $95,000 by the close.",
+      "tags": [
+        "analysis",
+        "options",
+        "technical"
+      ]
+    },
+    {
+      "title": "Options for someone who trades stocks: a primer",
+      "slug": "options-primer",
+      "date": "2026-11-27",
+      "dateText": "27 Nov 2026",
+      "summary": "An option is a rented, expiring, leveraged position in a stock; the huge gains in screenshots come from buying cheap options that expire soon, in size, just before a move larger than the market had priced in, and the same recipe loses the whole stake on most other days.",
+      "tags": [
+        "primer",
+        "options",
+        "research"
+      ]
+    },
     {
       "title": "Making room for luck: a reading of the Luck Field Manual, with the evidence checked",
       "slug": "making-room-for-luck",
@@ -50,31 +74,6 @@
         "profile",
         "investor-styles",
         "short-selling"
-      ]
-    },
-    {
-      "title": "Investor styles: 30 names, one set of questions",
-      "slug": "investor-styles-method",
-      "date": "2026-11-23",
-      "dateText": "23 Nov 2026",
-      "summary": "The plan for a series on how 30 well-known investors actually invest, the 14 questions every profile answers, and how the records will be graded and ranked.",
-      "tags": [
-        "research",
-        "investor-styles",
-        "method"
-      ]
-    },
-    {
-      "title": "Global macro: a primer on trading currencies, interest rates and whole markets",
-      "slug": "global-macro-primer",
-      "date": "2026-11-23",
-      "dateText": "23 Nov 2026",
-      "summary": "Global macro traders bet on whole economies with borrowed money, and the part of their method that an individual can use is the free public data they watch to decide how much risk to carry.",
-      "tags": [
-        "research",
-        "primer",
-        "investor-styles",
-        "global-macro"
       ]
     }
   ]

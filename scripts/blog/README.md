@@ -64,6 +64,11 @@ Body: ordinary Markdown (headings from `##`, tables, lists, links). Two addition
 | `compare` | `cols` [{title, tag?, items[]}] |
 | `quadrant` | `xAxis` [left, right], `yAxis` [top, bottom], `cells` [TL, TR, BL, BR] each [title, text] |
 | `tiles` | `tiles` [[value, label, small note?]] |
+| `tape` | Candles and lines on one clock, in stacked panels with one crosshair. `x` [label per bar], `ticks` [[index, label]], `sessions` [[start index, name]], `panels` [{name, desc, unit, height, `candles` [[o,h,l,c]], `lines` [{name, values, c, area}], `levels` [[value, text]], min, max}], `marks` [[index, "buy"/"sell"/"note", text, when?]] (lettered badges with a key under the chart) |
+| `scatter` | `points` [[x, y, group, label?]], `groups` [names], `xName`, `yName`, `xUnit`, `yUnit`, `reverseX`, `notes` [[x, y, text, "l"?]] |
+| `explorer` | An option pricer with three sliders (Black-Scholes). `type` call/put, `strike`, `contracts`, `cost`, `underlying`, `price` {min, max, value}, `days` {max, value}, `iv` {min, max, value}, `presets` [[label, price, days, iv]], `ymax` |
+
+`line` also takes `log: true` (log scale) and `points: true` (a dot on every value); `bar` and `hbar` take `dp` (decimals in labels).
 
 `unit` examples: `"%"`, `"$bn"`, `"x"`. Charts carry a hover read-out and a "Show the numbers" table. In the vault each
 figure becomes its title and a table.
@@ -93,6 +98,7 @@ figure becomes its title and a table.
 | `site/img/` | Images for posts, served at `/blog/img/` (keep them small; none so far) |
 | `vault.js` | Full text of posts into the vault; keeps everything under the ✍️ marker |
 | `serve.js`, `new.js`, `publish.sh` | Preview, new post, copy to the deployment worktree |
+| `research/options/` | The two options posts (27 Nov 2026): post templates with `{{figure}}` placeholders, `blogfigs.py` (builds the chart blocks from Yahoo chart data fetched with `fetch.py` into `data/`, not kept in the repo) and `compile.py` (fills the templates into `posts/`). `cleanvol.py` repairs impossible 1-minute volumes before VWAP |
 | `research/investor-styles/` | `PROTOCOL.md` (what every profile must find out) and, per name, a fact sheet and a draft |
 | `vendor/marked.min.js` | The Markdown parser (marked 4.3.0, MIT) |
 

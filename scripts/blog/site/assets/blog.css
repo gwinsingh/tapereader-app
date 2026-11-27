@@ -322,6 +322,96 @@ table.t th:last-child, table.t td:last-child { padding-right: 0; }
 .tile span { display: block; font-size: 13px; color: var(--ink2); margin-top: 6px; line-height: 1.35; }
 .tile small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 4px; }
 
+/* ---------- market figures: tape (candles and lines on one clock), scatter, option explorer */
+.tape { --up: var(--s3); }
+.tape .tp + .tp { margin-top: 16px; }
+.tpn { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 13px; color: var(--ink2); }
+.tpn b { font-weight: 650; color: var(--ink); }
+.tpn em { font-style: normal; display: inline-flex; flex-wrap: wrap; gap: 2px 12px; margin-left: auto; font-size: 12px; color: var(--muted); }
+.tpn em span { display: inline-flex; align-items: center; gap: 5px; }
+.cdl { width: 7px; height: 11px; border-radius: 1px; display: inline-block; border: 1.5px solid var(--up); }
+.cdl.dn { background: var(--neg); border-color: var(--neg); }
+.tape .plot, .sc .plot, .exch .plot { margin-left: 44px; }
+.tape .xaxis, .tape .sess, .sc .xaxis, .exch .xaxis { margin-left: 44px; }
+.tape .g span, .sc .g span, .exch .g span { left: auto; right: calc(100% + 5px); bottom: -5px; white-space: nowrap; text-align: right; padding: 0; background: none; }
+.tape .plot { cursor: crosshair; touch-action: pan-y; margin-top: 8px; }
+.tape .plot svg, .exch .plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 2; pointer-events: none; }
+.tape .wk, .tape .bd { stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.tape .wk.up, .tape .bd.up { stroke: var(--up); }
+.tape .wk.dn, .tape .bd.dn { stroke: var(--neg); }
+.tape .bd.up { fill: var(--surface); }
+.tape .bd.dn { fill: var(--neg); }
+.tape path.ln, .exch path.ln { fill: none; stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; background: none; }
+.tape path.s1, .exch path.s1 { stroke: var(--s1); } .tape path.s2, .exch path.s2 { stroke: var(--s2); } .tape path.s3 { stroke: var(--s3); } .tape path.s4 { stroke: var(--s4); }
+.tape path.s7 { stroke: var(--s7); } .tape path.s9, .exch path.s9 { stroke: var(--muted); }
+.tape path.dash, .exch path.dash { stroke-dasharray: 5 4; }
+.exch path.s2 { stroke-width: 1.5px; }
+.tape path.ar { stroke: none; opacity: 0.1; background: none; }
+.tape path.ar.s1 { fill: var(--s1); } .tape path.ar.s2 { fill: var(--s2); } .tape path.ar.s7 { fill: var(--s7); }
+.tape .sd { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--axis); z-index: 1; }
+.tape .lv { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--muted); z-index: 1; }
+.tape .lv span { position: absolute; right: 2px; bottom: 3px; font: 11px/1 var(--sans); color: var(--ink2); background: var(--surface); padding: 1px 3px; border-radius: 2px; }
+.tape .tm { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--muted); z-index: 1; }
+.tape .tm.sell { border-left-style: dotted; }
+.tb { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font: 700 11px/1 var(--sans); background: var(--line); color: var(--ink); }
+.tb.buy { background: var(--ink); color: var(--page); }
+.tb.sell { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.tape .tm .tb { position: absolute; left: 0; transform: translateX(-50%); cursor: default; z-index: 4; }
+.tape .cross { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink2); z-index: 3; pointer-events: none; }
+.tape .sess { position: relative; height: 18px; font: 600 11.5px/1 var(--sans); color: var(--ink2); }
+.tape .sess span { position: absolute; top: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tkey { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 7px 20px; font-size: 13px; color: var(--ink2); line-height: 1.4; }
+.tkey li { display: flex; gap: 8px; align-items: flex-start; }
+.tkey .tb { flex: none; margin-top: 1px; }
+.tkey time { font-weight: 650; color: var(--ink); margin-right: 6px; }
+
+.yn { font: 11.5px/1 var(--sans); color: var(--muted); margin: 2px 0 0 44px; }
+.xn { text-align: center; font: 11.5px/1.3 var(--sans); color: var(--muted); margin: 0 0 0 44px; }
+.sc .plot { margin-top: 10px; }
+.sc .gv { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
+.sc .pt { position: absolute; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%, 50%); opacity: 0.8; box-shadow: 0 0 0 1px var(--surface); z-index: 2; }
+.sc .pt:hover { opacity: 1; transform: translate(-50%, 50%) scale(1.7); z-index: 3; }
+.snote { position: absolute; transform: translate(9px, 50%); font: 11.5px/1.25 var(--sans); color: var(--ink); background: var(--surface); padding: 1px 4px; border-radius: 3px; z-index: 4; white-space: nowrap; pointer-events: none; }
+.snote.l { transform: translate(calc(-100% - 9px), 50%); }
+.sw.dotsw { border-radius: 50%; }
+
+.exp { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; font-size: 13px; color: var(--ink2); margin-bottom: 14px; }
+.exb { font: 13px/1 var(--sans); color: var(--ink2); background: var(--raise); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+.exb:hover { border-color: var(--axis); color: var(--ink); }
+.exb.on { background: var(--ink); border-color: var(--ink); color: var(--page); }
+.exg { display: grid; grid-template-columns: minmax(0, 1fr) 216px; gap: 18px; align-items: start; }
+.exr { margin: 0; display: grid; gap: 8px; }
+.exr > div { border: 1px solid var(--line); background: var(--raise); border-radius: 8px; padding: 9px 12px 10px; }
+.exr dt { font-size: 12px; color: var(--muted); }
+.exr dd { margin: 3px 0 0; font: 700 19px/1.15 var(--sans); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.exr small { display: block; font-size: 12px; line-height: 1.35; color: var(--ink2); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.exr small.gain { color: var(--good); font-weight: 600; }
+.exr small.loss { color: var(--neg); font-weight: 600; }
+.exs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 24px; margin-top: 16px; }
+.exsl { display: block; }
+.exsl span { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ink2); }
+.exsl output { font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exsl input { width: 100%; accent-color: var(--accent); margin: 7px 0 0; }
+.exsl small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.exch .plot { cursor: ew-resize; touch-action: pan-y; margin-top: 10px; overflow: hidden; }
+.exch .plot .exgrid { position: absolute; inset: 0; }
+.exch .plot { overflow: visible; }
+.exch .plot svg { overflow: hidden; }
+.exk { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--axis); z-index: 1; }
+.exk span { position: absolute; top: 2px; left: 4px; font: 11px/1 var(--sans); color: var(--muted); }
+.excost { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--muted); z-index: 1; }
+.excost span { position: absolute; right: 2px; bottom: 3px; font: 11px/1 var(--sans); color: var(--ink2); background: var(--surface); padding: 1px 3px; border-radius: 2px; }
+.exm { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px solid var(--ink); z-index: 3; pointer-events: none; }
+.exm i { position: absolute; left: 0; width: 11px; height: 11px; border-radius: 50%; background: var(--s1); box-shadow: 0 0 0 2px var(--surface); transform: translate(-50%, 50%); }
+@media (max-width: 720px) {
+  .exg { grid-template-columns: 1fr; }
+  .exr { grid-template-columns: 1fr 1fr; }
+  .exs { grid-template-columns: 1fr; }
+  .tape .plot, .sc .plot, .exch .plot, .tape .xaxis, .tape .sess, .sc .xaxis, .exch .xaxis, .yn, .xn { margin-left: 36px; }
+  .tpn em { margin-left: 0; flex-basis: 100%; }
+  .tkey { grid-template-columns: 1fr; }
+}
+
 #tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--page); font: 12.5px/1.45 var(--sans); padding: 7px 10px; border-radius: 6px; max-width: 260px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); font-variant-numeric: tabular-nums; }
 #tip b { font-weight: 650; }
 #tip .r { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
