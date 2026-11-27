@@ -2,6 +2,8 @@
 title: "Making room for luck: a reading of the Luck Field Manual, with the evidence checked"
 date: 2026-11-24
 tags: [reading-notes, research]
+collection: reading-notes
+vault: Studies/50 Reading Notes/Making Room for Luck
 summary: A popular 33-rule guide says luck can be engineered; its ideas reduce to three jobs (meet more chances, survive the bad ones, notice the good ones), the research behind them is strong for some rules and thin for others, and the advice only works where a failed attempt is cheap.
 ---
 

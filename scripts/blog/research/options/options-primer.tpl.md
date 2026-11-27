@@ -3,6 +3,8 @@ title: "Options for someone who trades stocks: a primer"
 date: 2026-11-27
 order: 2
 tags: [primer, options, research]
+collection: options
+short: Options primer
 summary: An option is a rented, expiring, leveraged position in a stock; the huge gains in screenshots come from buying cheap options that expire soon, in size, just before a move larger than the market had priced in, and the same recipe loses the whole stake on most other days.
 ---
 

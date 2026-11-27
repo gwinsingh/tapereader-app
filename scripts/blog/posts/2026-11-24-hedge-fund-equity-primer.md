@@ -4,6 +4,7 @@ date: 2026-11-24
 order: 11
 tags: [research, primer, investor-styles, activist, short-selling]
 series: investor-styles
+short: Hedge fund primer
 summary: A hedge fund is a private partnership that may borrow, sell short and put most of its money into a few positions, and the record shows that these freedoms produced a handful of famous results while the average fund, after fees, trailed both a plain index fund and a 60/40 portfolio over the last ten and twenty years.
 vault: Studies/30 Investor Styles/10 Primers/Hedge Funds, Activism and Short Selling — Primer
 ---

@@ -25,6 +25,7 @@ const nextConfig = {
       { source: "/blog", destination: "/blog/index.html" },
       { source: "/blog/tags/:tag([a-z0-9-]+)", destination: "/blog/tags/:tag.html" },
       { source: "/blog/series/:id([a-z0-9-]+)", destination: "/blog/series/:id.html" },
+      { source: "/blog/collections/:id([a-z0-9-]+)", destination: "/blog/collections/:id.html" },
       { source: "/blog/:slug([a-z0-9-]+)", destination: "/blog/:slug.html" },
     ];
   },

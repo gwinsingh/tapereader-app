@@ -31,5 +31,11 @@
   },
   "series": {
     "investor-styles": { "file": "series/investor-styles.json" }
-  }
+  },
+  "collections": [
+    { "id": "investor-styles", "series": "investor-styles" },
+    { "id": "market-studies", "title": "Market studies", "summary": "Longer studies with their own pages and charts: how market drops unfold and end, and where the money in the AI build-out goes." },
+    { "id": "options", "title": "Options", "summary": "Calls and puts from zero: how they are priced, how their prices follow the stock, and case studies read off the chart." },
+    { "id": "reading-notes", "title": "Reading notes", "summary": "Notes on texts worth reading: what each one says, in other words, and how its claims hold up when checked." }
+  ]
 }

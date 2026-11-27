@@ -3,6 +3,8 @@ title: "From $500 to $1 million in ten trading days: a Reddit options run, read 
 date: 2026-11-27
 order: 1
 tags: [analysis, options, technical]
+collection: options
+short: "$500 to $1 million on NVDA options"
 summary: A Reddit account went from about $2,600 to $1,021,075 between 11 and 25 November 2026 by buying cheap, short-dated NVDA options with a fifth to a half of the account each time; four overnight gaps produced 81% of the profit shown, and the last position was worth $740,000 at 9:32 am and $95,000 by the close.
 ---
 

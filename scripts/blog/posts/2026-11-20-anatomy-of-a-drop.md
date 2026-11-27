@@ -2,6 +2,7 @@
 title: "Anatomy of a drop: how market falls unfold and end"
 date: 2026-11-20
 tags: [study, analysis, technical, fundamental, market-structure]
+collection: market-studies
 summary: A 24-page study of US stock-market drops since 1950, built around the comparison of autumn 2026 with autumn 2018, and with 2000 and 2007 as the other path.
 link: /studies/market-drops
 ---

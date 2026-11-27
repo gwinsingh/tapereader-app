@@ -72,13 +72,39 @@ a:hover { color: var(--link-h); }
 .kicker a:hover { color: var(--link); }
 .kicker span { opacity: 0.6; margin: 0 2px; }
 
-.series-cards { display: grid; gap: 14px; margin: 6px 0 34px; }
-.scard { display: block; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px 18px; max-width: 720px; transition: border-color 0.15s; }
-.scard:hover { border-color: var(--axis); color: var(--ink); }
-.scard .kicker { display: block; margin-bottom: 8px; }
-.scard b { font: 700 21px/1.2 var(--sans); letter-spacing: -0.015em; }
-.scard p { margin: 6px 0 14px; color: var(--ink2); font-size: 15px; }
-.scard small { color: var(--muted); font-size: 12.5px; }
+/* the shelf: one card per collection, each with its newest notes */
+.home h2.sect { margin-top: 30px; }
+.shelf { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0 8px; }
+.ccard { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px 16px; }
+.ccard .kicker { margin-bottom: 8px; }
+.ccard h3 { font: 700 22px/1.2 var(--sans); letter-spacing: -0.015em; margin: 0 0 6px; }
+.ccard h3 a { color: var(--ink); text-decoration: none; }
+.ccard h3 a:hover { color: var(--link); text-decoration: underline; }
+.csum { margin: 0 0 14px; color: var(--ink2); font-size: 15px; line-height: 1.5; }
+.cmeta { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
+.clist { list-style: none; margin: 0 0 14px; padding: 0; border-top: 1px solid var(--line); }
+.clist li { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; line-height: 1.35; }
+.clist a { color: var(--ink); text-decoration: none; font-weight: 550; }
+.clist a:hover { color: var(--link); text-decoration: underline; }
+.clist time { font: 12px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+.call, .allnotes a { font: 600 14px/1 var(--sans); text-decoration: none; }
+.call { margin-top: auto; padding-top: 2px; }
+.call span, .allnotes span { margin-left: 6px; }
+.call:hover, .allnotes a:hover { text-decoration: underline; }
+.lat { list-style: none; margin: 0; padding: 0; }
+.lat li { display: grid; grid-template-columns: 104px 1fr; gap: 4px 20px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.lat time { font: 13px/1.7 var(--mono); color: var(--muted); white-space: nowrap; }
+.lat .lc { display: inline-block; font: 600 11.5px/1.3 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; margin-bottom: 3px; }
+.lat .lc:hover { color: var(--link); }
+.lat p { margin: 0; font: 16.5px/1.5 var(--serif); color: var(--ink2); max-width: 760px; }
+.lat p a { color: var(--ink); text-decoration-color: var(--axis); }
+.lat p a:hover { color: var(--link); }
+.lat p span { color: var(--muted); }
+.allnotes { margin: 20px 0 0; }
+@media (max-width: 760px) {
+  .shelf { grid-template-columns: 1fr; }
+  .lat li { grid-template-columns: 1fr; }
+}
 .prog { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-bottom: 8px; }
 .prog i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 .prog.wide { max-width: 720px; margin-top: 22px; }

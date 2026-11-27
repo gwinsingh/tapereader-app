@@ -4,6 +4,7 @@ date: 2026-11-23
 order: 5
 tags: [research, primer, investor-styles, value-investing]
 series: investor-styles
+short: Value investing primer
 summary: Value investing means buying a share of a business for well below a careful estimate of its worth, and the record shows the idea is sound while cheap stocks lagged for most of 2007 to 2025 and most stock pickers trail an index.
 vault: Studies/30 Investor Styles/10 Primers/Value Investing — Primer
 ---

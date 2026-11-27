@@ -4,6 +4,7 @@ date: 2026-11-23
 order: 1
 tags: [research, investor-styles, method]
 series: investor-styles
+short: How the profiles are researched
 summary: The plan for a series on how 30 well-known investors actually invest, the 14 questions every profile answers, and how the records will be graded and ranked.
 vault: Studies/30 Investor Styles/01 How Each Profile Is Researched
 ---

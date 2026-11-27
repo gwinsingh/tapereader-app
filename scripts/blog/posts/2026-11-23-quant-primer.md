@@ -4,6 +4,7 @@ date: 2026-11-23
 order: 8
 tags: [research, primer, investor-styles, quant]
 series: investor-styles
+short: Quant and multi-strategy primer
 summary: Quantitative investing turns a small tested edge into a return by repeating it many thousands of times with borrowed money and strict loss limits, and the record shows that most edges found in old data shrink once they are traded and that the average quant product has trailed a plain index fund.
 vault: Studies/30 Investor Styles/10 Primers/Quant and Multi-Strategy — Primer
 ---

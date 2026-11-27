@@ -4,6 +4,7 @@ date: 2026-11-23
 order: 2
 tags: [research, primer, investor-styles, global-macro]
 series: investor-styles
+short: Global macro primer
 summary: Global macro traders bet on whole economies with borrowed money, and the part of their method that an individual can use is the free public data they watch to decide how much risk to carry.
 vault: Studies/30 Investor Styles/10 Primers/Global Macro — Primer
 ---

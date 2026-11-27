@@ -8,7 +8,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { marked } = require("./vendor/marked.min.js");
 const fig = require("./lib/figures");
-const { ROOT, loadSite, loadPosts, seriesOrder, fmtDate } = require("./lib/posts");
+const { ROOT, loadSite, loadPosts, seriesOrder, fmtDate, collectionId, shortTitle } = require("./lib/posts");
 
 const OUT = path.join(ROOT, "..", "..", "web", "public", "blog");
 const args = process.argv.slice(2);
@@ -20,6 +20,19 @@ const problems = [];
 const posts = loadPosts({ drafts: args.indexOf("--drafts") >= 0 });
 const bySlug = {};
 posts.forEach((p) => { if (bySlug[p.slug]) problems.push(`two posts share the slug "${p.slug}"`); bySlug[p.slug] = p; });
+if (bySlug.archive) problems.push('a post has the slug "archive", which is the address of the list of all notes');
+
+// collections (the shelf on the home page): every published post sits in exactly one
+const colById = {};
+site.collections.forEach((c) => { colById[c.id] = c; c.posts = []; });
+posts.forEach((p) => {
+  const id = collectionId(site, p);
+  p.col = colById[id] || null;
+  if (id && !p.col) problems.push(`${p.file}: collection "${id}" is not listed in site.json (under "collections")`);
+  else if (!p.col && !p.draft) problems.push(`${p.file}: no collection (add "collection: <id>" to the front matter; the ids are in site.json)`);
+  if (p.col) p.col.posts.push(p);
+});
+const shelf = site.collections.filter((c) => c.posts.length);
 
 // ---------------------------------------------------------------- Markdown
 const slugify = (s) => s.toLowerCase().replace(/<[^>]+>/g, "").replace(/&[a-z]+;/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -79,7 +92,7 @@ const tagLink = (t) => `<a class="tag" href="${url("tags/" + t)}">${esc(t)}</a>`
 
 function page(o) {
   const canonical = site.url + o.path;
-  const nav = [["All notes", url(""), "home"], ["Investor styles", url("series/investor-styles"), "series"], ["Tags", url("tags"), "tags"]]
+  const nav = [["Collections", url(""), "home"], ["All notes", url("archive"), "archive"], ["Tags", url("tags"), "tags"]]
     .map((n) => `<a href="${n[1]}"${o.nav === n[2] ? ' aria-current="page"' : ""}>${n[0]}</a>`).join("");
   return `<!doctype html>
 <html lang="en">
@@ -112,7 +125,7 @@ ${o.body}
 </main>
 <footer class="foot"><div class="wrap">
   <p>${esc(site.disclaimer)}</p>
-  <p><a href="${url("")}">All notes</a> · <a href="${url("tags")}">Tags</a> · <a href="${url("feed.xml")}">RSS</a> · <a href="/">tapereader.us</a></p>
+  <p><a href="${url("")}">Collections</a> · <a href="${url("archive")}">All notes</a> · <a href="${url("tags")}">Tags</a> · <a href="${url("feed.xml")}">RSS</a> · <a href="/">tapereader.us</a></p>
 </div></footer>
 <div id="tip" role="tooltip" hidden></div>
 <script src="${url("assets/blog.js")}?v=${assetHash}" defer></script>
@@ -122,14 +135,17 @@ ${o.body}
 }
 
 // ---------------------------------------------------------------- pieces
-function postRow(p) {
-  const s = p.series && site.series[p.series];
+const colUrl = (c) => (c.series ? url("series/" + c.series) : url("collections/" + c.id));
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
+
+function postRow(p, inCollection) {
+  const c = inCollection ? null : p.col;
   return `<article class="row" data-tags="${esc(p.tags.join(" "))}">
   <time datetime="${p.date}">${p.dateText}</time>
   <div>
     <h3><a href="${url(p.slug)}">${esc(p.title)}</a>${p.link ? '<span class="badge">Full study</span>' : ""}</h3>
     <p>${esc(p.summary)}</p>
-    <div class="meta">${p.tags.map(tagLink).join("")}<span>${p.link ? "multi-page study" : p.minutes + " min read"}</span>${s ? `<span>Series: <a href="${url("series/" + s.id)}">${esc(s.title)}</a></span>` : ""}</div>
+    <div class="meta">${p.tags.map(tagLink).join("")}<span>${p.link ? "multi-page study" : p.minutes + " min read"}</span>${c ? `<span>In: <a href="${colUrl(c)}">${esc(c.title)}</a></span>` : ""}</div>
   </div>
 </article>`;
 }
@@ -151,15 +167,39 @@ function seriesStats(s) {
   return { order, done, total: order.length, members: members.length, membersDone: members.filter((m) => bySlug[m.post]).length };
 }
 
-function seriesCard(s) {
-  const st = seriesStats(s);
-  return `<a class="scard" href="${url("series/" + s.id)}">
-  <span class="kicker">Series</span>
-  <b>${esc(s.title)}</b>
-  <p>${esc(s.summary)}</p>
-  <div class="prog" role="img" aria-label="${st.done.length} of ${st.total} parts published"><i style="width:${Math.max(2, (st.done.length / st.total) * 100).toFixed(1)}%"></i></div>
-  <small>${st.done.length} of ${st.total} parts published · ${st.membersDone} of ${st.members} profiles</small>
-</a>`;
+// One card of the shelf: what the collection is, how much of it exists, and its three newest notes.
+function shelfCard(c) {
+  const s = c.series && site.series[c.series];
+  let prog = "";
+  if (s) {
+    const st = seriesStats(s);
+    prog = `<div class="prog" role="img" aria-label="${st.done.length} of ${st.total} parts published"><i style="width:${Math.max(2, (st.done.length / st.total) * 100).toFixed(1)}%"></i></div>
+  <p class="cmeta">${st.done.length} of ${st.total} parts published · ${st.membersDone} of ${st.members} profiles · updated ${c.posts[0].dateText}</p>`;
+  } else prog = `<p class="cmeta">${plural(c.posts.length, "note")} · updated ${c.posts[0].dateText}</p>`;
+  return `<article class="ccard">
+  <p class="kicker">${s ? "Series, read in order" : "Collection"}</p>
+  <h3><a href="${colUrl(c)}">${esc(c.title)}</a></h3>
+  <p class="csum">${esc(c.summary)}</p>
+  ${prog}
+  <ul class="clist">${c.posts.slice(0, 3).map((p) => `<li><a href="${url(p.slug)}">${esc(shortTitle(p))}</a><time datetime="${p.date}">${p.dateText.replace(/ \d{4}$/, "")}</time></li>`).join("")}</ul>
+  <a class="call" href="${colUrl(c)}">${s ? "The map and all " + c.posts.length + " notes" : c.posts.length > 3 ? "All " + c.posts.length + " notes" : "Open the collection"}<span>→</span></a>
+</article>`;
+}
+
+// The newest work, one line per collection and day, so a batch of series parts does not fill the page.
+function latestLines(max) {
+  const groups = [], byKey = {};
+  posts.forEach((p) => {
+    const k = p.date + "|" + (p.col ? p.col.id : p.slug);
+    if (!byKey[k]) { byKey[k] = { date: p.date, dateText: p.dateText, col: p.col, posts: [] }; groups.push(byKey[k]); }
+    byKey[k].posts.push(p);
+  });
+  return groups.slice(0, max).map((g) => {
+    const links = g.posts.map((p) => `<a href="${url(p.slug)}">${esc(g.posts.length > 1 ? shortTitle(p) : p.title)}</a>`);
+    const list = links.length > 1 ? links.slice(0, -1).join(", ") + " and " + links[links.length - 1] : links[0];
+    const lead = g.posts.length > 1 ? `<span>${g.posts.length} new ${g.col && g.col.series ? "parts" : "notes"}:</span> ` : "";
+    return `<li><time datetime="${g.date}">${g.dateText}</time><div>${g.col ? `<a class="lc" href="${colUrl(g.col)}">${esc(g.col.title)}</a>` : ""}<p>${lead}${list}</p></div></li>`;
+  }).join("");
 }
 
 // ---------------------------------------------------------------- pages
@@ -178,14 +218,24 @@ posts.forEach((p) => { rendered[p.slug] = renderBody(p); });
   <p class="lede">${esc(site.lede)}</p>
   <p class="status"><b>Work in development</b>${esc(site.status)}</p>
 </section>
-<section class="series-cards">${Object.keys(site.series).map((id) => seriesCard(site.series[id])).join("")}</section>
+<h2 class="sect">Collections</h2>
+<section class="shelf">${shelf.map(shelfCard).join("")}</section>
+<h2 class="sect">Latest</h2>
+<ol class="lat">${latestLines(8)}</ol>
+<p class="allnotes"><a href="${url("archive")}">All ${posts.length} notes by date<span>→</span></a></p>
+</div>`;
+  out["index.html"] = page({ title: site.title, path: BASE, body, nav: "home", cls: "home" });
+  out["archive.html"] = page({
+    title: "All notes", path: url("archive"), nav: "archive", description: "Every note on the site, newest first.",
+    body: `<div class="wrap">
+<section class="hero small"><h1>All notes</h1><p class="lede">Every note, newest first. The tags narrow the list; the <a href="${url("")}">collections</a> group the same notes by project.</p></section>
 <section class="list">
   <div class="filter" role="group" aria-label="Filter by tag"><button type="button" class="chip on" data-tag="">All <i>${posts.length}</i></button>${chips.map((t) => `<button type="button" class="chip" data-tag="${esc(t)}" title="${esc(site.tags[t] || "")}">${esc(t)} <i>${counts[t]}</i></button>`).join("")}</div>
   ${rowsByYear(posts)}
   <p class="empty" hidden>No notes carry this tag yet.</p>
 </section>
-</div>`;
-  out["index.html"] = page({ title: site.title, path: BASE, body, nav: "home", cls: "home" });
+</div>`,
+  });
 })();
 
 // tags
@@ -206,6 +256,14 @@ posts.forEach((p) => { rendered[p.slug] = renderBody(p); });
   });
 })();
 
+// collections that are not a series: one page listing their notes
+shelf.filter((c) => !c.series).forEach((c) => {
+  out[`collections/${c.id}.html`] = page({
+    title: c.title, path: url("collections/" + c.id), nav: "home", description: c.summary,
+    body: `<div class="wrap"><section class="hero small"><p class="kicker"><a href="${url("")}">Collections</a></p><h1>${esc(c.title)}</h1><p class="lede">${esc(c.summary)}</p><p class="progtext">${plural(c.posts.length, "note")} · updated ${c.posts[0].dateText}</p></section><section class="list">${c.posts.map((p) => postRow(p, true)).join("")}</section></div>`,
+  });
+});
+
 // series
 Object.keys(site.series).forEach((id) => {
   const s = site.series[id], st = seriesStats(s);
@@ -225,7 +283,7 @@ Object.keys(site.series).forEach((id) => {
   const published = st.order.filter((slug) => bySlug[slug]).map((slug) => bySlug[slug]).concat(posts.filter((p) => p.series === id && st.order.indexOf(p.slug) < 0));
   const body = `<div class="wrap">
 <section class="hero small">
-  <p class="kicker">Series</p>
+  <p class="kicker"><a href="${url("")}">Collections</a> <span>›</span> Series</p>
   <h1>${esc(s.title)}</h1>
   ${s.intro.map((t, i) => `<p class="${i ? "" : "lede"}">${esc(t)}</p>`).join("")}
   <div class="prog wide" role="img" aria-label="${st.done.length} of ${st.total} parts published"><i style="width:${Math.max(1, (st.done.length / st.total) * 100).toFixed(1)}%"></i></div>
@@ -234,9 +292,9 @@ Object.keys(site.series).forEach((id) => {
 <h2 class="sect">The map: 30 names by style</h2>
 <div class="groups">${groups}</div>
 <h2 class="sect">Published so far, in reading order</h2>
-<section class="list">${published.map(postRow).join("")}</section>
+<section class="list">${published.map((p) => postRow(p, true)).join("")}</section>
 </div>`;
-  out[`series/${id}.html`] = page({ title: s.title, path: url("series/" + id), nav: "series", description: s.summary, body });
+  out[`series/${id}.html`] = page({ title: s.title, path: url("series/" + id), nav: "home", description: s.summary, body });
 });
 
 // posts
@@ -251,6 +309,15 @@ posts.forEach((p) => {
     kicker = `<a href="${url("series/" + s.id)}">${esc(s.title)}</a>${group ? ` <span>›</span> <a href="${url("series/" + s.id)}#${group.id}">${esc(group.title)}</a>` : ""}`;
     const prev = i > 0 ? bySlug[order[i - 1]] : null, next = i >= 0 && i < order.length - 1 ? bySlug[order[i + 1]] : null;
     seriesNav = `<nav class="pn" aria-label="In this series">${prev ? `<a class="prev" href="${url(prev.slug)}"><small>Previous in the series</small><b>${esc(prev.title)}</b></a>` : "<span></span>"}${next ? `<a class="next" href="${url(next.slug)}"><small>Next in the series</small><b>${esc(next.title)}</b></a>` : `<a class="next" href="${url("series/" + s.id)}"><small>The whole series</small><b>${esc(s.title)}: the map</b></a>`}</nav>`;
+  }
+  if (!s && p.col) {
+    const c = p.col, i = c.posts.indexOf(p);
+    kicker = `<a href="${colUrl(c)}">${esc(c.title)}</a>`;
+    const near = [c.posts[i - 1], c.posts[i + 1]].filter(Boolean);
+    const cell = (q, cls) => `<a class="${cls}" href="${url(q.slug)}"><small>Also in ${esc(c.title)}</small><b>${esc(q.title)}</b></a>`;
+    const whole = (cls) => `<a class="${cls}" href="${colUrl(c)}"><small>The whole collection</small><b>${esc(c.title)}: ${plural(c.posts.length, "note")}</b></a>`;
+    const all = `<a class="next" href="${url("")}"><small>Everything else</small><b>All collections</b></a>`;
+    seriesNav = `<nav class="pn" aria-label="In this collection">${near.length === 2 ? cell(near[0], "prev") + cell(near[1], "next") : near.length === 1 ? cell(near[0], "prev") + whole("next") : whole("prev") + all}</nav>`;
   }
   const toc = r.toc.length >= 3 ? `<nav class="toc" aria-label="On this page"><details open><summary>On this page</summary><ol>${r.toc.map((t) => `<li><a href="#${t.id}">${t.text}</a></li>`).join("")}</ol></details></nav>` : "";
   const linkBox = p.link ? `<p class="cta"><a href="${esc(p.link)}">Open the full study<span>→</span></a></p>` : "";
@@ -275,7 +342,7 @@ ${p.link ? linkBox : ""}
   out[`${p.slug}.html`] = page({ title: p.title, path: url(p.slug), description: p.summary, article: true, body, cls: "article" });
   r.links.forEach((href) => {
     const target = href.slice(BASE.length + 1).split("#")[0].replace(/\/$/, "");
-    if (target && !out[target + ".html"] && !bySlug[target] && !/^(tags|series)(\/|$)/.test(target)) problems.push(`${p.file}: link to ${href} has no page`);
+    if (target && !out[target + ".html"] && !bySlug[target] && !/^(tags|series|collections)(\/|$)/.test(target)) problems.push(`${p.file}: link to ${href} has no page`);
   });
 });
 

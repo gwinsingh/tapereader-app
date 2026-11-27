@@ -2,6 +2,7 @@
 title: "AI Buildout Atlas: where the money goes, in the West and in China"
 date: 2026-09-25
 tags: [study, research, fundamental, ai]
+collection: market-studies
 summary: A 32-page atlas of the AI build-out in ten layers, from the power grid to the apps people pay for, mapped once for the West and once for China on the same definitions.
 link: /studies/ai-buildout-atlas/index.html
 ---

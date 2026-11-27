@@ -33,7 +33,9 @@ title: "Title of the note"
 date: 2026-11-23
 tags: [research, technical]          # every tag must be described in site.json
 summary: One sentence that states the main point.
-series: investor-styles              # optional: a series from site.json
+series: investor-styles              # a series from site.json (the post then sits in that series' collection)
+collection: reading-notes            # for a post outside a series: the collection it sits in (ids in site.json)
+short: Options primer                # optional: a short name for lists (default: the title up to its first colon)
 vault: Studies/30 Investor Styles/20 Profiles/Some Name   # optional: also write the full text into the vault
 link: /studies/market-drops          # optional: the post introduces a multi-page study and links to it
 updated: 2026-12-01                  # optional
@@ -73,6 +75,17 @@ Body: ordinary Markdown (headings from `##`, tables, lists, links). Two addition
 `unit` examples: `"%"`, `"$bn"`, `"x"`. Charts carry a hover read-out and a "Show the numbers" table. In the vault each
 figure becomes its title and a table.
 
+## Collections (the shelf on the home page)
+
+The home page is a shelf: one card per collection, then a short "Latest" list with one line per collection and day.
+Every published post sits in exactly one collection, and the build stops if one has none. Collections are listed in
+`site.json` under `collections`, in shelf order. A collection is either a series (`{ "id", "series" }`; its page is the
+series map at `/blog/series/<id>`) or a plain list (`{ "id", "title", "summary" }`; its page is
+`/blog/collections/<id>`, and posts join it with `collection: <id>`). A new topic needs one new entry there; a
+collection with no posts is not shown. `/blog/archive` keeps the full dated list with the tag filter. Post addresses do
+not depend on the collection, so a post can be moved without breaking links. Vault folders so far: `Studies/30 Investor
+Styles`, `Studies/40 Options`, `Studies/50 Reading Notes`.
+
 ## Rules for anything published here
 
 - **Public site.** No personal details, accounts, positions or trades. Write in the third person and in general terms
@@ -88,7 +101,7 @@ figure becomes its title and a table.
 
 | File | What it does |
 |---|---|
-| `site.json` | Title, texts, the tag list with descriptions, the series list, `index` (search engines) |
+| `site.json` | Title, texts, the tag list with descriptions, the series list, the collections (the shelf), `index` (search engines) |
 | `series/*.json` | A series: groups, members, primers, reading order, vault folder |
 | `posts/*.md` | The posts |
 | `build.js` | Markdown → pages in `web/public/blog/`, plus `web/lib/blog-latest.json` for the home page. Stops on broken links, bad figures, unknown tags |
@@ -105,7 +118,7 @@ figure becomes its title and a table.
 ## How it is served
 
 `web/next.config.mjs` (on `main`) maps `/blog` → `/blog/index.html`, `/blog/<slug>` → `/blog/<slug>.html`, and the same
-for `/blog/tags/<tag>` and `/blog/series/<id>`. The home page shows the latest notes (`web/components/BlogSection.tsx`).
+for `/blog/tags/<tag>`, `/blog/series/<id>` and `/blog/collections/<id>` (`/blog/archive` is served by the slug rule). The home page shows the latest notes (`web/components/BlogSection.tsx`).
 
 Studies with their own pages stay under `web/public/studies/` and get a dated post with a `link:`:
 `/studies/market-drops` (built by `scripts/marketdrops`) and `/studies/ai-buildout-atlas` (a copy of `docs/` from the

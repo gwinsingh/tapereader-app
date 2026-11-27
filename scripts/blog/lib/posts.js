@@ -41,8 +41,25 @@ function loadSite() {
   Object.keys(site.series || {}).forEach((id) => {
     site.series[id] = Object.assign({ id }, JSON.parse(read(site.series[id].file)));
   });
+  // Collections are the shelf on the home page: every published post sits in exactly one. A collection is either a
+  // series (title and summary come from the series file) or a plain list of posts that name it in their front matter.
+  site.collections = (site.collections || []).map((c) => {
+    const s = c.series && site.series[c.series];
+    if (c.series && !s) throw new Error(`site.json: collection "${c.id}" names the series "${c.series}", which is not under "series"`);
+    return Object.assign({}, c, { title: c.title || (s && s.title) || c.id, summary: c.summary || (s && s.summary) || "" });
+  });
   return site;
 }
+
+// The id of the collection a post belongs to: its own `collection:` line, or the collection of its series.
+function collectionId(site, p) {
+  if (p.collection) return p.collection;
+  const c = p.series && site.collections.filter((x) => x.series === p.series)[0];
+  return c ? c.id : "";
+}
+
+// A short name for lists: the `short:` line, or the title up to its first colon.
+const shortTitle = (p) => p.short || p.title.split(":")[0];
 
 function loadPosts(opts) {
   opts = opts || {};
@@ -73,4 +90,4 @@ function seriesOrder(series) {
   return out;
 }
 
-module.exports = { ROOT, read, frontmatter, fmtDate, loadSite, loadPosts, seriesOrder };
+module.exports = { ROOT, read, frontmatter, fmtDate, loadSite, loadPosts, seriesOrder, collectionId, shortTitle };
